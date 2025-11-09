@@ -1,2 +1,5 @@
 .venv/
 .idea/
+.venv-backend/
+.venv-ml/
+app/__pycache__/

@@ -1,0 +1,7 @@
+numpy
+pandas
+scikit-learn
+# Mac(Apple Silicon)이면:
+tensorflow-macos
+# 리눅스/서버면:
+# tensorflow
