@@ -1,0 +1,55 @@
+services:
+  # PostgreSQL + PostGIS
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: dailymotion-db
+    environment:
+      POSTGRES_DB: dailymotion
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dailymotion-network
+
+  # FastAPI 애플리케이션
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dailymotion-api
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "False"
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/dailymotion
+      HAZARD_API_KEY: ${HAZARD_API_KEY:-your_api_key}
+      HAZARD_API_URL: ${HAZARD_API_URL:-https://api.example.com}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dailymotion-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  dailymotion-network:
+    driver: bridge

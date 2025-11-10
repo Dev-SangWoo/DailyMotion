@@ -2,4 +2,12 @@
 .idea/
 .venv-backend/
 .venv-ml/
-app/__pycache__/
+app/__pycache__/# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Docker/Postgres volume
+postgres_data/
+.env
