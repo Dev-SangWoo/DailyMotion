@@ -14,7 +14,7 @@
 │
 ├── 🌳 server/             # 3. 백엔드 (FastAPI / Monolithic)
 │   ├── requirements.txt
-│   └── app/              # (모놀리식 서버 코드 위치)
+│   └── app/              # (모놀리식 서버 코드 위치
 │
 └── 🤝 docs/               # 4. 상호 규약 (설계도)
     └── openapi/
