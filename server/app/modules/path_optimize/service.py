@@ -12,6 +12,7 @@ v3.0 명세서:
 - Logic 3.2: 최종 대안 제시 (택시 제안)
 - Logic 4.1: 퇴근 모드 사용자 목표 설정 (Phase 9)
 - Logic 4.2: 퇴근 목표별 경로 제안 (Phase 9)
+- Logic 4.3: 배터리 최적화 폴링 전략 (Phase 10)
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime, time
@@ -24,6 +25,13 @@ from app.services.delay_detector import delay_detector
 from app.services.taxi_suggester import taxi_suggester
 from app.services.retreat_mode_handler import retreat_mode_handler
 from app.services.route_selector_by_goal import route_selector_by_goal
+from app.services.polling_scheduler import (
+    polling_scheduler,
+    PollingFrequency,
+    UserLocation,
+    TransitState,
+    AlertState,
+)
 from app.modules.path_optimize.models import (
     UserContextData,
     SystemMode,
@@ -93,6 +101,7 @@ class PathOptimizeService:
     
     def get_commute_briefing(
         self,
+
         commute_settings: Dict[str, Any],
         current_time: datetime
     ) -> Dict[str, Any]:
@@ -980,4 +989,157 @@ class PathOptimizeService:
 
         logger.info(f"✅ 퇴근 목표별 경로 제안: {user_goal}")
         return {"data": result}
+
+    # ========================================
+    # Logic 4.3: 스마트 폴링 (Smart Polling)
+    # ========================================
+
+    def get_smart_polling_frequency(
+        self,
+        user_latitude: float,
+        user_longitude: float,
+        user_speed: float,
+        transit_mode: str,
+        distance_to_transfer: float = float("inf"),
+        in_congestion_zone: bool = False,
+        minutes_until_alert: int = float("inf"),
+    ) -> Dict[str, Any]:
+        """
+        사용자 상태 기반 스마트 폴링 빈도 계산
+
+        배터리/데이터 효율성을 위해 사용자 상태에 따라 폴링 빈도를 동적으로 조절한다.
+
+        Args:
+            user_latitude: 사용자 위도
+            user_longitude: 사용자 경도
+            user_speed: 사용자 속도 (km/h)
+            transit_mode: 대중교통 모드 (SUBWAY, BUS, TRAIN, WALKING, WAITING)
+            distance_to_transfer: 환승 지점까지 거리 (미터)
+            in_congestion_zone: 정체 구간 여부
+            minutes_until_alert: 알림까지 남은 시간 (분)
+
+        Returns:
+            {
+                "data": {
+                    "frequency": "HIGH" | "MEDIUM" | "LOW",
+                    "intervalSeconds": 10 | 30 | 300,
+                    "reason": "...",
+                    "nextCheckTime": "ISO 8601 timestamp",
+                    "metadata": {
+                        "description": "...",
+                        "useCases": [...],
+                        "batteryImpact": "...",
+                        "estimatedBatteryDrainPerHour": "..."
+                    }
+                }
+            }
+        """
+        try:
+            # 1️⃣ 사용자 상태 객체 생성
+            location = UserLocation(
+                latitude=user_latitude,
+                longitude=user_longitude,
+                speed=user_speed,
+            )
+
+            transit_state = TransitState(
+                mode=transit_mode,
+                distance_to_transfer=distance_to_transfer,
+                in_congestion_zone=in_congestion_zone,
+            )
+
+            alert_state = AlertState(
+                minutes_until_alert=minutes_until_alert,
+            )
+
+            # 2️⃣ 폴링 빈도 계산
+            frequency_result = polling_scheduler.calculate_polling_frequency(
+                location=location,
+                transit_state=transit_state,
+                alert_state=alert_state,
+            )
+
+            # 3️⃣ 메타데이터 추가
+            frequency_obj = frequency_result["frequency"]
+            metadata = polling_scheduler.get_frequency_metadata(frequency_obj)
+
+            # 4️⃣ 응답 구성
+            result = {
+                "frequency": frequency_result["frequency"].name,
+                "intervalSeconds": frequency_result["intervalSeconds"],
+                "reason": frequency_result["reason"],
+                "nextCheckTime": frequency_result["nextCheckTime"],
+                "metadata": metadata,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+            logger.info(
+                f"✅ 스마트 폴링 빈도 계산: {result['frequency']} "
+                f"({result['intervalSeconds']}초) - {result['reason']}"
+            )
+            return {"data": result}
+
+        except Exception as e:
+            logger.error(f"❌ 폴링 빈도 계산 실패: {str(e)}")
+            return {
+                "error": {
+                    "code": "E010",
+                    "message": f"Failed to calculate polling frequency: {str(e)}",
+                }
+            }
+
+    def get_polling_status(
+        self,
+        current_frequency: str,  # "HIGH", "MEDIUM", "LOW"
+        last_poll_timestamp: str,  # ISO 8601
+        last_calc_timestamp: str,  # ISO 8601
+    ) -> Dict[str, Any]:
+        """
+        현재 폴링 상태 조회
+
+        Args:
+            current_frequency: 현재 폴링 빈도 ("HIGH" | "MEDIUM" | "LOW")
+            last_poll_timestamp: 마지막 폴링 시간 (ISO 8601)
+            last_calc_timestamp: 마지막 빈도 재계산 시간 (ISO 8601)
+
+        Returns:
+            {
+                "data": {
+                    "currentFrequency": "HIGH" | "MEDIUM" | "LOW",
+                    "intervalSeconds": 10 | 30 | 300,
+                    "elapsedSincePoll": number,
+                    "timeUntilNextPoll": number,
+                    "elapsedSinceFrequencyRecalc": number,
+                    "shouldPollNow": boolean,
+                    "shouldRecalculateFrequency": boolean,
+                    "timestamp": "ISO 8601"
+                }
+            }
+        """
+        try:
+            # 1️⃣ 타임스탐프 파싱
+            last_poll_time = datetime.fromisoformat(last_poll_timestamp)
+            last_calc_time = datetime.fromisoformat(last_calc_timestamp)
+
+            # 2️⃣ 빈도 변환
+            frequency = PollingFrequency[current_frequency]
+
+            # 3️⃣ 폴링 상태 조회
+            status = polling_scheduler.get_polling_status(
+                current_frequency=frequency,
+                last_poll_time=last_poll_time,
+                last_calc_time=last_calc_time,
+            )
+
+            logger.info(f"✅ 폴링 상태 조회: {status['currentFrequency']}")
+            return {"data": status}
+
+        except Exception as e:
+            logger.error(f"❌ 폴링 상태 조회 실패: {str(e)}")
+            return {
+                "error": {
+                    "code": "E011",
+                    "message": f"Failed to get polling status: {str(e)}",
+                }
+            }
 
