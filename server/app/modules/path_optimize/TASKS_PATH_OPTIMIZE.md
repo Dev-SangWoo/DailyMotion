@@ -225,6 +225,46 @@
 
 ---
 
+## ⚠️ Phase 7: Logic 3.1 - 돌발상황 감지 (Exception Handling) ✅ COMPLETED (10/10 테스트 통과)
+
+### 7.1 지연 감지 (Delay Detection) ✅ 완료
+- [x] **테스트**: `test_logic_3_1_delay_detection.py` 작성 ✅ 완료 (10개 테스트)
+  - [x] 시나리오 1: 지연 감지 (5분 이상) → "⚠️지연 감지!" ✅
+  - [x] 시나리오 1-추가: 매우 심한 지연 (10분 이상) → CRITICAL ✅
+  - [x] 시나리오 2: 정상 운행 (5분 미만) → "NO_ACTION" ✅
+  - [x] 시나리오 2-추가: 평소와 동일 → NO_ACTION ✅
+  - [x] 시나리오 3: 통계 데이터 부족 → FALLBACK_TO_TPEG ✅
+  - [x] 시나리오 3-추가: TPEG 폴백 ✅
+  - [x] 응답 구조 검증 (OpenAPI 스펙) ✅
+  - [x] 복합 상황: 여러 구간 지연 감지 ✅
+  - [x] 경계값: 정확히 5분 ✅
+  - [x] 경계값: 5분 직전 (4분 59초) ✅
+
+- [x] **구현**: `services/delay_detector.py` 생성 ✅ 완료
+  - [x] 클래스: `DelayDetector` ✅
+  - [x] 메서드: `get_segment_average_duration()` (구간별 평균 소요시간) ✅
+  - [x] 메서드: `get_real_time_duration()` (실시간 예상 소요시간) ✅
+  - [x] 메서드: `calculate_delay()` (지연차 계산) ✅
+  - [x] 메서드: `detect_exception()` (임계값 체크: 5분) ✅
+  - [x] 메서드: `is_statistical_data_reliable()` (신뢰도 평가) ✅
+  - [x] 메서드: `detect_delay_on_segment()` (구간별 통합) ✅
+  - [x] 메서드: `detect_delays_on_route()` (경로 통합) ✅
+  - [x] 상수: `DELAY_THRESHOLD_MINUTES = 5` ✅
+  - [x] 상수: `CRITICAL_DELAY_THRESHOLD_MINUTES = 10` ✅
+  - [x] 상수: `MIN_SAMPLE_COUNT_FOR_RELIABILITY = 100` ✅
+
+### 7.2 Service 통합 ✅ 완료
+- [x] **구현**: `service.py` - `get_exception_alert()` 메서드 ✅ 완료
+  - [x] 경로의 여러 구간 지연 분석 ✅
+  - [x] camelCase 응답 구조 변환 ✅
+  - [x] 가장 심각한 구간 우선 표시 ✅
+  - [x] 폴백 처리 (구간 없음, 데이터 부족) ✅
+  - [x] OpenAPI 응답 구조 준수 ✅
+
+**📊 Phase 7 최종 결과**: ✅ 10/10 테스트 PASSED
+
+---
+
 ## 🛣️ Phase 6: Logic 2.3 - 탑승/환승 최적화 가이드 (Seat/Transfer Optimization) ✅ COMPLETED (8/8 테스트 통과)
 
 ### 6.1 탑승 위치 최적화 ✅ 완료
@@ -560,7 +600,7 @@
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-**🟢 완료된 테스트**: 89/89 PASSED ✅
+**🟢 완료된 테스트**: 99/99 PASSED ✅ (Phase 7 추가)
 
 ---
 
@@ -643,11 +683,12 @@
 
 **생성된 파일 목록**:
 - `models.py` - 전체 데이터 모델 정의
-- `service.py` - Logic 1.1, 1.2, 2.1, 2.2, 2.3 구현 (6개 메서드)
+- `service.py` - Logic 1.1, 1.2, 2.1, 2.2, 2.3, 3.1 구현 (7개 메서드)
 - `services/transport_api_client.py` - Odsay API 클라이언트 (응답 파싱 + 캐싱)
 - `services/context_detector.py` - Context Awareness 엔진 (GPS 기반 상태 감지)
 - `services/gate_validator.py` - 고신뢰 대안 경로 3가지 Gate 검증
 - `services/seating_optimizer.py` - 탑승/환승 최적화 가이드
+- `services/delay_detector.py` - 지연 감지 엔진 (Logic 3.1)
 - `tests/test_commute_settings_validation.py` - 30개 테스트
 - `tests/test_logic_1_1.py` - 4개 테스트
 - `tests/test_logic_1_2.py` - 4개 테스트
@@ -656,9 +697,10 @@
 - `tests/test_logic_2_1_context_awareness.py` - 13개 테스트 (Phase 4)
 - `tests/test_logic_2_2_gate_validation.py` - 17개 테스트 (Phase 5)
 - `tests/test_logic_2_3_seating_optimization.py` - 8개 테스트 (Phase 6)
+- `tests/test_logic_3_1_delay_detection.py` - 10개 테스트 (Phase 7)
 - `tests/README.md` - 테스트 가이드 (324줄)
 
-**테스트 통과 현황**: ✅ 89/89 PASSED
+**테스트 통과 현황**: ✅ 99/99 PASSED (Phase 7 추가)
 
 ---
 
@@ -719,7 +761,7 @@
 | 4 | Logic 2.1 (자동 모드 전환) | ✅ 완료 | 13/13 | `services/context_detector.py`, `test_logic_2_1_context_awareness.py` |
 | 5 | Logic 2.2 (고신뢰 대안 경로) | ✅ 완료 | 17/17 | `services/gate_validator.py`, `test_logic_2_2_gate_validation.py` |
 | 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | `services/seating_optimizer.py`, `test_logic_2_3_seating_optimization.py` |
-| 7 | Logic 3.1 (돌발상황 감지) | ⏳ 미구현 | - | 지연 감지 |
+| 7 | Logic 3.1 (돌발상황 감지) | ✅ 완료 | 10/10 | `services/delay_detector.py`, `test_logic_3_1_delay_detection.py` |
 | 8 | Logic 3.2 (택시 제안) | ⏳ 미구현 | - | 최후의 수단 |
 | 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
 | 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
