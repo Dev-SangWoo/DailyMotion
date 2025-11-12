@@ -12,6 +12,7 @@ from datetime import datetime, time
 import logging
 
 from app.services.context_detector import context_detector
+from app.services.gate_validator import gate_validator
 from app.modules.path_optimize.models import (
     UserContextData,
     SystemMode
@@ -341,6 +342,114 @@ class PathOptimizeService:
                 "data": {
                     "action": "NO_ACTION",
                     "error": str(e)
+                }
+            }
+
+    def get_alternative_route_suggestion(
+        self,
+        current_route_time: int,
+        alternative_route_time: int,
+        mode: SystemMode,
+        current_bus_arrival_minutes: int,
+        current_bus_duration_minutes: int,
+        transfer_bus_arrival_minutes: int,
+        transfer_bus_congestion: int,
+        transfer_location: str,
+        transfer_line: str,
+        congestion_level: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        고신뢰 대안 경로 제안 (Logic 2.2)
+        v3.0 명세서 [Logic 2.2] 고신뢰 대안 경로 제안 구현
+
+        3가지 엄격한 조건(Gate)을 통과한 경로만 제안:
+        1. Gate 1: 확실한 이득 (출근: 7분 이상 단축, 퇴근: 착석 가능성 높음)
+        2. Gate 2: 환승 확정성 (최소 3분 환승 여유)
+        3. Gate 3: 경험의 질 (혼잡도 80% 미만)
+
+        Args:
+            current_route_time: 현재 경로 소요 시간 (분)
+            alternative_route_time: 대안 경로 소요 시간 (분)
+            mode: 시스템 모드 (COMMUTE/RETREAT)
+            current_bus_arrival_minutes: 현재 버스 도착까지 시간 (분)
+            current_bus_duration_minutes: 현재 버스 정차 + 하차 시간 (분)
+            transfer_bus_arrival_minutes: 환승 버스 도착까지 시간 (분)
+            transfer_bus_congestion: 환승 버스 혼잡도 (백분율)
+            transfer_location: 환승 지점 (예: "A역")
+            transfer_line: 환승 노선 (예: "9호선 급행")
+            congestion_level: 혼잡도 (퇴근 모드)
+
+        Returns:
+            OpenAPI 스펙 준수 응답:
+            모든 Gate 통과 시:
+            {
+                "data": {
+                    "suggestAlternativeRoute": True,
+                    "message": "더 빠른 경로 발견! (8분 단축) / 다음 'A역' [9호선 급행] 환승하세요. (단, 현재 혼잡도 '보통')",
+                    "timeBenefit": 8,
+                    "transferLocation": "A역",
+                    "transferLine": "9호선 급행",
+                    "transferCongestion": 45
+                }
+            }
+
+            Gate 실패 시:
+            {
+                "data": {
+                    "suggestAlternativeRoute": False,
+                    "reasons": ["Gate 1 실패: 시간 단축이 3분으로 7분 미만", ...]
+                }
+            }
+        """
+        # 1️⃣ 모든 Gate 검증
+        validation_result = gate_validator.validate_all_gates(
+            current_route_time=current_route_time,
+            alternative_route_time=alternative_route_time,
+            mode=mode,
+            current_bus_arrival_minutes=current_bus_arrival_minutes,
+            current_bus_duration_minutes=current_bus_duration_minutes,
+            transfer_bus_arrival_minutes=transfer_bus_arrival_minutes,
+            transfer_bus_congestion=transfer_bus_congestion,
+            congestion_level=congestion_level
+        )
+
+        # 2️⃣ Gate 통과 여부에 따른 응답
+        if validation_result["all_pass"]:
+            # 모든 Gate 통과 → 경로 제안
+            message = gate_validator.generate_route_suggestion_message(
+                time_benefit=validation_result["time_benefit"],
+                transfer_location=transfer_location,
+                transfer_line=transfer_line,
+                transfer_bus_congestion=transfer_bus_congestion
+            )
+
+            return {
+                "data": {
+                    "suggestAlternativeRoute": True,
+                    "message": message,
+                    "timeBenefit": validation_result["time_benefit"],
+                    "transferLocation": transfer_location,
+                    "transferLine": transfer_line,
+                    "transferCongestion": transfer_bus_congestion,
+                    "transferTime": validation_result["transfer_time"]
+                }
+            }
+        else:
+            # Gate 실패 → 제안하지 않음
+            logger.warning(
+                f"❌ 대안 경로 제안 거절: {', '.join(validation_result['reasons'])}"
+            )
+
+            return {
+                "data": {
+                    "suggestAlternativeRoute": False,
+                    "reasons": validation_result["reasons"],
+                    "timeBenefit": validation_result["time_benefit"],
+                    "failedGates": {
+                        "gate_1": not validation_result["gate_1_pass"],
+                        "gate_2": not validation_result["gate_2_pass"],
+                        "gate_3": not validation_result["gate_3_pass"]
+                    }
                 }
             }
 
