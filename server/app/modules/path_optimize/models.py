@@ -53,6 +53,19 @@ class RetreatChoice(str, Enum):
     USUAL = "C"        # 평소 경로
 
 
+class UserState(str, Enum):
+    """
+    사용자 상태 (Context Awareness)
+
+    Phase 2.1: 자동 모드 전환
+    GPS 기반 사용자 상태 감지
+    """
+    WAITING = "WAITING"      # 대기 중 (집/회사 근처, 이동 없음)
+    WALKING = "WALKING"      # 도보 중 (First Mile 진행 중)
+    ON_TRIP = "ON_TRIP"      # 탑승 중 (버스/지하철 이용 중)
+    UNKNOWN = "UNKNOWN"      # 알 수 없음 (GPS 신호 없음)
+
+
 class Location(BaseModel):
     """위치 정보"""
     address: str = Field(..., description="주소")
@@ -244,3 +257,118 @@ class ErrorResponse(BaseModel):
 class ErrorResponseWrapper(BaseModel):
     """에러 응답 래퍼"""
     error: ErrorResponse
+
+
+class GPSData(BaseModel):
+    """
+    실시간 GPS 데이터 (Phase 2.1: 자동 모드 전환)
+
+    사용자의 현재 위치 정보
+    """
+    latitude: float = Field(..., description="현재 위도")
+    longitude: float = Field(..., description="현재 경도")
+    accuracy: Optional[float] = Field(None, description="GPS 정확도 (미터)")
+    timestamp: Optional[str] = Field(None, description="데이터 수집 시간")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "latitude": 37.4979,
+                "longitude": 127.0276,
+                "accuracy": 5.0,
+                "timestamp": "2025-01-15T07:30:00Z"
+            }
+        }
+
+
+class UserContextData(BaseModel):
+    """
+    사용자 컨텍스트 정보 (Phase 2.1: 자동 모드 전환)
+
+    GPS 위치 + 설정 정보를 조합하여 사용자 상태 추론
+    """
+    currentGPS: GPSData = Field(..., description="현재 GPS 위치")
+    commute_settings: CommuteSettings = Field(..., description="사용자 출퇴근 설정")
+    mode: SystemMode = Field(..., description="현재 시스템 모드 (COMMUTE/RETREAT)")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "currentGPS": {
+                    "latitude": 37.4979,
+                    "longitude": 127.0276,
+                    "accuracy": 5.0
+                },
+                "commute_settings": {
+                    "homeAddress": "서울 강남구 역삼동",
+                    "workAddress": "서울 중구 을지로",
+                    "targetArrivalTime": "08:50:00",
+                    "firstMileDefaultDuration": 5,
+                    "lastMileDefaultDuration": 7,
+                    "homeLatitude": 37.4979,
+                    "homeLongitude": 127.0276,
+                    "workLatitude": 37.5662,
+                    "workLongitude": 126.9778
+                },
+                "mode": "COMMUTE"
+            }
+        }
+
+
+class ContextAwarenessResult(BaseModel):
+    """
+    Context Awareness 감지 결과 (Phase 2.1)
+
+    사용자의 현재 상태, 탑승 중인 교통수단, 예상 도착 시간
+    """
+    state: UserState = Field(..., description="사용자 상태 (WAITING/WALKING/ON_TRIP)")
+    currentVehicle: Optional[TransportType] = Field(None, description="탑승 중인 교통수단")
+    distanceToWork: float = Field(..., description="현재 위치에서 직장까지 거리 (미터)")
+    estimatedArrivalTime: Optional[str] = Field(None, description="직장 도착 예정 시간")
+    estimatedMinutes: Optional[int] = Field(None, description="도착까지 예상 시간 (분)")
+    screenSwitchNeeded: bool = Field(False, description="화면 전환 필요 여부")
+    switchMessage: Optional[str] = Field(None, description="화면 전환 메시지")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "state": "ON_TRIP",
+                "currentVehicle": "BUS",
+                "distanceToWork": 2500,
+                "estimatedArrivalTime": "08:45:00",
+                "estimatedMinutes": 15,
+                "screenSwitchNeeded": True,
+                "switchMessage": "탑승 감지! 직장 도착까지 약 15분 남았습니다."
+            }
+        }
+
+
+class ScreenSwitchResponse(BaseModel):
+    """
+    화면 자동 전환 응답 (Phase 2.1)
+
+    탑승 감지 시 클라이언트에 반환되는 응답
+    """
+    action: str = Field(..., description="수행할 액션 (AUTO_SWITCH_TO_ETA)")
+    destinationArrivalTime: str = Field(..., description="목적지 도착 예정 시간")
+    estimatedMinutes: int = Field(..., description="도착까지 예상 시간 (분)")
+    currentLocation: dict = Field(..., description="현재 위치")
+    destination: dict = Field(..., description="목적지 정보")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "action": "AUTO_SWITCH_TO_ETA",
+                "destinationArrivalTime": "08:45:00",
+                "estimatedMinutes": 15,
+                "currentLocation": {
+                    "latitude": 37.4979,
+                    "longitude": 127.0276
+                },
+                "destination": {
+                    "address": "서울 중구 을지로 678-90",
+                    "latitude": 37.5662,
+                    "longitude": 126.9778
+                }
+            }
+        }

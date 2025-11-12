@@ -679,9 +679,10 @@ server/app/modules/path_optimize/
    - 테스트: 4개 (API 호출 + 캐싱)
    - 구현: TransportAPIClient (Odsay API 클라이언트)
 
-8. ⏳ **Phase 4** (Logic 2.1 - 자동 모드 전환) → 다음 작업
+8. ✅ **Phase 4** (Logic 2.1 - 자동 모드 전환) → 완료 ✅
    - Context Awareness (GPS 기반 상태 감지)
-   - 예상: 5~6개 테스트
+   - 완료: 13개 테스트 (UserState, ContextDetector, ETA 계산, 화면 전환)
+   - 구현: ContextDetector 서비스, get_auto_mode_switch_action() 메서드
 
 9. ⏳ **Phase 5~10** (Logic 2.2~3.x) → 미구현
    - Logic 2.2: 고신뢰 대안 경로 (3가지 Gate)
@@ -699,13 +700,23 @@ server/app/modules/path_optimize/
 ## 📊 **현재 완료도**
 
 ```
-✅ 완료된 Phase: 7개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2)
-⏳ 미구현 Phase: 9개 (Phase 4~16)
+✅ 완료된 Phase: 8개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4)
+⏳ 미구현 Phase: 8개 (Phase 5~16)
 
-🧪 총 테스트: 51/51 PASSED ✅
-📈 완료도: 44% (7/16 Phase)
+🧪 총 테스트: 64/64 PASSED ✅
+📈 완료도: 50% (8/16 Phase)
+
+📋 Phase별 테스트 카운트:
+- Phase 1.1 (출발 알림): 4 tests
+- Phase 1.2 (마지노선 경고): 4 tests
+- Phase 1.2 퇴근모드: 4 tests
+- Phase 1.1/1.2 데이터 모델: 30 tests
+- Phase 2.1.1 (API 응답 파싱): 5 tests
+- Phase 2.1.2 (API 실제 통합): 4 tests
+- Phase 4 (Context Awareness): 13 tests
 ```
 
 ---
 
 **최종 목표**: v3.0 명세서의 모든 Logic을 TDD 원칙으로 구현 ✨
+

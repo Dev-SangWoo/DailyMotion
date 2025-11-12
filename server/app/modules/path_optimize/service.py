@@ -1,9 +1,23 @@
 """
 경로 최적화 서비스
 최적의 경로를 계산하는 비즈니스 로직입니다.
+
+v3.0 명세서:
+- Logic 1.1: 출발 알림
+- Logic 1.2: 마지노선 경고 (출근 모드 & 퇴근 모드)
+- Logic 2.1: 자동 모드 전환 (Context Awareness)
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, time
+import logging
+
+from app.services.context_detector import context_detector
+from app.modules.path_optimize.models import (
+    UserContextData,
+    SystemMode
+)
+
+logger = logging.getLogger(__name__)
 
 
 class PathOptimizeService:
@@ -253,4 +267,80 @@ class PathOptimizeService:
                 }
             }
         }
+
+    def get_auto_mode_switch_action(
+        self,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        자동 모드 전환 (Logic 2.1 - Context Awareness)
+        v3.0 명세서 [Logic 2.1] 자동 모드 전환 구현
+
+        GPS 기반 사용자 상태 감지:
+        - WAITING: 집/회사 근처 대기 (화면 전환 없음)
+        - WALKING: 도보 이동 중 (화면 전환 없음)
+        - ON_TRIP: 버스/지하철 탑승 중 (화면 전환 → 최종 목적지 ETA 표시)
+
+        Args:
+            user_context: {
+                "currentGPS": { "latitude": 37.4979, "longitude": 127.0276, "accuracy": 5.0 },
+                "commute_settings": { ... },
+                "mode": "COMMUTE"
+            }
+
+        Returns:
+            화면 전환 응답 또는 NO_ACTION:
+            {
+                "data": {
+                    "action": "AUTO_SWITCH_TO_ETA",
+                    "destinationArrivalTime": "08:45:00",
+                    "estimatedMinutes": 15,
+                    "currentLocation": { "latitude": 37.4979, "longitude": 127.0276 },
+                    "destination": { "address": "...", "latitude": 37.5662, "longitude": 126.9778 }
+                }
+            }
+            또는
+            {
+                "data": {
+                    "action": "NO_ACTION"
+                }
+            }
+        """
+        try:
+            # 1️⃣ UserContextData 모델로 변환
+            context = UserContextData(
+                currentGPS=user_context["currentGPS"],
+                commute_settings=user_context["commute_settings"],
+                mode=user_context.get("mode", "COMMUTE")
+            )
+
+            # 2️⃣ Context Awareness 분석
+            analysis_result = context_detector.analyze_context(context)
+
+            # 3️⃣ 화면 전환 응답 생성
+            if analysis_result.screenSwitchNeeded:
+                switch_response = context_detector.generate_screen_switch_response(
+                    context,
+                    analysis_result
+                )
+                if switch_response:
+                    return {"data": switch_response}
+
+            # 4️⃣ 화면 전환 불필요
+            return {
+                "data": {
+                    "action": "NO_ACTION",
+                    "state": analysis_result.state.value,
+                    "message": f"현재 상태: {analysis_result.state.value}"
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"❌ 자동 모드 전환 오류: {str(e)}")
+            return {
+                "data": {
+                    "action": "NO_ACTION",
+                    "error": str(e)
+                }
+            }
 
