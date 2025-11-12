@@ -15,6 +15,7 @@ from app.services.context_detector import context_detector
 from app.services.gate_validator import gate_validator
 from app.services.seating_optimizer import seating_optimizer
 from app.services.delay_detector import delay_detector
+from app.services.taxi_suggester import taxi_suggester
 from app.modules.path_optimize.models import (
     UserContextData,
     SystemMode,
@@ -688,4 +689,150 @@ class PathOptimizeService:
         )
 
         return {"data": result}
+
+    # ========================================
+    # Logic 3.2: 최종 대안 제시 - 택시 제안
+    # ========================================
+
+    def get_taxi_suggestion(
+        self,
+        mode: SystemMode,
+        current_time: datetime,
+        target_arrival_time: Optional[datetime] = None,
+        transit_arrival_time: Optional[datetime] = None,
+        taxi_arrival_time: Optional[datetime] = None,
+        selected_route_choice: Optional[str] = None,
+        selected_route_name: Optional[str] = None,
+        last_bus_time: Optional[datetime] = None,
+        first_mile_duration: int = 5,
+        home_location: Optional[Dict[str, float]] = None,
+        taxi_available: bool = True
+    ) -> Dict[str, Any]:
+        """
+        택시 제안 (Logic 3.2)
+
+        Args (Commute Mode):
+            mode: SystemMode.COMMUTE
+            current_time: 현재 시각
+            target_arrival_time: 목표 도착 시간
+            transit_arrival_time: 대중교통 예상 도착 시간
+            taxi_arrival_time: 택시 예상 도착 시간
+            home_location: 위치 정보 (위도, 경도)
+            taxi_available: 택시 가용성
+
+        Args (Retreat Mode):
+            mode: SystemMode.RETREAT
+            current_time: 현재 시각
+            selected_route_choice: 선택 경로 ("A", "B", "C")
+            selected_route_name: 선택 경로명
+            last_bus_time: 막차 시간
+            first_mile_duration: First Mile 도보 시간
+            home_location: 위치 정보
+            taxi_available: 택시 가용성
+
+        Returns:
+            {
+                "action": "TAXI_SUGGESTED" or "NO_ACTION",
+                "type": "TAXI_COMMUTE_LATENESS_CONFIRMED" or "TAXI_RETREAT_LAST_BUS_MISSED",
+                "message": "택시 제안 메시지",
+                "priority": "CRITICAL" or "HIGH",
+                ...
+            }
+        """
+        logger.info(f"🚕 택시 제안 시작: {mode.value} 모드")
+
+        # 출근 모드: 지각 확정 시 택시 제안
+        if mode == SystemMode.COMMUTE:
+            logger.info("📍 출근 모드 택시 제안")
+
+            # 필수 파라미터 체크
+            if not all([target_arrival_time, transit_arrival_time, taxi_arrival_time]):
+                logger.warning("⚠️ 출근 모드 필수 데이터 부족")
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "reason": "필수 데이터 부족"
+                    }
+                }
+
+            # TaxiSuggester를 사용한 제안 로직
+            should_suggest = taxi_suggester.should_suggest_taxi_commute(
+                target_arrival_time=target_arrival_time,
+                transit_arrival_time=transit_arrival_time,
+                taxi_arrival_time=taxi_arrival_time,
+                taxi_available=taxi_available
+            )
+
+            if not should_suggest:
+                logger.info("✅ 택시 제안 불필요")
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "reason": "택시 제안 필요 없음"
+                    }
+                }
+
+            # 택시 제안 생성
+            result = taxi_suggester.suggest_taxi_for_commute(
+                current_time=current_time,
+                target_arrival_time=target_arrival_time,
+                transit_arrival_time=transit_arrival_time,
+                taxi_arrival_time=taxi_arrival_time,
+                home_location=home_location
+            )
+
+            return {"data": result}
+
+        # 퇴근 모드: 막차 놓침 시 택시 제안
+        elif mode == SystemMode.RETREAT:
+            logger.info("📍 퇴근 모드 택시 제안")
+
+            # 필수 파라미터 체크
+            if not all([selected_route_choice, selected_route_name, last_bus_time]):
+                logger.warning("⚠️ 퇴근 모드 필수 데이터 부족")
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "reason": "필수 데이터 부족"
+                    }
+                }
+
+            # TaxiSuggester를 사용한 제안 로직
+            should_suggest = taxi_suggester.should_suggest_taxi_retreat(
+                current_time=current_time,
+                last_bus_time=last_bus_time,
+                first_mile_duration=first_mile_duration,
+                taxi_available=taxi_available
+            )
+
+            if not should_suggest:
+                logger.info("✅ 택시 제안 불필요")
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "reason": "택시 제안 필요 없음"
+                    }
+                }
+
+            # 택시 제안 생성
+            result = taxi_suggester.suggest_taxi_for_retreat(
+                current_time=current_time,
+                selected_route_choice=selected_route_choice,
+                selected_route_name=selected_route_name,
+                last_bus_time=last_bus_time,
+                first_mile_duration=first_mile_duration,
+                taxi_arrival_time=taxi_arrival_time or datetime.now(),
+                home_location=home_location
+            )
+
+            return {"data": result}
+
+        else:
+            logger.warning(f"⚠️ 알 수 없는 모드: {mode}")
+            return {
+                "data": {
+                    "action": "NO_ACTION",
+                    "reason": "지원하지 않는 모드"
+                }
+            }
 
