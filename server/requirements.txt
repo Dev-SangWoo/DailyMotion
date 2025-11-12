@@ -9,7 +9,10 @@ python-dotenv>=1.0.0
 sqlalchemy>=2.0.0
 alembic>=1.12.0
 geoalchemy2>=0.14.0
-psycopg2-binary>=2.9.0
+# macOS (특히 Apple Silicon) 호환성을 위해 psycopg 사용 권장
+# psycopg2-binary>=2.9.0  # Windows/Linux용
+psycopg[binary]>=3.1.0  # 모든 플랫폼 호환 (권장)
+# 또는 psycopg2-binary>=2.9.0  # macOS에서 문제 시 주석 해제
 
 # 인증/보안
 python-jose[cryptography]>=3.3.0
