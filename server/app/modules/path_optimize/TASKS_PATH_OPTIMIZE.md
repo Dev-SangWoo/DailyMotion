@@ -436,31 +436,61 @@
 
 ---
 
-## 🎯 Phase 9: 퇴근 모드 - 사용자 목표 설정 (Retreat Mode User Goal) ⏳ 미구현
+## 🎯 Phase 9: 퇴근 모드 - 사용자 목표 설정 (Retreat Mode User Goal) ✅ COMPLETED (22/22 테스트 통과)
 
-### 9.1 퇴근 목표 질문 및 저장
-- [ ] **테스트 먼저**: `test_retreat_mode_user_goal.py` 작성
-  - [ ] 사용자 선택지 3가지 테스트
-    - [ ] A. 가장 빠르게 (최단 시간)
-    - [ ] B. 편안하게 (착석 선호)
-    - [ ] C. 평소 경로
-  - [ ] 선택사항 저장 및 로드
-  - [ ] 세션 내 선택 기억 (push 알림 후)
+### 9.1 퇴근 목표 질문 및 저장 ✅ 완료
+- [x] **테스트 먼저**: `test_retreat_mode_user_goal.py` 작성 ✅ 완료 (13개 테스트)
+  - [x] 사용자 선택지 3가지 테스트 ✅
+    - [x] A. 가장 빠르게 (최단 시간) ✅
+    - [x] B. 편안하게 (착석 선호) ✅
+    - [x] C. 평소 경로 ✅
+  - [x] 선택사항 저장 및 로드 ✅
+  - [x] 세션 내 선택 기억 (push 알림 후) ✅
+  - [x] 응답 구조 검증 (OpenAPI 스펙) ✅
+  - [x] 통합 테스트 (전체 흐름) ✅
 
-- [ ] **구현**: `services/retreat_mode_handler.py` 생성
-  - [ ] 메서드: `ask_user_retreat_goal()` (푸시 알림 텍스트 생성)
-  - [ ] 메서드: `save_retreat_choice()` (선택 저장)
-  - [ ] 메서드: `get_retreat_choice_routes()` (선택에 따른 경로 제시)
+- [x] **구현**: `services/retreat_mode_handler.py` 생성 ✅ 완료
+  - [x] 클래스: `RetreatModeHandler` ✅
+  - [x] 메서드: `ask_user_retreat_goal()` (푸시 알림 텍스트 생성) ✅
+  - [x] 메서드: `save_retreat_choice()` (선택 저장) ✅
+  - [x] 메서드: `get_saved_retreat_choice()` (선택 조회) ✅
+  - [x] 메서드: `persist_choice_in_session()` (세션 유지) ✅
+  - [x] 메서드: `get_goal_recommendation_message()` (추천 메시지) ✅
 
-### 9.2 퇴근 목표별 경로 제안
-- [ ] **테스트 먼저**: `test_retreat_routes_by_goal.py` 작성
-  - [ ] 목표 A (가장 빠르게): 최단 시간 경로
-  - [ ] 목표 B (편안하게): 착석 가능성 높은 경로
-  - [ ] 목표 C (평소 경로): 사용자 학습 기반 경로
+### 9.2 퇴근 목표별 경로 제안 ✅ 완료
+- [x] **테스트 먼저**: `test_retreat_routes_by_goal.py` 작성 ✅ 완료 (9개 테스트)
+  - [x] 목표 A (가장 빠르게): 최단 시간 경로 ✅
+    - [x] 소요시간 기준 정렬 ✅
+    - [x] 응답 구조 검증 ✅
+  - [x] 목표 B (편안하게): 착석 가능성 높은 경로 ✅
+    - [x] 착석률 기준 정렬 ✅
+    - [x] 혼잡도 고려 (착석률 × (100 - 혼잡도)) ✅
+    - [x] 응답 구조 검증 ✅
+  - [x] 목표 C (평소 경로): 사용자 학습 기반 경로 ✅
+    - [x] 누적 이용 횟수 기준 ✅
+    - [x] 최근 이용 빈도 가중치 (70% + 30%) ✅
+    - [x] 응답 구조 검증 ✅
+  - [x] 복합 시나리오: 3가지 목표 다른 결과 반환 ✅
+  - [x] 통합 테스트 (목표 변경 시 재조회) ✅
 
-- [ ] **구현**: `services/route_selector_by_goal.py` 생성
-  - [ ] 각 목표별 경로 필터링 로직
-  - [ ] 경로별 소요 시간/착석 확률/등 메타데이터
+- [x] **구현**: `services/route_selector_by_goal.py` 생성 ✅ 완료
+  - [x] 클래스: `RouteSelectorByGoal` ✅
+  - [x] 메서드: `calculate_comfort_score()` (착석 × (100 - 혼잡도)) ✅
+  - [x] 메서드: `calculate_habit_score()` (최근 70% + 누적 30%) ✅
+  - [x] 메서드: `filter_routes_by_goal()` (경로 필터링 및 정렬) ✅
+  - [x] 메서드: `get_routes_by_goal()` (목표별 경로 제안) ✅
+  - [x] 메서드: `get_goal_metadata()` (목표 메타데이터) ✅
+  - [x] 상수: `GOAL_CRITERIA` (목표별 선택 기준) ✅
+
+### 9.3 Service 통합 ✅ 완료
+- [x] **구현**: `service.py` 통합 ✅ 완료
+  - [x] import 추가 (retreat_mode_handler, route_selector_by_goal) ✅
+  - [x] 메서드: `get_retreat_mode_goal_selection()` ✅
+  - [x] 메서드: `save_retreat_mode_choice()` ✅
+  - [x] 메서드: `get_routes_by_retreat_goal()` ✅
+  - [x] 문서 헤더 업데이트 (Logic 4.1, 4.2 추가) ✅
+
+**📊 Phase 9 최종 결과**: ✅ 22/22 테스트 PASSED (13 + 9)
 
 ---
 
@@ -671,7 +701,7 @@
 | 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | 탑승 위치 최적화 |
 | 7 | Logic 3.1 (지연 감지) | ✅ 완료 | 10/10 | 돌발상황 감지 |
 | 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | 최후의 수단 |
-| 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
+| 9 | Logic 4.1-4.2 (퇴근 목표) | ✅ 완료 | 22/22 | Retreat Mode (A/B/C) |
 | 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
 | 12 | API Endpoint | ⏳ Pending | - | REST/OpenAPI |
@@ -680,7 +710,7 @@
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-**🟢 완료된 테스트**: 114/114 PASSED ✅ (Phase 8 추가)
+**🟢 완료된 테스트**: 136/136 PASSED ✅ (Phase 9 완료: +22 테스트)
 
 ---
 
