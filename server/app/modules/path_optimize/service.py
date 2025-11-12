@@ -13,9 +13,11 @@ import logging
 
 from app.services.context_detector import context_detector
 from app.services.gate_validator import gate_validator
+from app.services.seating_optimizer import seating_optimizer
 from app.modules.path_optimize.models import (
     UserContextData,
-    SystemMode
+    SystemMode,
+    TransportType
 )
 
 logger = logging.getLogger(__name__)
@@ -450,6 +452,122 @@ class PathOptimizeService:
                         "gate_2": not validation_result["gate_2_pass"],
                         "gate_3": not validation_result["gate_3_pass"]
                     }
+                }
+            }
+
+    def get_seating_optimization(
+        self,
+        guidance_type: str,
+        current_vehicle: Optional[TransportType] = None,
+        transfer_station: Optional[str] = None,
+        transfer_line: Optional[str] = None,
+        exit_location: Optional[str] = None,
+        congestion_data: Optional[Dict[str, int]] = None,
+        transfer_steps: Optional[List[Dict[str, Any]]] = None,
+        has_transfer: bool = False
+    ) -> Dict[str, Any]:
+        """
+        탑승/환승 최적화 가이드 제공
+        v3.0 명세서 [Logic 2.3] 탑승/환승 최적화 가이드 구현
+
+        Args:
+            guidance_type: 안내 유형
+                - "TRANSFER": 환승을 위한 최적 탑승 칸
+                - "COMFORTABLE": 혼잡도 기반 여유 있는 칸
+                - "EXIT": 하차역 위치 기반 탑승 칸
+                - "MULTI_TRANSFER": 복합 환승 경로
+            current_vehicle: 현재 교통수단
+            transfer_station: 환승역 (예: "B역")
+            transfer_line: 환승 노선 (예: "9호선")
+            exit_location: 출입구 위치 (예: "FRONT", "CENTER", "REAR")
+            congestion_data: 각 칸별 혼잡도 (예: {"1-2": 85, "3": 30})
+            transfer_steps: 복합 환승 경로 데이터
+            has_transfer: 환승 여부
+
+        Returns:
+            탑승/환승 최적화 정보:
+            {
+                "data": {
+                    "action": "SEATING_OPTIMIZATION",
+                    "type": "TRANSFER_GUIDANCE" | "CONGESTION_BASED_GUIDANCE" | "EXIT_GUIDANCE" | "MULTI_TRANSFER_GUIDANCE",
+                    "message": "안내 메시지",
+                    "optimalCar": "칸 정보" (type별로 다름),
+                    "availableCars": [...] (type이 CONGESTION_BASED_GUIDANCE일 때만 포함),
+                    "steps": [...] (type이 MULTI_TRANSFER_GUIDANCE일 때만 포함),
+                    "priority": "HIGH" | "MEDIUM" | "LOW"
+                }
+            }
+        """
+        logger.info(f"🎯 탑승/환승 최적화 가이드 제공: {guidance_type}")
+
+        if guidance_type == "TRANSFER":
+            # 환승을 위한 최적 탑승 칸 추천
+            result = seating_optimizer.recommend_car_for_transfer(
+                transfer_station=transfer_station,
+                transfer_line=transfer_line,
+                exit_location=exit_location,
+                current_vehicle=current_vehicle
+            )
+            return {"data": {**result, "action": "SEATING_OPTIMIZATION"}}
+
+        elif guidance_type == "COMFORTABLE":
+            # 혼잡도 기반 여유 있는 칸 추천
+            if not congestion_data:
+                logger.warning("⚠️ 혼잡도 데이터 없음")
+                return {
+                    "data": {
+                        "action": "SEATING_OPTIMIZATION",
+                        "type": "CONGESTION_BASED_GUIDANCE",
+                        "availableCars": [],
+                        "message": "혼잡도 정보를 불러올 수 없습니다.",
+                        "priority": "LOW"
+                    }
+                }
+
+            result = seating_optimizer.recommend_comfortable_cars(congestion_data)
+            return {"data": {**result, "action": "SEATING_OPTIMIZATION"}}
+
+        elif guidance_type == "EXIT":
+            # 하차역 위치 기반 탑승 칸 추천
+            result = seating_optimizer.recommend_car_for_exit(
+                exit_station=transfer_station,
+                exit_location=exit_location
+            )
+            return {"data": {**result, "action": "SEATING_OPTIMIZATION"}}
+
+        elif guidance_type == "MULTI_TRANSFER":
+            # 복합 환승 경로 안내
+            if not transfer_steps:
+                logger.warning("⚠️ 환승 경로 데이터 없음")
+                return {
+                    "data": {
+                        "action": "SEATING_OPTIMIZATION",
+                        "type": "MULTI_TRANSFER_GUIDANCE",
+                        "steps": [],
+                        "message": "환승 경로 정보를 불러올 수 없습니다.",
+                        "totalSteps": 0
+                    }
+                }
+
+            result = seating_optimizer.generate_multi_transfer_guidance(transfer_steps)
+            return {"data": {**result, "action": "SEATING_OPTIMIZATION"}}
+
+        else:
+            logger.warning(f"⚠️ 알 수 없는 안내 유형: {guidance_type}")
+            # 최적화 점수 계산 (기본값)
+            score = seating_optimizer.calculate_optimization_score(
+                current_vehicle=current_vehicle,
+                has_transfer=has_transfer,
+                transfer_station=transfer_station
+            )
+
+            return {
+                "data": {
+                    "action": "SEATING_OPTIMIZATION",
+                    "type": "OPTIMIZATION_SCORE",
+                    "optimizationScore": score,
+                    "message": "탑승/환승 최적화 점수 계산 완료",
+                    "priority": "LOW" if score < 0.5 else "MEDIUM" if score < 0.8 else "HIGH"
                 }
             }
 
