@@ -8,7 +8,7 @@
  * - OpenAPI 스펙 PUT /v1/users/me/settings/commute 연동
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 
 // React Navigation Mock (모듈이 없어도 Mock 가능)
 jest.mock('@react-navigation/native', () => ({
@@ -18,24 +18,18 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }), { virtual: true });
 
-// React Query Mock (모듈이 없어도 Mock 가능)
+// React Query Mock - mutation 호출을 추적하기 위해 개선
+const mockMutate = jest.fn();
 jest.mock('@tanstack/react-query', () => ({
-  useMutation: () => ({
-    mutate: jest.fn(),
+  useMutation: jest.fn(() => ({
+    mutate: mockMutate,
     isLoading: false,
     isError: false,
-  }),
+  })),
 }), { virtual: true });
 
-// CommuteSettingsScreen은 아직 없으므로 동적 import 시도
-// 테스트가 실패하는 것이 정상 (TDD Red 단계)
-let CommuteSettingsScreen: any;
-try {
-  CommuteSettingsScreen = require('./CommuteSettingsScreen').default;
-} catch (e) {
-  // 파일이 없으면 undefined로 두고 테스트가 실패하도록 함
-  CommuteSettingsScreen = undefined;
-}
+// CommuteSettingsScreen import
+import CommuteSettingsScreen from './CommuteSettingsScreen';
 
 describe('CommuteSettingsScreen', () => {
   /**
@@ -49,11 +43,6 @@ describe('CommuteSettingsScreen', () => {
    * - Last Mile 기본 소요 시간 (선택)
    */
   it('사용자는 필수 설정 입력 필드들을 화면에서 볼 수 있어야 한다', () => {
-    // Given: CommuteSettingsScreen이 존재해야 함 (현재는 없으므로 테스트 실패 예상)
-    if (!CommuteSettingsScreen) {
-      throw new Error('CommuteSettingsScreen 컴포넌트가 아직 구현되지 않았습니다. TDD Red 단계입니다.');
-    }
-    
     // Given: 화면 렌더링
     render(<CommuteSettingsScreen />);
     
@@ -71,11 +60,6 @@ describe('CommuteSettingsScreen', () => {
   });
   
   it('사용자는 저장 버튼을 찾을 수 있어야 한다', () => {
-    // Given: CommuteSettingsScreen이 존재해야 함
-    if (!CommuteSettingsScreen) {
-      throw new Error('CommuteSettingsScreen 컴포넌트가 아직 구현되지 않았습니다. TDD Red 단계입니다.');
-    }
-    
     // Given: 화면 렌더링
     render(<CommuteSettingsScreen />);
     
@@ -85,11 +69,6 @@ describe('CommuteSettingsScreen', () => {
   });
   
   it('사용자는 입력 필드에 값을 입력할 수 있어야 한다', () => {
-    // Given: CommuteSettingsScreen이 존재해야 함
-    if (!CommuteSettingsScreen) {
-      throw new Error('CommuteSettingsScreen 컴포넌트가 아직 구현되지 않았습니다. TDD Red 단계입니다.');
-    }
-    
     // Given: 화면 렌더링
     render(<CommuteSettingsScreen />);
     
@@ -102,12 +81,10 @@ describe('CommuteSettingsScreen', () => {
   });
   
   it('사용자가 모든 필수 정보를 입력하고 저장 버튼을 누르면 API가 호출되어야 한다', () => {
-    // Given: CommuteSettingsScreen이 존재해야 함
-    if (!CommuteSettingsScreen) {
-      throw new Error('CommuteSettingsScreen 컴포넌트가 아직 구현되지 않았습니다. TDD Red 단계입니다.');
-    }
+    // Given: mock 초기화
+    mockMutate.mockClear();
     
-    // Given: 화면 렌더링 및 필수 정보 입력
+    // Given: 화면 렌더링
     const { getByPlaceholderText, getByRole } = render(<CommuteSettingsScreen />);
     
     // When: 필수 정보 입력
@@ -115,17 +92,24 @@ describe('CommuteSettingsScreen', () => {
     const workAddressInput = getByPlaceholderText(/회사 주소|목적지를 입력하세요/i);
     const targetTimeInput = getByPlaceholderText(/목표 도착 시각|HH:MM/i);
     
-    // TODO: fireEvent.changeText를 사용하여 실제 입력 시뮬레이션
-    // fireEvent.changeText(homeAddressInput, '서울 강남구 역삼동 123-45');
-    // fireEvent.changeText(workAddressInput, '서울 중구 을지로 678-90');
-    // fireEvent.changeText(targetTimeInput, '08:50');
+    fireEvent.changeText(homeAddressInput, '서울 강남구 역삼동 123-45');
+    fireEvent.changeText(workAddressInput, '서울 중구 을지로 678-90');
+    fireEvent.changeText(targetTimeInput, '08:50');
     
     // When: 저장 버튼 클릭
     const saveButton = getByRole('button', { name: /저장|설정 저장/i });
-    // TODO: fireEvent.press(saveButton);
+    fireEvent.press(saveButton);
     
-    // Then: PUT /v1/users/me/settings/commute API가 호출되어야 함
-    // TODO: React Query mutation이 호출되었는지 검증
+    // Then: React Query mutation이 호출되어야 함
+    expect(mockMutate).toHaveBeenCalledTimes(1);
+    
+    // Then: OpenAPI 스펙에 맞는 데이터 형식으로 호출되어야 함
+    const mutationCall = mockMutate.mock.calls[0][0];
+    expect(mutationCall).toMatchObject({
+      homeAddress: '서울 강남구 역삼동 123-45',
+      workAddress: '서울 중구 을지로 678-90',
+      targetArrivalTime: '08:50:00', // OpenAPI 스펙: time format (HH:MM:SS)
+    });
   });
 });
 

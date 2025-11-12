@@ -8,6 +8,8 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
+// 스크린 import
+import CommuteSettingsScreen from '../screens/CommuteSettings/CommuteSettingsScreen';
 // TODO: 실제 스크린들을 import
 // import DailyBriefingScreen from '../screens/DailyBriefing';
 // import SafetyGuardScreen from '../screens/SafetyGuard';
@@ -18,7 +20,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName="CommuteSettings"
         screenOptions={{
           headerStyle: {
             backgroundColor: '#fff',
@@ -26,6 +28,11 @@ export default function RootNavigator() {
           headerTintColor: '#000',
         }}
       >
+        <Stack.Screen 
+          name="CommuteSettings" 
+          component={CommuteSettingsScreen}
+          options={{ title: '출퇴근 설정' }}
+        />
         {/* TODO: 실제 스크린들을 추가 */}
         {/* <Stack.Screen name="DailyBriefing" component={DailyBriefingScreen} /> */}
         {/* <Stack.Screen name="SafetyGuard" component={SafetyGuardScreen} /> */}
