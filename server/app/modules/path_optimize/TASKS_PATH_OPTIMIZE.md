@@ -265,6 +265,53 @@
 
 ---
 
+## 🚨 Phase 8: Logic 3.2 - 최종 대안 제시 (Taxi as Last Resort) ✅ COMPLETED (18/18 테스트 통과)
+
+### 8.1 출근 모드 택시 제안 (Commute Mode) ✅ 완료
+- [x] **테스트**: `test_logic_3_2_taxi_commute.py` 작성 ✅ 완료 (9개 테스트)
+  - [x] 시나리오 1: 지각 확정 → 택시 제안 ✅
+  - [x] 시나리오 1-추가: 택시가 훨씬 빠름 (35분 절약) ✅
+  - [x] 시나리오 2: 택시도 도착 못함 → NO_ACTION ✅
+  - [x] 시나리오 2-추가: 대중교통으로 충분 → NO_ACTION ✅
+  - [x] 시나리오 3: 택시 미보유 지역 → NO_ACTION ✅
+  - [x] 응답 구조 검증 (OpenAPI 스펙) ✅
+  - [x] 복합 시나리오: 여러 구간 지연 ✅
+  - [x] 경계값: 정확히 목표 시간 ✅
+  - [x] 경계값: 1초 늦음 ✅
+
+- [x] **구현**: `services/taxi_suggester.py` - 출근 모드 메서드 ✅ 완료
+  - [x] 메서드: `suggest_taxi_for_commute()` ✅
+  - [x] 메서드: `should_suggest_taxi_commute()` ✅
+  - [x] 메서드: `check_taxi_availability()` ✅
+
+### 8.2 퇴근 모드 택시 제안 (Retreat Mode) ✅ 완료
+- [x] **테스트**: `test_logic_3_2_taxi_retreat.py` 작성 ✅ 완료 (9개 테스트)
+  - [x] 시나리오 1: 막차 놓침 → 택시 제안 ✅
+  - [x] 시나리오 1-추가: 매우 긴박한 시간 (3분 후 막차) ✅
+  - [x] 시나리오 2: 아직 막차 탈 수 있음 → NO_ACTION ✅
+  - [x] 시나리오 2-추가: 충분한 시간 여유 → NO_ACTION ✅
+  - [x] 시나리오 3: 택시 미보유 지역 → NO_ACTION ✅
+  - [x] 응답 구조 검증 (OpenAPI 스펙) ✅
+  - [x] 복합 시나리오: 모든 경로 막차 놓침 ✅
+  - [x] 경계값: 정확히 막차 시간 ✅
+  - [x] 경계값: 막차 1초 전 ✅
+
+- [x] **구현**: `services/taxi_suggester.py` - 퇴근 모드 메서드 ✅ 완료
+  - [x] 메서드: `suggest_taxi_for_retreat()` ✅
+  - [x] 메서드: `should_suggest_taxi_retreat()` ✅
+
+### 8.3 Service 통합 ✅ 완료
+- [x] **구현**: `service.py` - `get_taxi_suggestion()` 메서드 ✅ 완료
+  - [x] 출근 모드 로직 (목표 도착 불가능 판정) ✅
+  - [x] 퇴근 모드 로직 (막차 놓침 판정) ✅
+  - [x] 필수 파라미터 검증 ✅
+  - [x] camelCase 응답 구조 변환 ✅
+  - [x] OpenAPI 응답 구조 준수 ✅
+
+**📊 Phase 8 최종 결과**: ✅ 18/18 테스트 PASSED
+
+---
+
 ## 🛣️ Phase 6: Logic 2.3 - 탑승/환승 최적화 가이드 (Seat/Transfer Optimization) ✅ COMPLETED (8/8 테스트 통과)
 
 ### 6.1 탑승 위치 최적화 ✅ 완료
@@ -600,7 +647,7 @@
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-**🟢 완료된 테스트**: 99/99 PASSED ✅ (Phase 7 추가)
+**🟢 완료된 테스트**: 114/114 PASSED ✅ (Phase 8 추가)
 
 ---
 
@@ -683,12 +730,13 @@
 
 **생성된 파일 목록**:
 - `models.py` - 전체 데이터 모델 정의
-- `service.py` - Logic 1.1, 1.2, 2.1, 2.2, 2.3, 3.1 구현 (7개 메서드)
+- `service.py` - Logic 1.1, 1.2, 2.1, 2.2, 2.3, 3.1, 3.2 구현 (8개 메서드)
 - `services/transport_api_client.py` - Odsay API 클라이언트 (응답 파싱 + 캐싱)
 - `services/context_detector.py` - Context Awareness 엔진 (GPS 기반 상태 감지)
 - `services/gate_validator.py` - 고신뢰 대안 경로 3가지 Gate 검증
 - `services/seating_optimizer.py` - 탑승/환승 최적화 가이드
 - `services/delay_detector.py` - 지연 감지 엔진 (Logic 3.1)
+- `services/taxi_suggester.py` - 택시 제안 엔진 (Logic 3.2)
 - `tests/test_commute_settings_validation.py` - 30개 테스트
 - `tests/test_logic_1_1.py` - 4개 테스트
 - `tests/test_logic_1_2.py` - 4개 테스트
@@ -698,9 +746,11 @@
 - `tests/test_logic_2_2_gate_validation.py` - 17개 테스트 (Phase 5)
 - `tests/test_logic_2_3_seating_optimization.py` - 8개 테스트 (Phase 6)
 - `tests/test_logic_3_1_delay_detection.py` - 10개 테스트 (Phase 7)
+- `tests/test_logic_3_2_taxi_commute.py` - 9개 테스트 (Phase 8 - 출근모드)
+- `tests/test_logic_3_2_taxi_retreat.py` - 9개 테스트 (Phase 8 - 퇴근모드)
 - `tests/README.md` - 테스트 가이드 (324줄)
 
-**테스트 통과 현황**: ✅ 99/99 PASSED (Phase 7 추가)
+**테스트 통과 현황**: ✅ 114/114 PASSED (Phase 8 추가)
 
 ---
 
@@ -762,7 +812,7 @@
 | 5 | Logic 2.2 (고신뢰 대안 경로) | ✅ 완료 | 17/17 | `services/gate_validator.py`, `test_logic_2_2_gate_validation.py` |
 | 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | `services/seating_optimizer.py`, `test_logic_2_3_seating_optimization.py` |
 | 7 | Logic 3.1 (돌발상황 감지) | ✅ 완료 | 10/10 | `services/delay_detector.py`, `test_logic_3_1_delay_detection.py` |
-| 8 | Logic 3.2 (택시 제안) | ⏳ 미구현 | - | 최후의 수단 |
+| 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | `services/taxi_suggester.py`, `test_logic_3_2_taxi_commute.py`, `test_logic_3_2_taxi_retreat.py` |
 | 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
 | 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
