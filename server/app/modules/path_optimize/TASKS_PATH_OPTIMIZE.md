@@ -494,23 +494,51 @@
 
 ---
 
-## 🔄 Phase 10: 스마트 폴링 (Smart Polling / Adaptive Update)
+## 🔄 Phase 10: 스마트 폴링 (Smart Polling / Adaptive Update) ✅ COMPLETED (16/16 테스트 통과)
 
-### 10.1 배터리/데이터 최적화 폴링 전략
-- [ ] **테스트 먼저**: `test_smart_polling_strategy.py` 작성
-  - [ ] High Frequency 트리거 테스트
-    - [ ] 환승 지점 접근 시 (예: 500m 이내)
-    - [ ] 주요 정체 구간 진입 시
-    - [ ] 출발/마지노선 알림 직전
-  - [ ] Low Frequency 트리거 테스트
-    - [ ] 순항 구간 이동 시 (지하철 터널, 고속도로)
-    - [ ] 정지 상태 (회사/집)
-  - [ ] 폴링 빈도 검증 (High: 10초, Low: 5분 등)
+### 10.1 배터리/데이터 최적화 폴링 전략 ✅ 완료
+- [x] **테스트 먼저**: `test_smart_polling_strategy.py` 작성 ✅ 완료 (16개 테스트)
+  - [x] High Frequency 트리거 테스트 (4개) ✅
+    - [x] 환승 지점 접근 시 (예: 500m 이내) ✅
+    - [x] 주요 정체 구간 진입 시 ✅
+    - [x] 출발/마지노선 알림 직전 ✅
+    - [x] 응답 구조 검증 ✅
+  - [x] Low Frequency 트리거 테스트 (2개) ✅
+    - [x] 순항 구간 이동 시 (지하철, 30km/h+) ✅
+    - [x] 정지 상태 (회사/집) ✅
+  - [x] Medium Frequency 트리거 테스트 (1개) ✅
+    - [x] 일반 이동 중 ✅
+  - [x] should_poll_now() 테스트 (4개) ✅
+    - [x] High Frequency: 10초 경과 후 폴링 ✅
+    - [x] High Frequency: 10초 미경과 시 미폴링 ✅
+    - [x] Low Frequency: 300초 경과 후 폴링 ✅
+    - [x] Low Frequency: 300초 미경과 시 미폴링 ✅
+  - [x] 빈도 재계산 테스트 (3개) ✅
+    - [x] 5초 경과 후 빈도 재계산 ✅
+    - [x] 5초 미경과 시 미재계산 ✅
+    - [x] 커스텀 재계산 간격 ✅
+  - [x] 통합 테스트 (2개) ✅
+    - [x] 전체 폴링 사이클 (Medium → High → Low) ✅
+    - [x] 빈도 변경 및 조건 우선순위 검증 ✅
 
-- [ ] **구현**: `services/polling_scheduler.py` 생성
-  - [ ] 메서드: `calculate_polling_frequency()` (현재 상태 기반)
-  - [ ] 메서드: `should_poll_now()` (폴링 필요 여부)
-  - [ ] Enum: `PollingFrequency` (HIGH, MEDIUM, LOW)
+- [x] **구현**: `services/polling_scheduler.py` 생성 ✅ 완료
+  - [x] 클래스: `PollingScheduler` ✅
+  - [x] Enum: `PollingFrequency` (HIGH=10초, MEDIUM=30초, LOW=300초) ✅
+  - [x] 상태 모델: `UserLocation`, `TransitState`, `AlertState` ✅
+  - [x] 메서드: `calculate_polling_frequency()` (현재 상태 기반) ✅
+  - [x] 메서드: `should_poll_now()` (폴링 필요 여부) ✅
+  - [x] 메서드: `should_recalculate_frequency()` (빈도 재계산 여부) ✅
+  - [x] 메서드: `get_frequency_metadata()` (빈도별 배터리 영향도) ✅
+  - [x] 메서드: `get_polling_status()` (현재 폴링 상태 조회) ✅
+
+### 10.2 Service 통합 ✅ 완료
+- [x] **구현**: `service.py` 통합 ✅ 완료
+  - [x] import 추가 (polling_scheduler, PollingFrequency, 상태 모델) ✅
+  - [x] 메서드: `get_smart_polling_frequency()` (폴링 빈도 계산) ✅
+  - [x] 메서드: `get_polling_status()` (폴링 상태 조회) ✅
+  - [x] 문서 헤더 업데이트 (Logic 4.3 추가) ✅
+
+**📊 Phase 10 최종 결과**: ✅ 16/16 테스트 PASSED
 
 ---
 
@@ -702,7 +730,7 @@
 | 7 | Logic 3.1 (지연 감지) | ✅ 완료 | 10/10 | 돌발상황 감지 |
 | 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | 최후의 수단 |
 | 9 | Logic 4.1-4.2 (퇴근 목표) | ✅ 완료 | 22/22 | Retreat Mode (A/B/C) |
-| 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
+| 10 | Logic 4.3 (스마트 폴링) | ✅ 완료 | 16/16 | 적응형 폴링 (10/30/300초) |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
 | 12 | API Endpoint | ⏳ Pending | - | REST/OpenAPI |
 | 13 | 타 모듈 통신 | ⏳ Pending | - | Service Layer |
@@ -710,7 +738,7 @@
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-**🟢 완료된 테스트**: 136/136 PASSED ✅ (Phase 9 완료: +22 테스트)
+**🟢 완료된 테스트**: 152/152 PASSED ✅ (Phase 10 완료: +16 테스트)
 
 ---
 
@@ -879,7 +907,7 @@
 | 7 | Logic 3.1 (지연 감지) | ✅ 완료 | 10/10 | `delay_detector.py`, `test_logic_3_1_delay_detection.py` |
 | 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | `taxi_suggester.py`, `test_logic_3_2_taxi_*.py` |
 | 9 | Logic 4.1-4.2 (퇴근 목표) | ✅ 완료 | 22/22 | `retreat_mode_handler.py`, `route_selector_by_goal.py`, tests |
-| 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
+| 10 | Logic 4.3 (스마트 폴링) | ✅ 완료 | 16/16 | `polling_scheduler.py`, `test_smart_polling_strategy.py` |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
 | 12 | API Endpoint | ⏳ Pending | - | REST/OpenAPI |
 | 13 | 타 모듈 통신 | ⏳ Pending | - | Service Layer |
@@ -959,14 +987,16 @@ server/app/services/
    - 완료: 13개 테스트 (UserState, ContextDetector, ETA 계산, 화면 전환)
    - 구현: ContextDetector 서비스, get_auto_mode_switch_action() 메서드
 
-9. ⏳ **Phase 5~10** (Logic 2.2~3.x) → 미구현
-   - Logic 2.2: 고신뢰 대안 경로 (3가지 Gate)
-   - Logic 2.3: 탑승/환승 최적화
-   - Logic 3.1: 돌발상황 감지
-   - Logic 3.2: 택시 제안
-   - 퇴근 모드, 스마트 폴링
+9. ✅ **Phase 9** (Logic 4.1-4.2 - 퇴근 목표 설정) → 완료 ✅
+   - 사용자 선택지 3가지 (A: 가장 빠르게, B: 편안하게, C: 평소 경로)
+   - 완료: 22개 테스트 (13 + 9)
+   - 구현: RetreatModeHandler, RouteSelectorByGoal 서비스
 
-10. ⏳ **Phase 11~16** (DB, API, 배포) → 미구현
+10. ⏳ **Phase 10** (스마트 폴링) → 미구현
+    - 배터리/데이터 최적화 폴링 전략
+    - 상태별 폴링 빈도 조정
+
+11. ⏳ **Phase 11~16** (DB, API, 배포) → 미구현
     - DB 모델, API Endpoint, 타 모듈 통신
     - 통합 테스트, 문서화, 배포
 
@@ -975,12 +1005,12 @@ server/app/services/
 ## 📊 **현재 완료도**
 
 ```
-✅ 완료된 Phase: 13개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6, 7, 8)
-⏳ 미구현 Phase: 3개 (Phase 9, 10)
-❌ Pending Phase: 4개 (Phase 11~14, 15~16)
+✅ 완료된 Phase: 15개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6, 7, 8, 9, 10)
+⏳ 미구현 Phase: 1개 (Phase 11)
+❌ Pending Phase: 4개 (Phase 11~16)
 
-🧪 총 테스트: 114/114 PASSED ✅
-📈 완료도: 81% (13/16 Phase 달성!)
+🧪 총 테스트: 152/152 PASSED ✅
+📈 완료도: 94% (15/16 Phase 달성!)
 
 📋 Phase별 테스트 카운트:
 ┌─────────────────────────────────────┬────────┬──────────┐
@@ -997,11 +1027,13 @@ server/app/services/
 │ 6 (Logic 2.3 - 탑승/환승 최적화)   │ 8개    │ ✅ 완료  │
 │ 7 (Logic 3.1 - 지연 감지)          │ 10개   │ ✅ 완료  │
 │ 8 (Logic 3.2 - 택시 제안)          │ 18개   │ ✅ 완료  │
+│ 9 (Logic 4.1-4.2 - 퇴근 목표)      │ 22개   │ ✅ 완료  │
+│ 10 (Logic 4.3 - 스마트 폴링)       │ 16개   │ ✅ 완료  │
 ├─────────────────────────────────────┼────────┼──────────┤
-│ 합계                                │ 114개  │ 모두 통과│
+│ 합계                                │ 152개  │ 모두 통과│
 └─────────────────────────────────────┴────────┴──────────┘
 
-🎯 구현된 Logic (8개 완성):
+🎯 구현된 Logic (11개 완성):
 - [Logic 1.1] 출발 알림 (GO_NOW): 목표 도착까지 15분 이상
 - [Logic 1.2 출근] 마지노선 경고 (LAST_CHANCE): 0~15분 전
 - [Logic 1.2 퇴근] 막차 알림: 경로별 막차 시간 안내
@@ -1012,23 +1044,32 @@ server/app/services/
 - [Logic 2.3] 탑승/환승 최적화 가이드: 환승/혼잡도/하차역 위치 기반 칸 추천
 - [Logic 3.1] 지연 감지: 실시간 vs 평균 소요시간 비교, 5분 이상 = 경고
 - [Logic 3.2] 택시 제안: 출근(지각확정) / 퇴근(막차놓침) 시 최후의 수단
+- [Logic 4.1-4.2] 퇴근 목표 설정: 사용자 선택 (A:빠르게, B:편안, C:습관) 기반 경로 제안
+- [Logic 4.3] 스마트 폴링: 상태별 폴링 빈도 적응 (High:10초, Medium:30초, Low:5분)
 ```
 
 ### 📈 진행 요약
 - **시작**: Phase 1.1만 구현 (기본 뼈대)
-- **현재**: Phase 1~8 구현 완료 (114/114 테스트 PASSED ✅)
-- **남은 작업**: Phase 9~16 (퇴근 모드, 스마트 폴링, DB, API 엔드포인트 등)
+- **현재**: Phase 1~10 구현 완료 (152/152 테스트 PASSED ✅)
+- **남은 작업**: Phase 11~16 (DB, API 엔드포인트, 배포 등)
 
-### 🎯 최근 완료 (Phase 7~8)
-- **Phase 7**: Logic 3.1 - 지연 감지 ✅
-  - DelayDetector 서비스 (실시간 vs 평균 비교, 5분 threshold)
-  - 10개 테스트 통과
-  - PathOptimizeService 통합 (get_exception_alert 메서드)
-
+### 🎯 최근 완료 (Phase 8~10)
 - **Phase 8**: Logic 3.2 - 택시 제안 ✅
   - TaxiSuggester 서비스 (출근/퇴근 모드 분리)
   - 18개 테스트 통과 (9 + 9)
   - PathOptimizeService 통합 (get_taxi_suggestion 메서드)
+
+- **Phase 9**: Logic 4.1-4.2 - 퇴근 목표 설정 ✅
+  - RetreatModeHandler & RouteSelectorByGoal 서비스
+  - 22개 테스트 통과 (13 + 9)
+  - PathOptimizeService 통합 (3개 메서드)
+  - 사용자 선택지 3가지 (A:빠르게, B:편안, C:습관) 및 스마트 경로 제안
+
+- **Phase 10**: Logic 4.3 - 스마트 폴링 ✅
+  - PollingScheduler 서비스 (적응형 폴링 전략)
+  - 16개 테스트 통과 (High/Medium/Low 폴링, should_poll_now, 빈도 재계산)
+  - PathOptimizeService 통합 (2개 메서드: get_smart_polling_frequency, get_polling_status)
+  - 상태별 폴링 빈도 (환승:10초, 일반:30초, 순항/정지:5분) 및 배터리 영향도 메타데이터
 
 ---
 
