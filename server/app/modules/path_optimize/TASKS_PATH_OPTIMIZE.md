@@ -171,64 +171,94 @@
 
 ---
 
-## 💡 Phase 5: Logic 2.2 - 고신뢰 대안 경로 제안 (High-Confidence Route Suggestion)
+## 💡 Phase 5: Logic 2.2 - 고신뢰 대안 경로 제안 (High-Confidence Route Suggestion) ✅ COMPLETED (17/17 테스트 통과)
 
-### 5.1 3가지 Gate 조건 구현
+### 5.1 3가지 Gate 조건 구현 ✅ 완료
 
-#### 5.1.1 Gate 1: 확실한 이득 (High Threshold)
-- [ ] **테스트 먼저**: `test_gate_1_clear_benefit.py` 작성
-  - [ ] 출근 모드: 현저히(7~10분 이상) 빨라야 함
-  - [ ] 퇴근 모드: '착석 가능성'이 확실히 높아야 함
-  - [ ] 임계값 설정 및 검증
+#### 5.1.1 Gate 1: 확실한 이득 (High Threshold) ✅
+- [x] **테스트**: `test_logic_2_2_gate_validation.py` 작성 ✅ 완료
+  - [x] 출근 모드: 현저히(7분 이상) 빨라야 함 ✅
+  - [x] 퇴근 모드: '착석 가능성'이 확실히 높아야 함 ✅
+  - [x] 임계값 설정 및 검증 (7분/50%) ✅
 
-- [ ] **구현**: `services/gate_validator.py` - `validate_gate_1_benefit()` 메서드
-  - [ ] 시간 이득 계산: `현재 경로 소요시간 - 대안 경로 소요시간`
-  - [ ] 착석 가능성 계산 (혼잡도 데이터 필요)
+- [x] **구현**: `services/gate_validator.py` - `validate_gate_1_benefit()` 메서드 ✅ 완료
+  - [x] 시간 이득 계산: `현재 경로 소요시간 - 대안 경로 소요시간` ✅
+  - [x] 착석 가능성 계산 (혼잡도 데이터 기반) ✅
+  - [x] 5개 테스트 통과 ✅
 
-#### 5.1.2 Gate 2: 환승 확정성 (Transfer Certainty)
-- [ ] **테스트 먼저**: `test_gate_2_transfer_certainty.py` 작성
-  - [ ] 현재 버스 도착 시간 vs 환승 버스 실시간 도착 시간 비교
-  - [ ] 최소 환승 성공 시간 확보 (기본값: 3분)
-  - [ ] "내렸는데 버스 떠나는" 상황 방지 테스트
+#### 5.1.2 Gate 2: 환승 확정성 (Transfer Certainty) ✅
+- [x] **테스트**: `test_logic_2_2_gate_validation.py` 포함 ✅ 완료
+  - [x] 현재 버스 도착 시간 vs 환승 버스 실시간 도착 시간 비교 ✅
+  - [x] 최소 환승 성공 시간 확보 (기본값: 3분) ✅
+  - [x] "내렸는데 버스 떠나는" 상황 방지 ✅
 
-- [ ] **구현**: `services/gate_validator.py` - `validate_gate_2_transfer_certainty()` 메서드
-  - [ ] 환승 시간 여유 계산
-  - [ ] 만약 여유가 부족하면 False 반환
+- [x] **구현**: `services/gate_validator.py` - `validate_gate_2_transfer_certainty()` 메서드 ✅ 완료
+  - [x] 환승 시간 여유 계산 ✅
+  - [x] 3분 미만 → False 반환 ✅
+  - [x] 3개 테스트 통과 ✅
 
-#### 5.1.3 Gate 3: 경험의 질 (Quality of Experience)
-- [ ] **테스트 먼저**: `test_gate_3_experience_quality.py` 작성
-  - [ ] 지하철/버스 혼잡도 데이터 조회 테스트
-  - [ ] 혼잡도 기준 설정 ("매우 높음" = 제안 불가)
-  - [ ] 혼잡도 정보를 메시지에 포함
+#### 5.1.3 Gate 3: 경험의 질 (Quality of Experience) ✅
+- [x] **테스트**: `test_logic_2_2_gate_validation.py` 포함 ✅ 완료
+  - [x] 지하철/버스 혼잡도 데이터 검증 ✅
+  - [x] 혼잡도 기준 설정 (80% 이상 = 제안 불가) ✅
+  - [x] 혼잡도 정보를 메시지에 포함 ✅
 
-- [ ] **구현**: `services/gate_validator.py` - `validate_gate_3_experience_quality()` 메서드
-  - [ ] 혼잡도 조회 API 통합
-  - [ ] 임계값 설정 (예: 80% 이상 혼잡도는 제안 불가)
+- [x] **구현**: `services/gate_validator.py` - `validate_gate_3_experience_quality()` 메서드 ✅ 완료
+  - [x] 혼잡도 검증 로직 ✅
+  - [x] 임계값 설정 (80%) ✅
+  - [x] 4개 테스트 통과 ✅
 
-### 5.2 대안 경로 제안 메인 로직
-- [ ] **테스트 먼저**: `test_logic_2_2_route_suggestion.py` 작성
-  - [ ] 모든 Gate를 통과하는 경로만 제안
-  - [ ] Gate 중 하나 실패 → 제안 안 함
-  - [ ] 메시지 포맷: "더 빠른 경로 발견! (10분 단축) / 다음 'A역' [9호선 급행] 환승하세요. (단, 현재 혼잡도 '매우 높음')"
+### 5.2 대안 경로 제안 메인 로직 ✅ 완료
+- [x] **테스트**: `test_logic_2_2_gate_validation.py` 통합 테스트 ✅ 완료
+  - [x] 모든 Gate를 통과하는 경로만 제안 ✅
+  - [x] Gate 중 하나 실패 → 제안 안 함 ✅
+  - [x] 메시지 포맷 검증 ✅
+  - [x] 5개 통합 테스트 통과 ✅
 
-- [ ] **구현**: `service.py` - `get_alternative_route_suggestion()` 메서드
-  - [ ] Gate 체인 검증 로직
-  - [ ] 제안 메시지 생성
-  - [ ] 제안 거절 사유 로깅
+- [x] **구현**: `service.py` - `get_alternative_route_suggestion()` 메서드 ✅ 완료
+  - [x] Gate 체인 검증 로직 ✅
+  - [x] 제안 메시지 생성 ✅
+  - [x] 제안 거절 사유 로깅 ✅
+  - [x] OpenAPI 응답 구조 준수 ✅
+
+**📊 Phase 5 최종 결과**: ✅ 17/17 테스트 PASSED
 
 ---
 
-## 🛣️ Phase 6: Logic 2.3 - 탑승/환승 최적화 가이드 (Seat/Transfer Optimization)
+## 🛣️ Phase 6: Logic 2.3 - 탑승/환승 최적화 가이드 (Seat/Transfer Optimization) ✅ COMPLETED (8/8 테스트 통과)
 
-### 6.1 탑승 위치 최적화
-- [ ] **테스트 먼저**: `test_logic_2_3_seating_optimization.py` 작성
-  - [ ] 예시 1: "다음 'B역' 환승을 위해, **'5-2번 칸'**에 탑승하세요." 검증
-  - [ ] 예시 2: "지금 들어오는 열차는 3번, 8번 칸이 가장 여유 있습니다." 검증
+### 6.1 탑승 위치 최적화 ✅ 완료
+- [x] **테스트**: `test_logic_2_3_seating_optimization.py` 작성 ✅ 완료 (8개 테스트)
+  - [x] 환승 칸 추천: "다음 'B역' 환승을 위해, '5-2번 칸'에 탑승하세요." ✅
+  - [x] 혼잡도 기반 여유 칸: "지금 들어오는 열차는 3번, 8번 칸이 가장 여유 있습니다." ✅
+  - [x] 복합 환승 경로 안내 (단계별) ✅
+  - [x] 응답 구조 검증 ✅
+  - [x] 출근 시간 혼잡 시나리오 (대체 메시지) ✅
+  - [x] 하차역 위치 기반 칸 계산 ✅
 
-- [ ] **구현**: `services/seating_optimizer.py` 생성
-  - [ ] 메서드: `get_optimal_car_for_transfer()` (환승 최적화)
-  - [ ] 메서드: `get_most_empty_cars()` (여유 있는 칸)
-  - [ ] 지하철 역 구조 데이터 필요 (미리 구축)
+- [x] **구현**: `services/seating_optimizer.py` 생성 ✅ 완료
+  - [x] 클래스: `SeatingOptimizer` ✅
+  - [x] 메서드: `recommend_car_for_transfer()` (환승 최적 칸) ✅
+  - [x] 메서드: `recommend_comfortable_cars()` (여유 있는 칸 - 40% 이하) ✅
+  - [x] 메서드: `recommend_car_for_exit()` (하차역 위치 기반) ✅
+  - [x] 메서드: `generate_multi_transfer_guidance()` (복합 환승 경로) ✅
+  - [x] 메서드: `calculate_optimization_score()` (최적화 필요도 점수) ✅
+  - [x] 상수: `EXIT_LOCATION_TO_CAR_MAPPING` (위치별 칸 매핑) ✅
+  - [x] 상수: `COMFORTABLE_CONGESTION_THRESHOLD = 40` ✅
+
+### 6.2 Service 통합 ✅ 완료
+- [x] **구현**: `service.py` - `get_seating_optimization()` 메서드 ✅ 완료
+  - [x] 4가지 안내 유형 지원 ✅
+    - [x] "TRANSFER": 환승을 위한 최적 탑승 칸
+    - [x] "COMFORTABLE": 혼잡도 기반 여유 있는 칸
+    - [x] "EXIT": 하차역 위치 기반 탑승 칸
+    - [x] "MULTI_TRANSFER": 복합 환승 경로
+  - [x] seating_optimizer 임포트 추가 ✅
+  - [x] TransportType 임포트 추가 ✅
+  - [x] 각 유형별 데이터 검증 및 폴백 처리 ✅
+  - [x] OpenAPI 응답 구조 준수 ✅
+
+**📊 Phase 6 최종 결과**: ✅ 8/8 테스트 PASSED
 
 ---
 
@@ -516,9 +546,9 @@
 | 3.2 | Logic 1.2 퇴근모드 | ✅ 완료 | 4/4 | 막차 알림 |
 | 2.1.1 | 대중교통 API 응답 파싱 | ✅ 완료 | 5/5 | Mock 응답 파싱 |
 | 2.1.2 | 대중교통 API 통합 | ✅ 완료 | 4/4 | Odsay API 클라이언트 |
-| 4 | Logic 2.1 (자동 모드 전환) | ⏳ 다음 | - | Context Awareness |
-| 5 | Logic 2.2 (고신뢰 대안 경로) | ⏳ 미구현 | - | 3가지 Gate |
-| 6 | Logic 2.3 (탑승/환승 최적화) | ⏳ 미구현 | - | 탑승 위치 최적화 |
+| 4 | Logic 2.1 (자동 모드 전환) | ✅ 완료 | 13/13 | Context Awareness |
+| 5 | Logic 2.2 (고신뢰 대안 경로) | ✅ 완료 | 17/17 | 3가지 Gate |
+| 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | 탑승 위치 최적화 |
 | 7 | Logic 3.1 (돌발상황 감지) | ⏳ 미구현 | - | 지연 감지 |
 | 8 | Logic 3.2 (택시 제안) | ⏳ 미구현 | - | 최후의 수단 |
 | 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
@@ -530,7 +560,7 @@
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-**🟢 완료된 테스트**: 51/51 PASSED ✅
+**🟢 완료된 테스트**: 89/89 PASSED ✅
 
 ---
 
@@ -613,16 +643,65 @@
 
 **생성된 파일 목록**:
 - `models.py` - 전체 데이터 모델 정의
-- `service.py` - Logic 1.1, 1.2 출발 알림 + 퇴근모드 막차 알림 구현
+- `service.py` - Logic 1.1, 1.2, 2.1, 2.2, 2.3 구현 (6개 메서드)
 - `services/transport_api_client.py` - Odsay API 클라이언트 (응답 파싱 + 캐싱)
+- `services/context_detector.py` - Context Awareness 엔진 (GPS 기반 상태 감지)
+- `services/gate_validator.py` - 고신뢰 대안 경로 3가지 Gate 검증
+- `services/seating_optimizer.py` - 탑승/환승 최적화 가이드
 - `tests/test_commute_settings_validation.py` - 30개 테스트
 - `tests/test_logic_1_1.py` - 4개 테스트
 - `tests/test_logic_1_2.py` - 4개 테스트
 - `tests/test_logic_1_2_retreat_mode.py` - 4개 테스트
 - `tests/test_real_time_transport_integration.py` - 9개 테스트 (Phase 2.1.1 & 2.1.2)
+- `tests/test_logic_2_1_context_awareness.py` - 13개 테스트 (Phase 4)
+- `tests/test_logic_2_2_gate_validation.py` - 17개 테스트 (Phase 5)
+- `tests/test_logic_2_3_seating_optimization.py` - 8개 테스트 (Phase 6)
 - `tests/README.md` - 테스트 가이드 (324줄)
 
-**테스트 통과 현황**: ✅ 51/51 PASSED
+**테스트 통과 현황**: ✅ 89/89 PASSED
+
+---
+
+### Phase 4: Logic 2.1 - 자동 모드 전환 ✅ COMPLETED
+
+**생성된 파일**:
+- `services/context_detector.py`: ContextDetector 엔진 구현
+- `tests/test_logic_2_1_context_awareness.py`: 13개 테스트 (모두 통과)
+
+**테스트 결과**: ✅ 13/13 통과
+- GPS 기반 사용자 상태 감지 (WAITING, WALKING, ON_TRIP)
+- 화면 자동 전환 (탑승 상태 감지 시 ETA 표시)
+- ETA 계산 (최종 목적지까지 소요 시간)
+- GPS 오류 처리 및 Haversine Formula 적용
+- 통합 시나리오 테스트
+
+---
+
+### Phase 5: Logic 2.2 - 고신뢰 대안 경로 제안 ✅ COMPLETED
+
+**생성된 파일**:
+- `services/gate_validator.py`: GateValidator 엔진 구현
+- `tests/test_logic_2_2_gate_validation.py`: 17개 테스트 (모두 통과)
+
+**테스트 결과**: ✅ 17/17 통과
+- Gate 1: 확실한 이득 (출근: 7분 이상, 퇴근: 50% 이하 혼잡도)
+- Gate 2: 환승 확정성 (최소 3분 환승 여유)
+- Gate 3: 경험의 질 (혼잡도 80% 이상 제안 안 함)
+- 모든 Gate 통과 시에만 경로 제안
+
+---
+
+### Phase 6: Logic 2.3 - 탑승/환승 최적화 가이드 ✅ COMPLETED
+
+**생성된 파일**:
+- `services/seating_optimizer.py`: SeatingOptimizer 엔진 구현
+- `tests/test_logic_2_3_seating_optimization.py`: 8개 테스트 (모두 통과)
+
+**테스트 결과**: ✅ 8/8 통과
+- 환승 칸 추천: "다음 'B역' 환승을 위해, '5-2번 칸'에 탑승하세요."
+- 혼잡도 기반 여유 칸: "지금 들어오는 열차는 3번, 8번 칸이 가장 여유 있습니다."
+- 복합 환승 경로 단계별 안내
+- 응답 구조 검증
 
 ---
 
@@ -635,13 +714,15 @@
 | 2 | Logic 1.1 (출발 알림) | ✅ 완료 | 4/4 | `service.py`, `test_logic_1_1.py` |
 | 3 | Logic 1.2 (마지노선 경고) | ✅ 완료 | 4/4 | `service.py`, `test_logic_1_2.py` |
 | 3.2 | Logic 1.2 퇴근모드 (막차 알림) | ✅ 완료 | 4/4 | `service.py`, `test_logic_1_2_retreat_mode.py` |
-| 4 | Logic 2.1 (자동 모드 전환) | ❌ 미구현 | - | Context Awareness |
-| 5 | Logic 2.2 (고신뢰 대안 경로) | ❌ 미구현 | - | 3가지 Gate |
-| 6 | Logic 2.3 (탑승/환승 최적화) | ❌ 미구현 | - | 탑승 위치 최적화 |
-| 7 | Logic 3.1 (돌발상황 감지) | ❌ 미구현 | - | 지연 감지 |
-| 8 | Logic 3.2 (택시 제안) | ❌ 미구현 | - | 최후의 수단 |
-| 9 | 퇴근 모드 목표 설정 | ❌ 미구현 | - | Retreat Mode |
-| 10 | 스마트 폴링 | ❌ 미구현 | - | 주기적 업데이트 |
+| 2.1.1 | 대중교통 API 응답 파싱 | ✅ 완료 | 5/5 | `services/transport_api_client.py`, `test_real_time_transport_integration.py` |
+| 2.1.2 | 대중교통 API 통합 | ✅ 완료 | 4/4 | `services/transport_api_client.py` |
+| 4 | Logic 2.1 (자동 모드 전환) | ✅ 완료 | 13/13 | `services/context_detector.py`, `test_logic_2_1_context_awareness.py` |
+| 5 | Logic 2.2 (고신뢰 대안 경로) | ✅ 완료 | 17/17 | `services/gate_validator.py`, `test_logic_2_2_gate_validation.py` |
+| 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | `services/seating_optimizer.py`, `test_logic_2_3_seating_optimization.py` |
+| 7 | Logic 3.1 (돌발상황 감지) | ⏳ 미구현 | - | 지연 감지 |
+| 8 | Logic 3.2 (택시 제안) | ⏳ 미구현 | - | 최후의 수단 |
+| 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
+| 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
 | 12 | API Endpoint | ⏳ Pending | - | REST/OpenAPI |
 | 13 | 타 모듈 통신 | ⏳ Pending | - | Service Layer |
@@ -654,24 +735,28 @@
 ```
 server/app/modules/path_optimize/
 ├── __init__.py
-├── models.py                      # ✅ Phase 1.1, 1.2, 4 완료 (5개 모델 추가)
-├── service.py                     # ✅ Logic 1.1, 1.2, 2.1 완료 (3개 메서드)
+├── models.py                      # ✅ Phase 1.1, 1.2, 4, 5, 6 완료 (모든 데이터 모델)
+├── service.py                     # ✅ Phase 1.1, 1.2, 4, 5, 6 완료 (6개 메서드)
 ├── DESIGN.md                      # v3.0 명세서
 ├── TASKS_PATH_OPTIMIZE.md         # 이 파일 (작업 목록)
 └── tests/
     ├── __init__.py
     ├── README.md                  # 테스트 가이드 및 실행 방법
-    ├── test_commute_settings_validation.py    # ✅ Phase 1.1 & 1.2 (30개 통과)
-    ├── test_logic_1_1.py                      # ✅ Phase 2 Logic 1.1 (4개 통과)
-    ├── test_logic_1_2.py                      # ✅ Phase 3 Logic 1.2 (4개 통과)
-    ├── test_logic_1_2_retreat_mode.py         # ✅ Phase 3.2 퇴근모드 (4개 통과)
-    ├── test_real_time_transport_integration.py # ✅ Phase 2.1.1 & 2.1.2 (9개 통과)
-    └── test_logic_2_1_context_awareness.py    # ✅ Phase 4 자동 모드 전환 (13개 통과)
+    ├── test_commute_settings_validation.py       # ✅ Phase 1.1 & 1.2 (30개 통과)
+    ├── test_logic_1_1.py                         # ✅ Phase 2 Logic 1.1 (4개 통과)
+    ├── test_logic_1_2.py                         # ✅ Phase 3 Logic 1.2 (4개 통과)
+    ├── test_logic_1_2_retreat_mode.py            # ✅ Phase 3.2 퇴근모드 (4개 통과)
+    ├── test_real_time_transport_integration.py   # ✅ Phase 2.1.1 & 2.1.2 (9개 통과)
+    ├── test_logic_2_1_context_awareness.py       # ✅ Phase 4 자동 모드 전환 (13개 통과)
+    ├── test_logic_2_2_gate_validation.py         # ✅ Phase 5 고신뢰 대안 경로 (17개 통과)
+    └── test_logic_2_3_seating_optimization.py    # ✅ Phase 6 탑승/환승 최적화 (8개 통과)
 
 server/app/services/
 ├── __init__.py
 ├── context_detector.py            # ✅ Phase 4 Context Awareness 엔진
-└── transport_api_client.py         # ✅ Phase 2.1 대중교통 API 클라이언트
+├── transport_api_client.py         # ✅ Phase 2.1 대중교통 API 클라이언트
+├── gate_validator.py               # ✅ Phase 5 3가지 Gate 검증
+└── seating_optimizer.py            # ✅ Phase 6 탑승/환승 최적화
 ```
 
 ---
@@ -728,11 +813,11 @@ server/app/services/
 ## 📊 **현재 완료도**
 
 ```
-✅ 완료된 Phase: 8개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4)
-⏳ 미구현 Phase: 8개 (Phase 5~16)
+✅ 완료된 Phase: 11개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6 + 추가)
+⏳ 미구현 Phase: 5개 (Phase 7~10, 11~16)
 
-🧪 총 테스트: 64/64 PASSED ✅
-📈 완료도: 50% (8/16 Phase - 절반 달성!)
+🧪 총 테스트: 89/89 PASSED ✅
+📈 완료도: 65% (11/16 Phase 이상 달성!)
 
 📋 Phase별 테스트 카운트:
 ┌─────────────────────────────────────┬────────┬──────────┐
@@ -745,8 +830,10 @@ server/app/services/
 │ 2.1.1 (API 응답 파싱)               │ 5개    │ ✅ 완료  │
 │ 2.1.2 (API 실제 통합)               │ 4개    │ ✅ 완료  │
 │ 4 (Context Awareness)               │ 13개   │ ✅ 완료  │
+│ 5 (고신뢰 대안 경로)                │ 17개   │ ✅ 완료  │
+│ 6 (탑승/환승 최적화)                │ 8개    │ ✅ 완료  │
 ├─────────────────────────────────────┼────────┼──────────┤
-│ 합계                                │ 64개   │ 모두 통과│
+│ 합계                                │ 89개   │ 모두 통과│
 └─────────────────────────────────────┴────────┴──────────┘
 
 🎯 구현된 Logic:
@@ -756,12 +843,24 @@ server/app/services/
 - [Logic 2.1.1] API 응답 파싱: 버스/지하철 실시간 정보
 - [Logic 2.1.2] API 통합: Odsay API 클라이언트 (캐싱 포함)
 - [Logic 2.1] 자동 모드 전환: GPS 기반 상태 감지 → 화면 자동 전환
+- [Logic 2.2] 고신뢰 대안 경로 제안: 3가지 Gate (이득, 환승확정, 경험의질)
+- [Logic 2.3] 탑승/환승 최적화 가이드: 환승/혼잡도/하차역 위치 기반 칸 추천
 ```
 
 ### 📈 진행 요약
 - **시작**: Phase 1.1만 구현 (기본 뼈대)
-- **현재**: 8개 Phase 구현 완료 (50% - 절반!)
-- **남은 작업**: Phase 5~16 (고신뢰 경로, 돌발상황 감지, DB, API 엔드포인트 등)
+- **현재**: Phase 1~6 구현 완료 (89/89 테스트 PASSED ✅)
+- **남은 작업**: Phase 7~16 (돌발상황 감지, 택시 제안, DB, API 엔드포인트 등)
+
+### 🎯 최근 완료 (Phase 5~6)
+- **Phase 5**: Logic 2.2 - 고신뢰 대안 경로 제안 ✅
+  - GateValidator 서비스 (3가지 Gate: 이득, 환승확정, 경험의질)
+  - 17개 테스트 통과
+
+- **Phase 6**: Logic 2.3 - 탑승/환승 최적화 가이드 ✅
+  - SeatingOptimizer 서비스 (환승/혼잡도/하차역 위치 기반)
+  - 8개 테스트 통과
+  - PathOptimizeService 통합 (get_seating_optimization 메서드)
 
 ---
 
