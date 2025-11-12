@@ -6,6 +6,12 @@ v3.0 명세서:
 - Logic 1.1: 출발 알림
 - Logic 1.2: 마지노선 경고 (출근 모드 & 퇴근 모드)
 - Logic 2.1: 자동 모드 전환 (Context Awareness)
+- Logic 2.2: 고신뢰 대안 경로 제안
+- Logic 2.3: 탑승/환승 최적화 가이드
+- Logic 3.1: 돌발상황 감지 (지연 감지)
+- Logic 3.2: 최종 대안 제시 (택시 제안)
+- Logic 4.1: 퇴근 모드 사용자 목표 설정 (Phase 9)
+- Logic 4.2: 퇴근 목표별 경로 제안 (Phase 9)
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime, time
@@ -16,6 +22,8 @@ from app.services.gate_validator import gate_validator
 from app.services.seating_optimizer import seating_optimizer
 from app.services.delay_detector import delay_detector
 from app.services.taxi_suggester import taxi_suggester
+from app.services.retreat_mode_handler import retreat_mode_handler
+from app.services.route_selector_by_goal import route_selector_by_goal
 from app.modules.path_optimize.models import (
     UserContextData,
     SystemMode,
@@ -835,4 +843,141 @@ class PathOptimizeService:
                     "reason": "지원하지 않는 모드"
                 }
             }
+
+    # ========================================
+    # Phase 9: Logic 4.1 - 퇴근 모드 사용자 목표 설정
+    # ========================================
+
+    def get_retreat_mode_goal_selection(
+        self, user_id: str, user_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        퇴근 모드 사용자 목표 선택지 제시
+
+        Args:
+            user_id: 사용자 ID
+            user_name: 사용자 이름 (선택)
+
+        Returns:
+            {
+                "data": {
+                    "action": "ASK_USER_GOAL",
+                    "options": [
+                        {
+                            "choice": "A",
+                            "label": "가장 빠르게",
+                            "description": "최단 시간으로 집에 도착",
+                            "icon": "🚀",
+                            "priority": "SPEED"
+                        },
+                        ...
+                    ],
+                    "pushNotification": {...},
+                    "timestamp": "..."
+                }
+            }
+        """
+        # 1️⃣ 퇴근 모드 핸들러 사용
+        result = retreat_mode_handler.ask_user_retreat_goal(
+            user_name=user_name, user_id=user_id
+        )
+
+        logger.info(f"✅ 퇴근 모드 목표 선택지 제시: {user_id}")
+        return {"data": result}
+
+    def save_retreat_mode_choice(
+        self, user_id: str, selected_choice: str, session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        퇴근 모드 사용자 목표 선택 저장
+
+        Args:
+            user_id: 사용자 ID
+            selected_choice: 선택 (A/B/C)
+            session_id: 세션 ID (선택)
+
+        Returns:
+            {
+                "data": {
+                    "action": "CHOICE_SAVED",
+                    "userId": "...",
+                    "selectedChoice": "B",
+                    "selectedLabel": "편안하게",
+                    "nextAction": "GET_ROUTES_BY_GOAL",
+                    "message": "..."
+                }
+            }
+        """
+        # 1️⃣ 선택 저장
+        result = retreat_mode_handler.save_retreat_choice(
+            user_id=user_id,
+            selected_choice=selected_choice,
+            session_id=session_id,
+        )
+
+        # 2️⃣ 세션에 유지
+        if session_id:
+            retreat_mode_handler.persist_choice_in_session(
+                user_id=user_id,
+                selected_choice=selected_choice,
+                session_id=session_id,
+            )
+
+        logger.info(f"✅ 퇴근 모드 선택 저장: {user_id} -> {selected_choice}")
+        return {"data": result}
+
+    # ========================================
+    # Phase 9: Logic 4.2 - 퇴근 목표별 경로 제안
+    # ========================================
+
+    def get_routes_by_retreat_goal(
+        self, routes: List[Dict[str, Any]], user_goal: str
+    ) -> Dict[str, Any]:
+        """
+        퇴근 모드 사용자 목표에 따른 경로 제안
+
+        Args:
+            routes: 사용 가능한 경로 목록
+            user_goal: 사용자 목표 (A/B/C)
+
+        Returns:
+            {
+                "data": {
+                    "action": "GET_ROUTES_BY_GOAL",
+                    "selectedGoal": "A|B|C",
+                    "goalLabel": "...",
+                    "routes": [
+                        {
+                            "routeId": "...",
+                            "name": "...",
+                            "estimatedDuration": number,
+                            "seatingProbability": number,
+                            "recommendation": "...",
+                            "metadata": {...}
+                        },
+                        ...
+                    ],
+                    "message": "...",
+                    "timestamp": "..."
+                }
+            }
+        """
+        # 1️⃣ 목표 유효성 검증
+        valid_goals = ["A", "B", "C"]
+        if user_goal not in valid_goals:
+            logger.warning(f"⚠️ 유효하지 않은 목표: {user_goal}")
+            return {
+                "data": {
+                    "action": "ERROR",
+                    "error": f"Invalid goal: {user_goal}. Must be A, B, or C",
+                }
+            }
+
+        # 2️⃣ 경로 선택 및 필터링
+        result = route_selector_by_goal.get_routes_by_goal(
+            routes=routes, goal=user_goal
+        )
+
+        logger.info(f"✅ 퇴근 목표별 경로 제안: {user_goal}")
+        return {"data": result}
 
