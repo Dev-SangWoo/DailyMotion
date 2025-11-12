@@ -14,6 +14,7 @@ import logging
 from app.services.context_detector import context_detector
 from app.services.gate_validator import gate_validator
 from app.services.seating_optimizer import seating_optimizer
+from app.services.delay_detector import delay_detector
 from app.modules.path_optimize.models import (
     UserContextData,
     SystemMode,
@@ -570,4 +571,121 @@ class PathOptimizeService:
                     "priority": "LOW" if score < 0.5 else "MEDIUM" if score < 0.8 else "HIGH"
                 }
             }
+
+    # ========================================
+    # Logic 3.1: 돌발상황 감지 (Delay Detection)
+    # ========================================
+
+    def get_exception_alert(
+        self,
+        segments: List[Dict[str, Any]],
+        current_hour: int,
+        current_day_of_week: int,
+        statistical_data_map: Optional[Dict[str, Dict[str, Any]]] = None,
+        real_time_data_map: Optional[Dict[str, Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
+        """
+        경로의 지연 감지 (Logic 3.1)
+
+        Args:
+            segments: 구간 정보 리스트
+                예: [
+                    {
+                        "segment_id": "SEG_001",
+                        "segment_name": "A정류장 → B정류장",
+                        "from_station": "A정류장",
+                        "to_station": "B정류장"
+                    },
+                    ...
+                ]
+            current_hour: 현재 시간 (0-23)
+            current_day_of_week: 현재 요일 (0=일, 1=월, ...)
+            statistical_data_map: 구간별 평균 소요시간 데이터 (선택)
+            real_time_data_map: 구간별 실시간 예상 데이터 (선택)
+
+        Returns:
+            {
+                "action": "EXCEPTION_DETECTED" or "NO_ACTION",
+                "totalSegments": 3,
+                "delayedCount": 1,
+                "delayedSegments": [
+                    {
+                        "segmentId": "SEG_001",
+                        "segmentName": "A정류장 → B정류장",
+                        "isDelayed": True,
+                        "delayMinutes": 5,
+                        "type": "DELAY_WARNING",
+                        "message": "⚠️지연 감지! [A정류장] 부근이...",
+                        "priority": "HIGH"
+                    }
+                ],
+                "mostCritical": {...},
+                "hasCritical": False
+            }
+        """
+        logger.info(f"🚨 지연 감지 시작: {len(segments)}개 구간")
+
+        # 빈 리스트 체크
+        if not segments:
+            logger.warning("⚠️ 구간 정보 없음")
+            return {
+                "action": "NO_ACTION",
+                "totalSegments": 0,
+                "delayedCount": 0,
+                "delayedSegments": [],
+                "mostCritical": None,
+                "hasCritical": False
+            }
+
+        # DelayDetector를 사용한 경로 지연 분석
+        route_analysis = delay_detector.detect_delays_on_route(
+            segments=segments,
+            current_hour=current_hour,
+            current_day_of_week=current_day_of_week,
+            statistical_data_map=statistical_data_map or {},
+            real_time_data_map=real_time_data_map or {}
+        )
+
+        # 응답 구조 변환 (camelCase)
+        delayed_segments_response = []
+        for segment in route_analysis["delayed_segments"]:
+            delayed_segments_response.append({
+                "segmentId": segment["segment_id"],
+                "segmentName": segment["segment_name"],
+                "isDelayed": segment["is_delayed"],
+                "delayMinutes": segment["delay_minutes"],
+                "type": segment["type"],
+                "message": segment["message"],
+                "priority": segment["priority"],
+                "dataSource": segment["data_source"],
+                "confidence": segment["confidence"]
+            })
+
+        # 가장 심각한 구간 응답
+        most_critical_response = None
+        if route_analysis["most_critical"]:
+            most_critical = route_analysis["most_critical"]
+            most_critical_response = {
+                "segmentId": most_critical["segment_id"],
+                "segmentName": most_critical["segment_name"],
+                "delayMinutes": most_critical["delay_minutes"],
+                "priority": most_critical["priority"],
+                "message": most_critical["message"]
+            }
+
+        # 결과 반환
+        result = {
+            "action": "EXCEPTION_DETECTED" if delayed_segments_response else "NO_ACTION",
+            "totalSegments": route_analysis["total_segments"],
+            "delayedCount": route_analysis["delayed_count"],
+            "delayedSegments": delayed_segments_response,
+            "mostCritical": most_critical_response,
+            "hasCritical": route_analysis["has_critical"]
+        }
+
+        logger.info(
+            f"✅ 지연 감지 완료: {route_analysis['delayed_count']}개 구간 지연 감지"
+        )
+
+        return {"data": result}
 
