@@ -35,6 +35,71 @@ paths:
                     type: string
                     format: date-time
 
+  /users/me/settings/commute:
+    put:
+      summary: 출퇴근 설정 저장
+      description: |
+        사용자의 필수 설정(집, 회사, 목표 도착 시간)을 저장합니다.
+        MVP 1: [3. 필수 사용자 설정] 저장 기능
+      operationId: updateCommuteSettings
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommuteSettingsRequest'
+      responses:
+        '200':
+          description: 설정이 성공적으로 저장되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/commute:
+    get:
+      summary: 출근 브리핑 조회
+      description: |
+        현재 시각 기준으로 출근을 위한 최적의 경로와 알림을 제공합니다.
+        MVP 2: [Logic 1.1] 출발 알림 / [Logic 1.2] 마지노선 경고
+        저장된 사용자 설정을 기반으로 계산됩니다.
+      operationId: getCommuteBriefing
+      tags:
+        - Briefings
+      responses:
+        '200':
+          description: 출근 브리핑 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommuteBriefingResponse'
+        '400':
+          description: 잘못된 요청 (설정이 없거나 불완전한 경우)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     Error:
@@ -46,7 +111,121 @@ components:
       required:
         - detail
 
+    # MVP 1: 출퇴근 설정
+    CommuteSettingsRequest:
+      type: object
+      required:
+        - homeAddress
+        - workAddress
+        - targetArrivalTime
+      properties:
+        homeAddress:
+          type: string
+          description: 집 주소
+          example: "서울 강남구 역삼동 123-45"
+        workAddress:
+          type: string
+          description: 회사 주소
+          example: "서울 중구 을지로 678-90"
+        targetArrivalTime:
+          type: string
+          format: time
+          description: 목표 도착 시간 (HH:MM:SS)
+          example: "08:50:00"
+        firstMileDefaultDuration:
+          type: integer
+          description: First Mile 기본 소요 시간 (분)
+          default: 5
+          example: 5
+        lastMileDefaultDuration:
+          type: integer
+          description: Last Mile 기본 소요 시간 (분)
+          default: 7
+          example: 7
+
+    # 표준 응답 구조
+    SuccessResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: "SETTINGS_SAVED"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: 에러 코드
+              example: "E001"
+            message:
+              type: string
+              description: 에러 메시지
+              example: "상세 에러 메시지"
+          required:
+            - code
+            - message
+
+    # MVP 2: 출근 브리핑
+    CommuteBriefingResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            alertType:
+              type: string
+              enum:
+                - GO_NOW
+                - LAST_CHANCE
+                - NO_ACTION
+              description: 알림 유형
+              example: "GO_NOW"
+            message:
+              type: string
+              description: 사용자에게 표시할 메시지
+              example: "8:50 도착을 위해, 지금 집에서 출발하셔서 5분 뒤 오는 [123번 버스]를 타세요."
+            recommendedTransport:
+              $ref: '#/components/schemas/RecommendedTransport'
+          required:
+            - alertType
+            - message
+
+    RecommendedTransport:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - BUS
+            - SUBWAY
+            - WALK
+          description: 교통수단 유형
+          example: "BUS"
+        name:
+          type: string
+          description: 교통수단 이름 (버스 번호, 지하철 노선 등)
+          example: "123번"
+        departureInMinutes:
+          type: integer
+          description: 출발까지 남은 시간 (분)
+          example: 5
+      required:
+        - type
+        - name
+        - departureInMinutes
+
 tags:
   - name: Health
     description: 헬스 체크 관련 엔드포인트
+  - name: Users
+    description: 사용자 관련 엔드포인트
+  - name: Briefings
+    description: 브리핑 관련 엔드포인트
 
