@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: 데일리모션 API
+  version: 1.0.0
+  description: |
+    데일리모션 프로젝트의 OpenAPI 스펙입니다.
+    이 문서는 API 설계도 역할을 하며, 자동 생성된 클라이언트/서버 코드의 기반이 됩니다.
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: 로컬 개발 서버
+  - url: https://api.dailymotion.example.com/v1
+    description: 프로덕션 서버
+
+paths:
+  /health:
+    get:
+      summary: 헬스 체크
+      description: 서버 상태를 확인합니다.
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: 서버가 정상 작동 중입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: 에러 상세 메시지
+      required:
+        - detail
+
+tags:
+  - name: Health
+    description: 헬스 체크 관련 엔드포인트
+

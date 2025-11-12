@@ -1,0 +1,10 @@
+# React Query 쿼리 훅
+# 
+# 데이터 페칭을 위한 커스텀 훅들이 위치합니다.
+# screens/에서 직접 API를 호출하지 않고, 이 훅들을 통해 데이터를 가져옵니다.
+# 
+# 예시:
+# - useGetBusArrivalQuery.ts
+# - useGetUserProfileQuery.ts
+# - useGetVideoListQuery.ts
+
