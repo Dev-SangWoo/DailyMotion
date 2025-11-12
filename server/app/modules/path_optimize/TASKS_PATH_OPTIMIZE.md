@@ -878,7 +878,7 @@
 | 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | `seating_optimizer.py`, `test_logic_2_3_seating_optimization.py` |
 | 7 | Logic 3.1 (지연 감지) | ✅ 완료 | 10/10 | `delay_detector.py`, `test_logic_3_1_delay_detection.py` |
 | 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | `taxi_suggester.py`, `test_logic_3_2_taxi_*.py` |
-| 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode (A/B/C 선택) |
+| 9 | Logic 4.1-4.2 (퇴근 목표) | ✅ 완료 | 22/22 | `retreat_mode_handler.py`, `route_selector_by_goal.py`, tests |
 | 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
 | 12 | API Endpoint | ⏳ Pending | - | REST/OpenAPI |
