@@ -403,7 +403,7 @@
 
 ---
 
-## 📊 Phase 9: 퇴근 모드 - 사용자 목표 설정 (Retreat Mode User Goal)
+## 🎯 Phase 9: 퇴근 모드 - 사용자 목표 설정 (Retreat Mode User Goal) ⏳ 미구현
 
 ### 9.1 퇴근 목표 질문 및 저장
 - [ ] **테스트 먼저**: `test_retreat_mode_user_goal.py` 작성
@@ -636,8 +636,8 @@
 | 4 | Logic 2.1 (자동 모드 전환) | ✅ 완료 | 13/13 | Context Awareness |
 | 5 | Logic 2.2 (고신뢰 대안 경로) | ✅ 완료 | 17/17 | 3가지 Gate |
 | 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | 탑승 위치 최적화 |
-| 7 | Logic 3.1 (돌발상황 감지) | ⏳ 미구현 | - | 지연 감지 |
-| 8 | Logic 3.2 (택시 제안) | ⏳ 미구현 | - | 최후의 수단 |
+| 7 | Logic 3.1 (지연 감지) | ✅ 완료 | 10/10 | 돌발상황 감지 |
+| 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | 최후의 수단 |
 | 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
 | 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
@@ -745,6 +745,8 @@
 - `tests/test_logic_2_1_context_awareness.py` - 13개 테스트 (Phase 4)
 - `tests/test_logic_2_2_gate_validation.py` - 17개 테스트 (Phase 5)
 - `tests/test_logic_2_3_seating_optimization.py` - 8개 테스트 (Phase 6)
+- `services/delay_detector.py` - 지연 감지 엔진 (Phase 7)
+- `services/taxi_suggester.py` - 택시 제안 엔진 (Phase 8)
 - `tests/test_logic_3_1_delay_detection.py` - 10개 테스트 (Phase 7)
 - `tests/test_logic_3_2_taxi_commute.py` - 9개 테스트 (Phase 8 - 출근모드)
 - `tests/test_logic_3_2_taxi_retreat.py` - 9개 테스트 (Phase 8 - 퇴근모드)
@@ -810,10 +812,10 @@
 | 2.1.2 | 대중교통 API 통합 | ✅ 완료 | 4/4 | `services/transport_api_client.py` |
 | 4 | Logic 2.1 (자동 모드 전환) | ✅ 완료 | 13/13 | `services/context_detector.py`, `test_logic_2_1_context_awareness.py` |
 | 5 | Logic 2.2 (고신뢰 대안 경로) | ✅ 완료 | 17/17 | `services/gate_validator.py`, `test_logic_2_2_gate_validation.py` |
-| 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | `services/seating_optimizer.py`, `test_logic_2_3_seating_optimization.py` |
-| 7 | Logic 3.1 (돌발상황 감지) | ✅ 완료 | 10/10 | `services/delay_detector.py`, `test_logic_3_1_delay_detection.py` |
-| 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | `services/taxi_suggester.py`, `test_logic_3_2_taxi_commute.py`, `test_logic_3_2_taxi_retreat.py` |
-| 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode |
+| 6 | Logic 2.3 (탑승/환승 최적화) | ✅ 완료 | 8/8 | `seating_optimizer.py`, `test_logic_2_3_seating_optimization.py` |
+| 7 | Logic 3.1 (지연 감지) | ✅ 완료 | 10/10 | `delay_detector.py`, `test_logic_3_1_delay_detection.py` |
+| 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | `taxi_suggester.py`, `test_logic_3_2_taxi_*.py` |
+| 9 | 퇴근 모드 목표 설정 | ⏳ 미구현 | - | Retreat Mode (A/B/C 선택) |
 | 10 | 스마트 폴링 | ⏳ 미구현 | - | 주기적 업데이트 |
 | 11 | DB 모델 | ⏳ Pending | - | DB Schema |
 | 12 | API Endpoint | ⏳ Pending | - | REST/OpenAPI |
@@ -822,7 +824,7 @@
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-## 📁 디렉토리 구조
+## 📁 디렉토리 구조@
 
 ```
 server/app/modules/path_optimize/
@@ -841,14 +843,19 @@ server/app/modules/path_optimize/
     ├── test_real_time_transport_integration.py   # ✅ Phase 2.1.1 & 2.1.2 (9개 통과)
     ├── test_logic_2_1_context_awareness.py       # ✅ Phase 4 자동 모드 전환 (13개 통과)
     ├── test_logic_2_2_gate_validation.py         # ✅ Phase 5 고신뢰 대안 경로 (17개 통과)
-    └── test_logic_2_3_seating_optimization.py    # ✅ Phase 6 탑승/환승 최적화 (8개 통과)
+    ├── test_logic_2_3_seating_optimization.py    # ✅ Phase 6 탑승/환승 최적화 (8개 통과)
+    ├── test_logic_3_1_delay_detection.py         # ✅ Phase 7 지연 감지 (10개 통과)
+    ├── test_logic_3_2_taxi_commute.py            # ✅ Phase 8 택시 제안 출근모드 (9개 통과)
+    └── test_logic_3_2_taxi_retreat.py            # ✅ Phase 8 택시 제안 퇴근모드 (9개 통과)
 
 server/app/services/
 ├── __init__.py
-├── context_detector.py            # ✅ Phase 4 Context Awareness 엔진
 ├── transport_api_client.py         # ✅ Phase 2.1 대중교통 API 클라이언트
+├── context_detector.py            # ✅ Phase 4 Context Awareness 엔진
 ├── gate_validator.py               # ✅ Phase 5 3가지 Gate 검증
-└── seating_optimizer.py            # ✅ Phase 6 탑승/환승 최적화
+├── seating_optimizer.py            # ✅ Phase 6 탑승/환승 최적화
+├── delay_detector.py              # ✅ Phase 7 지연 감지 엔진
+└── taxi_suggester.py              # ✅ Phase 8 택시 제안 엔진
 ```
 
 ---
@@ -905,30 +912,33 @@ server/app/services/
 ## 📊 **현재 완료도**
 
 ```
-✅ 완료된 Phase: 11개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6 + 추가)
-⏳ 미구현 Phase: 5개 (Phase 7~10, 11~16)
+✅ 완료된 Phase: 13개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6, 7, 8)
+⏳ 미구현 Phase: 3개 (Phase 9, 10)
+❌ Pending Phase: 4개 (Phase 11~14, 15~16)
 
-🧪 총 테스트: 89/89 PASSED ✅
-📈 완료도: 65% (11/16 Phase 이상 달성!)
+🧪 총 테스트: 114/114 PASSED ✅
+📈 완료도: 81% (13/16 Phase 달성!)
 
 📋 Phase별 테스트 카운트:
 ┌─────────────────────────────────────┬────────┬──────────┐
 │ Phase                               │ 테스트 │ 상태     │
 ├─────────────────────────────────────┼────────┼──────────┤
-│ 1.1 (출발 알림)                     │ 4개    │ ✅ 완료  │
-│ 1.2 (마지노선 경고)                 │ 4개    │ ✅ 완료  │
-│ 3.2 (퇴근모드 막차 알림)            │ 4개    │ ✅ 완료  │
-│ 1.1/1.2 데이터 모델                 │ 30개   │ ✅ 완료  │
+│ 1 (필수 설정 및 데이터 모델)        │ 30개   │ ✅ 완료  │
+│ 2 (Logic 1.1 - 출발 알림)          │ 4개    │ ✅ 완료  │
+│ 3 (Logic 1.2 - 마지노선 경고)      │ 4개    │ ✅ 완료  │
+│ 3.2 (Logic 1.2 퇴근모드)            │ 4개    │ ✅ 완료  │
 │ 2.1.1 (API 응답 파싱)               │ 5개    │ ✅ 완료  │
 │ 2.1.2 (API 실제 통합)               │ 4개    │ ✅ 완료  │
-│ 4 (Context Awareness)               │ 13개   │ ✅ 완료  │
-│ 5 (고신뢰 대안 경로)                │ 17개   │ ✅ 완료  │
-│ 6 (탑승/환승 최적화)                │ 8개    │ ✅ 완료  │
+│ 4 (Logic 2.1 - Context Awareness)   │ 13개   │ ✅ 완료  │
+│ 5 (Logic 2.2 - 고신뢰 대안 경로)   │ 17개   │ ✅ 완료  │
+│ 6 (Logic 2.3 - 탑승/환승 최적화)   │ 8개    │ ✅ 완료  │
+│ 7 (Logic 3.1 - 지연 감지)          │ 10개   │ ✅ 완료  │
+│ 8 (Logic 3.2 - 택시 제안)          │ 18개   │ ✅ 완료  │
 ├─────────────────────────────────────┼────────┼──────────┤
-│ 합계                                │ 89개   │ 모두 통과│
+│ 합계                                │ 114개  │ 모두 통과│
 └─────────────────────────────────────┴────────┴──────────┘
 
-🎯 구현된 Logic:
+🎯 구현된 Logic (8개 완성):
 - [Logic 1.1] 출발 알림 (GO_NOW): 목표 도착까지 15분 이상
 - [Logic 1.2 출근] 마지노선 경고 (LAST_CHANCE): 0~15분 전
 - [Logic 1.2 퇴근] 막차 알림: 경로별 막차 시간 안내
@@ -937,22 +947,25 @@ server/app/services/
 - [Logic 2.1] 자동 모드 전환: GPS 기반 상태 감지 → 화면 자동 전환
 - [Logic 2.2] 고신뢰 대안 경로 제안: 3가지 Gate (이득, 환승확정, 경험의질)
 - [Logic 2.3] 탑승/환승 최적화 가이드: 환승/혼잡도/하차역 위치 기반 칸 추천
+- [Logic 3.1] 지연 감지: 실시간 vs 평균 소요시간 비교, 5분 이상 = 경고
+- [Logic 3.2] 택시 제안: 출근(지각확정) / 퇴근(막차놓침) 시 최후의 수단
 ```
 
 ### 📈 진행 요약
 - **시작**: Phase 1.1만 구현 (기본 뼈대)
-- **현재**: Phase 1~6 구현 완료 (89/89 테스트 PASSED ✅)
-- **남은 작업**: Phase 7~16 (돌발상황 감지, 택시 제안, DB, API 엔드포인트 등)
+- **현재**: Phase 1~8 구현 완료 (114/114 테스트 PASSED ✅)
+- **남은 작업**: Phase 9~16 (퇴근 모드, 스마트 폴링, DB, API 엔드포인트 등)
 
-### 🎯 최근 완료 (Phase 5~6)
-- **Phase 5**: Logic 2.2 - 고신뢰 대안 경로 제안 ✅
-  - GateValidator 서비스 (3가지 Gate: 이득, 환승확정, 경험의질)
-  - 17개 테스트 통과
+### 🎯 최근 완료 (Phase 7~8)
+- **Phase 7**: Logic 3.1 - 지연 감지 ✅
+  - DelayDetector 서비스 (실시간 vs 평균 비교, 5분 threshold)
+  - 10개 테스트 통과
+  - PathOptimizeService 통합 (get_exception_alert 메서드)
 
-- **Phase 6**: Logic 2.3 - 탑승/환승 최적화 가이드 ✅
-  - SeatingOptimizer 서비스 (환승/혼잡도/하차역 위치 기반)
-  - 8개 테스트 통과
-  - PathOptimizeService 통합 (get_seating_optimization 메서드)
+- **Phase 8**: Logic 3.2 - 택시 제안 ✅
+  - TaxiSuggester 서비스 (출근/퇴근 모드 분리)
+  - 18개 테스트 통과 (9 + 9)
+  - PathOptimizeService 통합 (get_taxi_suggestion 메서드)
 
 ---
 
