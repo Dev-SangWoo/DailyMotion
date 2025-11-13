@@ -7,6 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import api_router
 from app.api.v1.path_optimize_router import router as path_optimize_router
+from dotenv import load_dotenv
+import os
+
+# .env 파일 로드
+load_dotenv()
 
 app = FastAPI(
     title=settings.APP_NAME,

@@ -10,12 +10,14 @@ from datetime import datetime, time
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 import logging
+import os
 
 from app.modules.path_optimize.service import PathOptimizeService
 from app.modules.path_optimize.models import (
     SystemMode,
     CommuteSettings,
 )
+from app.services.odsay_client import OdsayAPIClient
 
 logger = logging.getLogger(__name__)
 
@@ -428,5 +430,191 @@ def get_retreat_choice(
         logger.error(f"❌ 퇴근 목표 조회 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# =====================================================
+# ODSAY API 테스트 엔드포인트 (개발/테스트용)
+# =====================================================
+
+@router.get("/odsay/test/station", tags=["ODSAY Test"])
+async def test_odsay_station_search(
+    station_name: str = Query(..., description="검색할 역/정류장 이름 (예: 강남역)")
+):
+    """
+    ODSAY Station Search API 테스트
+
+    Example: GET /api/v1/briefings/odsay/test/station?station_name=강남역
+    """
+    try:
+        logger.info(f"🔍 ODSAY Station 검색 테스트: {station_name}")
+
+        api_key = os.getenv("ODSAY_API_KEY")
+        if not api_key:
+            return {
+                "data": None,
+                "error": {
+                    "code": "CONFIG_ERROR",
+                    "message": "ODSAY_API_KEY 환경변수가 설정되지 않았습니다"
+                }
+            }
+
+        client = OdsayAPIClient(api_key=api_key)
+        response = await client.search_station(station_name=station_name)
+
+        if "error" in response:
+            return {
+                "data": None,
+                "error": {
+                    "code": "ODSAY_ERROR",
+                    "message": f"역 검색 실패: {response['error']}"
+                }
+            }
+
+        stations = response.get("result", {}).get("station", [])
+
+        return {
+            "data": {
+                "searchQuery": station_name,
+                "totalCount": len(stations),
+                "stations": [
+                    {
+                        "stationName": s.get("stationName"),
+                        "stationID": s.get("stationID"),
+                        "x": s.get("x"),
+                        "y": s.get("y"),
+                        "address": f"{s.get('do')} {s.get('gu')} {s.get('dong')}",
+                        "stationType": "Bus" if s.get("stationClass") == 1 else "Subway"
+                    }
+                    for s in stations[:5]  # 상위 5개만
+                ]
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"❌ ODSAY Station 검색 오류: {str(e)}")
+        return {
+            "data": None,
+            "error": {
+                "code": "ODSAY_ERROR",
+                "message": str(e)
+            }
+        }
+
+
+@router.get("/odsay/test/route", tags=["ODSAY Test"])
+async def test_odsay_route_search(
+    start_station: str = Query(..., description="출발역 이름 (예: 강남역)"),
+    end_station: str = Query(..., description="도착역 이름 (예: 을지로입구역)")
+):
+    """
+    ODSAY Route Search API 테스트 (역 검색 → 경로 검색)
+
+    Example: GET /api/v1/briefings/odsay/test/route?start_station=강남역&end_station=을지로입구역
+    """
+    try:
+        logger.info(f"🔍 ODSAY 경로 검색 테스트: {start_station} → {end_station}")
+
+        api_key = os.getenv("ODSAY_API_KEY")
+        if not api_key:
+            return {
+                "data": None,
+                "error": {
+                    "code": "CONFIG_ERROR",
+                    "message": "ODSAY_API_KEY 환경변수가 설정되지 않았습니다"
+                }
+            }
+
+        client = OdsayAPIClient(api_key=api_key)
+
+        # Step 1: 출발역 검색
+        start_response = await client.search_station(station_name=start_station)
+        if "error" in start_response or "result" not in start_response:
+            return {
+                "data": None,
+                "error": {
+                    "code": "STATION_NOT_FOUND",
+                    "message": f"출발역 '{start_station}' 검색 실패"
+                }
+            }
+
+        start_stations = start_response.get("result", {}).get("station", [])
+        if not start_stations:
+            return {
+                "data": None,
+                "error": {
+                    "code": "STATION_NOT_FOUND",
+                    "message": f"출발역 '{start_station}' 검색 결과 없음"
+                }
+            }
+
+        start_station_data = start_stations[0]
+        start_x = start_station_data["x"]
+        start_y = start_station_data["y"]
+
+        # Step 2: 도착역 검색
+        end_response = await client.search_station(station_name=end_station)
+        if "error" in end_response or "result" not in end_response:
+            return {
+                "data": None,
+                "error": {
+                    "code": "STATION_NOT_FOUND",
+                    "message": f"도착역 '{end_station}' 검색 실패"
+                }
+            }
+
+        end_stations = end_response.get("result", {}).get("station", [])
+        if not end_stations:
+            return {
+                "data": None,
+                "error": {
+                    "code": "STATION_NOT_FOUND",
+                    "message": f"도착역 '{end_station}' 검색 결과 없음"
+                }
+            }
+
+        end_station_data = end_stations[0]
+        end_x = end_station_data["x"]
+        end_y = end_station_data["y"]
+
+        # Step 3: 경로 검색
+        route_response = await client.search_route(
+            start_x=start_x,
+            start_y=start_y,
+            end_x=end_x,
+            end_y=end_y,
+            search_type=0
+        )
+
+        if "error" in route_response:
+            return {
+                "data": None,
+                "error": {
+                    "code": "ROUTE_NOT_FOUND",
+                    "message": f"경로 검색 실패"
+                }
+            }
+
+        paths = route_response.get("result", {}).get("path", [])
+        parsed = client.parse_route_info(route_response)
+
+        return {
+            "data": {
+                "startStation": start_station_data["stationName"],
+                "endStation": end_station_data["stationName"],
+                "startCoord": {"x": start_x, "y": start_y},
+                "endCoord": {"x": end_x, "y": end_y},
+                "totalPaths": len(paths),
+                "paths": parsed.get("paths", [])[:3]  # 상위 3개만
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"❌ ODSAY 경로 검색 오류: {str(e)}")
+        return {
+            "data": None,
+            "error": {
+                "code": "ODSAY_ERROR",
+                "message": str(e)
+            }
+        }
 
 
