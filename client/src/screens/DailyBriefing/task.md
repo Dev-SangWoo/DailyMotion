@@ -3,7 +3,7 @@
 ## 📋 개요
 DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
-**전체 진행률**: 8/15 (53%)
+**전체 진행률**: 9/15 (60%)
 
 ---
 
@@ -73,15 +73,18 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - ✅ 헌법 준수: Styled-components + theme, testID
   - 테스트: 8개 (AlternativePathCard)
 
-- ⬜ **3.4** 캐러셀 스와이프 기능
-  - 좌우 스와이프로 카드 전환
-  - Logic 2.2 발동 시 자동 슬라이드 (카드 1 → 카드 2.3)
-  - Expo/React Native 제스처 라이브러리 활용
+- ✅ **3.4** 캐러셀 스와이프 기능 (완료)
+  - ✅ 좌우 스와이프로 카드 전환 (FlatList + pagingEnabled)
+  - ✅ Logic 2.2 발동 시 자동 슬라이드 (카드 1 → 카드 2.3)
+  - ✅ 페이지네이션 인디케이터 (점) 표시
+  - ✅ getItemLayout으로 스크롤 최적화
+  - 테스트: 9개 (Carousel)
 
-- ⬜ **3.5** 컴포넌트 2 테스트 작성
-  - Hero 카드 텍스트 표시 테스트
-  - 날씨 카드 조건부 표시 테스트
-  - 대안 경로 카드 Logic 2.2 연동 테스트
+- ✅ **3.5** 컴포넌트 2 통합 테스트 (완료)
+  - ✅ Hero + Weather + AlternativePathCard 캐러셀 통합
+  - ✅ JourneySelector와 Carousel 함께 렌더링 테스트
+  - ✅ 페이지네이션 테스트
+  - 테스트: 3개 (DailyBriefingScreen 통합)
 
 ---
 
@@ -109,28 +112,26 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
 ---
 
-## Phase 5: Ambient Feedback (배경색 알림) 로직
-- ⬜ **5.1** 🔵 파란색 (정상 / Default) 구현
-  - 조건: 여정이 '정상' 상태 (Phase 1, 2)
-  - theme.colors.background 적용
+## Phase 5: Ambient Feedback (배경색 알림) 로직 (완료)
+- ✅ **5.1-5.2** 색상 상태 및 Store 구현 (완료)
+  - ✅ useAmbientFeedbackStore.ts 생성 (Zustand)
+  - ✅ 🔵 파란색 (정상 / Default): theme.colors.background
+  - ✅ 🟠 주황색 (주의 / Warning): #FFA500 (Logic 3.1 지연 감지)
+  - ✅ 🔴 빨간색 (위기 / Alert): #FF6B6B (Logic 3.2 지각 확정)
 
-- ⬜ **5.2** 🟠 주황색 (주의 / Warning) 구현
-  - 조건: Logic 3.1 발동 (지연 감지)
-  - 경로상 지연/위험 요소 감지, 목표 도착 시간 미지나
-  - 배경색 + Hero 카드 내용 동시 업데이트
+- ✅ **5.3-5.4** 상태 관리 및 애니메이션 (완료)
+  - ✅ DailyBriefingScreen에 store 통합
+  - ✅ alertType → ambientStatus 매핑 (useEffect)
+  - ✅ 배경색 전환 애니메이션 (0.2s ease-in-out)
+  - ✅ Container에 ambientStatus prop 전달
 
-- ⬜ **5.3** 🔴 빨간색 (위기 / Alert) 구현
-  - 조건: Logic 3.2 발동 (지각 확정)
-  - 예상 도착 시간 > 목표 도착 시간
-  - 배경색 + "🚨 지각 확정! [택시 호출하기]" 업데이트
-
-- ⬜ **5.4** 배경색 전환 애니메이션
-  - 부드러운 색상 전환 (200ms)
-  - Zustand 상태 변화 감지
-
-- ⬜ **5.5** Ambient Feedback 테스트
-  - 상태별 배경색 테스트
-  - Hero 카드 내용 동기화 테스트
+- ✅ **5.5** Ambient Feedback 테스트 (완료)
+  - ✅ GO_NOW → 정상 상태(파란색) 테스트
+  - ✅ LAST_CHANCE → 지연 감지(주황색) 테스트
+  - ✅ NO_ACTION → 정상 상태(파란색) 테스트
+  - ✅ alertType 변경 시 배경색 업데이트 테스트
+  - ✅ Zustand Store 상태 관리 테스트
+  - 테스트: 5개 (Ambient Feedback)
 
 ---
 
@@ -344,11 +345,12 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 |-------|------|--------|
 | Phase 1 | ✅ 완료 | 100% |
 | Phase 2 (2.1-2.4) | ✅ 완료 | 100% |
-| Phase 3.1-3.3 | ✅ 완료 | 100% |
-| Phase 3.4-3.5 | ⬜ 미시작 | 0% |
-| Phase 4-8 | ⬜ 미시작 | 0% |
+| Phase 3.1-3.5 | ✅ 완료 | 100% |
+| Phase 4 | ⬜ 미시작 | 0% |
+| Phase 5 | ✅ 완료 | 100% |
+| Phase 6-8 | ⬜ 미시작 | 0% |
 | Phase 9-15 | ⬜ 미시작 | 0% |
-| **전체** | **8/15** | **53%** |
+| **전체** | **9/15** | **60%** |
 
 ---
 
