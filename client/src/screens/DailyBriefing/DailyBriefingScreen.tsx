@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
-import { JourneySelector } from './components';
+import { JourneySelector, HeroCard } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
 const Container = styled.View`
@@ -114,7 +114,14 @@ const DailyBriefingScreen: React.FC = () => {
         onTabSelect={handleTabSelect}
       />
 
-      {/* Phase 1: 기본 브리핑 정보 */}
+      {/* Phase 3: Hero 카드 (카드 2.1) */}
+      <HeroCard
+        alertType={briefingData.alertType as 'GO_NOW' | 'LAST_CHANCE' | 'NO_ACTION'}
+        transportName={briefingData.recommendedTransport?.name}
+        transportTime={briefingData.recommendedTransport?.departureInMinutes}
+      />
+
+      {/* Phase 1: 기본 브리핑 정보 (Phase 3으로 통합되어 제거 예정) */}
       <MessageText>{briefingData.message}</MessageText>
       {briefingData.recommendedTransport && (
         <>

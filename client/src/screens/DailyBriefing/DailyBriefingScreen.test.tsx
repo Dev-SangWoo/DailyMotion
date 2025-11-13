@@ -387,5 +387,90 @@ describe('DailyBriefingScreen', () => {
       // Note: 이는 향후 구현에서 확인됨 (현재는 에러 상태에서 다른 UI 표시)
     });
   });
+
+  /**
+   * [Phase 3.1] Hero 카드 (카드 2.1) 통합 테스트
+   *
+   * DailyBriefingScreen에서 HeroCard가 올바르게 렌더링되는지 검증합니다.
+   */
+  describe('Hero 카드 통합 (Phase 3.1)', () => {
+    /**
+     * [DESIGN.md 4.2 Hero 카드]
+     * GO_NOW 응답 시 출발 알림 카드 표시
+     */
+    it('Hero 카드가 GO_NOW 응답으로 올바르게 렌더링되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 GO_NOW 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Hero 카드가 렌더링되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('hero-card')).toBeTruthy();
+      });
+
+      // Then: 출발 알림 헤드라인 표시
+      expect(screen.getByText(/출발|지금/i)).toBeTruthy();
+    });
+
+    /**
+     * [DESIGN.md 4.2 Hero 카드]
+     * LAST_CHANCE 응답 시 경고 알림 카드 표시
+     */
+    it('Hero 카드가 LAST_CHANCE 응답으로 올바르게 렌더링되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 LAST_CHANCE 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'LAST_CHANCE',
+            message: '지각 주의! 마지막 버스를 타세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '456번',
+              departureInMinutes: 8,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Hero 카드가 렌더링되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('hero-card')).toBeTruthy();
+      });
+
+      // Then: 경고 헤드라인 표시
+      expect(screen.getByText(/주의|경고|지각/i)).toBeTruthy();
+    });
+  });
 });
 
