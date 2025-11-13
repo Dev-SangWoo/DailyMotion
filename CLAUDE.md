@@ -1,4 +1,6 @@
-# DailyMotion Project Constitution
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > **SINGLE SOURCE OF TRUTH (SSOT)**: This document is the definitive guide for all developers (including AI agents) working on DailyMotion. Every code change must align with these principles.
 
@@ -6,7 +8,7 @@
 
 ## 📋 Document Hierarchy
 
-- **claude.md** (this file): The constitution for architects/AI agents
+- **CLAUDE.md** (this file): The constitution for architects/AI agents
 - **AGENTS.md**: Extended constitution with detailed specifications
 - **README.md**: User guide (installation, how to run)
 - **docs/**: API specs, module designs, auto-generated code
@@ -63,7 +65,64 @@
 
 ---
 
-## 🚀 Core Business Logic (v3.0 Spec)
+## 🚀 Development Commands
+
+### Frontend (React Native - `client/`)
+
+```bash
+# Navigate to client directory
+cd client
+
+# Install dependencies
+npm install
+
+# Start development server (Expo/Metro bundler)
+npm start
+
+# Run unit tests (Jest)
+npm test
+
+# Run specific test file
+npm test -- DailyBriefingScreen.test.tsx
+
+# Watch mode for tests
+npm test -- --watch
+```
+
+### Backend (FastAPI - `server/`)
+
+```bash
+# Navigate to server directory
+cd server
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server with hot reload
+uvicorn app.main:app --reload
+
+# Run server on specific port
+uvicorn app.main:app --reload --port 8001
+
+# Run all tests
+pytest
+
+# Run tests with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_ai_pattern.py
+
+# Run tests matching a pattern
+pytest -k "test_learn_pattern"
+
+# Run with coverage
+pytest --cov=app
+```
+
+---
+
+## 🔧 Core Business Logic (v3.0 Spec)
 
 ### Logic 1.1: Departure Alarm (출발 알림)
 - **Mode**: Commute mode (prevent lateness)
