@@ -815,5 +815,113 @@ describe('DailyBriefingScreen', () => {
       });
     });
   });
+
+  /**
+   * Phase 4: 단계별 경로 카드 (Step-by-Step Cards)
+   *
+   * [DESIGN.md 4.3] 단계별 경로 카드
+   * - 도보: 🚶 아이콘, 점선
+   * - 교통수단: 🚌 🚇 아이콘, 호선별 고유색 라인
+   * - Logic 2.3: "빠른 환승: 3-2칸 추천"
+   * - Logic 2.2: "혼잡도: 혼잡"
+   */
+  describe('단계별 경로 카드 (Phase 4)', () => {
+    it('StepCards 컴포넌트가 렌더링되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 성공 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: StepCards가 렌더링되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('step-cards')).toBeTruthy();
+      });
+    });
+
+    it('단계별 카드에서 도보(🚶), 버스(🚌), 지하철(🚇) 아이콘이 표시되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 성공 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: 각 단계 아이콘이 표시되어야 함
+      await waitFor(() => {
+        // 도보는 2번 나타남 (walk-1, walk-2)
+        expect(screen.getAllByText('🚶')).toHaveLength(2);
+        // 버스는 1번 나타남
+        expect(screen.getByText('🚌')).toBeTruthy();
+      });
+    });
+
+    it('단계별 카드의 버스 번호가 표시되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 성공 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: 버스 번호가 여러 곳에 표시되어야 함 (StepCard, 기본 정보 등)
+      expect(screen.getAllByText(/123번/i).length).toBeGreaterThan(0);
+    });
+  });
 });
 

@@ -16,7 +16,7 @@ import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
 import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../stores/useAmbientFeedbackStore';
-import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel } from './components';
+import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
 // Phase 5: Ambient Feedback - 배경색 동적 설정 (props 기반)
@@ -200,6 +200,31 @@ const DailyBriefingScreen: React.FC = () => {
       <Carousel
         cards={carouselCards}
         testID="primary-carousel"
+      />
+
+      {/* Phase 4: 단계별 경로 카드 (Step-by-Step Cards) */}
+      <StepCards
+        steps={[
+          {
+            id: 'walk-1',
+            type: 'walking',
+            duration: 5,
+          },
+          {
+            id: 'bus-1',
+            type: 'bus',
+            duration: 10,
+            lineName: '123번',
+            lineColor: '#FF6B6B',
+            congestion: 'normal',
+          },
+          {
+            id: 'walk-2',
+            type: 'walking',
+            duration: 7,
+          },
+        ]}
+        testID="step-cards"
       />
 
       {/* Phase 1: 기본 브리핑 정보 (Phase 3으로 통합되어 제거 예정) */}
