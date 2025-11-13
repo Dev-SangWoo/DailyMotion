@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
-import { JourneySelector, HeroCard, WeatherCard } from './components';
+import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
 const Container = styled.View`
@@ -126,6 +126,15 @@ const DailyBriefingScreen: React.FC = () => {
         temperature={15}
         condition="비"
         precipitationProbability={70}
+      />
+
+      {/* Phase 3.3: 대안 경로 카드 (카드 2.3) - 조건부 렌더링 */}
+      <AlternativePathCard
+        isVisible={false}
+        timeSavings={7}
+        onPress={() => {
+          // TODO: 경로 비교 모달 표시 (Phase 3.3 향후 구현)
+        }}
       />
 
       {/* Phase 1: 기본 브리핑 정보 (Phase 3으로 통합되어 제거 예정) */}
