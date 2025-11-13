@@ -80,6 +80,14 @@ paths:
       operationId: getCommuteBriefing
       tags:
         - Briefings
+      parameters:
+        - name: user_id
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
       responses:
         '200':
           description: 출근 브리핑 정보
@@ -87,14 +95,246 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommuteBriefingResponse'
-        '400':
-          description: 잘못된 요청 (설정이 없거나 불완전한 경우)
+        '404':
+          description: 사용자를 찾을 수 없음
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: 인증 실패
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/retreat:
+    get:
+      summary: 퇴근 막차 알림 조회
+      description: |
+        Phase 12: 퇴근 모드에서 사용자가 선택한 경로의 막차 시간을 알림합니다.
+        Logic 1.2 (퇴근 모드) 구현
+      operationId: getRetreatModeLastBusAlert
+      tags:
+        - Briefings
+      parameters:
+        - name: user_id
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 퇴근 막차 알림 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetreatBriefingResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/commute-settings:
+    post:
+      summary: 출퇴근 설정 저장
+      description: |
+        Phase 12: 사용자의 출퇴근 설정을 저장합니다.
+        집 주소, 회사 주소, 목표 도착 시간 등을 저장합니다.
+      operationId: saveCommuteSettings
+      tags:
+        - Briefings
+      parameters:
+        - name: user_id
+          in: query
+          description: 사용자 ID
+          required: true
+          schema:
+            type: string
+        - name: home_address
+          in: query
+          description: 집 주소
+          required: true
+          schema:
+            type: string
+        - name: work_address
+          in: query
+          description: 회사 주소
+          required: true
+          schema:
+            type: string
+        - name: target_arrival_hour
+          in: query
+          description: 도착 목표 시간 (시, 0-23)
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 23
+        - name: target_arrival_minute
+          in: query
+          description: 도착 목표 분 (분, 0-59)
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 59
+        - name: first_mile_duration
+          in: query
+          description: First Mile 도보 시간 (분, 기본값 5)
+          required: false
+          schema:
+            type: integer
+            default: 5
+            minimum: 0
+            maximum: 30
+        - name: last_mile_duration
+          in: query
+          description: Last Mile 도보 시간 (분, 기본값 5)
+          required: false
+          schema:
+            type: integer
+            default: 5
+            minimum: 0
+            maximum: 30
+      responses:
+        '200':
+          description: 설정이 저장되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommuteSettingsSaveResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: 출퇴근 설정 조회
+      description: |
+        Phase 12: 사용자의 저장된 출퇴근 설정을 조회합니다.
+      operationId: getCommuteSettings
+      tags:
+        - Briefings
+      parameters:
+        - name: user_id
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 출퇴근 설정 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommuteSettingsGetResponse'
+        '404':
+          description: 사용자를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/retreat-choice:
+    post:
+      summary: 퇴근 목표 선택 저장
+      description: |
+        Phase 12: 퇴근 모드 사용자 목표 선택을 저장합니다.
+        Logic 4.1 구현
+        - A: 가장 빠르게 (최단 시간)
+        - B: 편안하게 (착석 선호)
+        - C: 평소 경로 (습관)
+      operationId: saveRetreatChoice
+      tags:
+        - Briefings
+      parameters:
+        - name: user_id
+          in: query
+          description: 사용자 ID
+          required: true
+          schema:
+            type: string
+        - name: choice
+          in: query
+          description: 선택지 (A/B/C)
+          required: true
+          schema:
+            type: string
+            enum:
+              - "A"
+              - "B"
+              - "C"
+      responses:
+        '200':
+          description: 선택이 저장되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetreatChoiceSaveResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 유효성 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: 퇴근 목표 선택 조회
+      description: |
+        Phase 12: 사용자의 저장된 퇴근 목표 선택을 조회합니다.
+      operationId: getRetreatChoice
+      tags:
+        - Briefings
+      parameters:
+        - name: user_id
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 퇴근 목표 선택 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetreatChoiceGetResponse'
+        '500':
+          description: 서버 오류
           content:
             application/json:
               schema:
@@ -220,6 +460,170 @@ components:
         - type
         - name
         - departureInMinutes
+
+    # Phase 12: 퇴근 모드 관련 응답
+    RetreatBriefingResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              description: 막차 알림 메시지
+              example: "선택하신 [B. 편안하게(착석)]의 막차가 30분 뒤입니다."
+            recommendedTransport:
+              $ref: '#/components/schemas/RecommendedTransport'
+          required:
+            - message
+
+    # Phase 12: 출퇴근 설정 저장 응답
+    CommuteSettingsSaveResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - SETTINGS_SAVED
+              example: "SETTINGS_SAVED"
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            message:
+              type: string
+              description: 성공 메시지
+              example: "설정이 저장되었습니다."
+            settings:
+              type: object
+              properties:
+                homeAddress:
+                  type: string
+                  example: "서울 강남구 역삼동"
+                workAddress:
+                  type: string
+                  example: "서울 중구 을지로"
+                targetArrivalTime:
+                  type: string
+                  format: time
+                  example: "08:50"
+                firstMileDefaultDuration:
+                  type: integer
+                  example: 5
+                lastMileDefaultDuration:
+                  type: integer
+                  example: 7
+          required:
+            - action
+            - userId
+            - message
+
+    # Phase 12: 출퇴근 설정 조회 응답
+    CommuteSettingsGetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            homeAddress:
+              type: string
+              description: 집 주소
+              example: "서울 강남구 역삼동"
+            workAddress:
+              type: string
+              description: 회사 주소
+              example: "서울 중구 을지로"
+            targetArrivalTime:
+              type: string
+              format: time
+              description: 목표 도착 시간 (HH:MM)
+              example: "08:50"
+            firstMileDefaultDuration:
+              type: integer
+              description: First Mile 도보 시간 (분)
+              example: 5
+            lastMileDefaultDuration:
+              type: integer
+              description: Last Mile 도보 시간 (분)
+              example: 7
+          required:
+            - userId
+            - homeAddress
+            - workAddress
+            - targetArrivalTime
+
+    # Phase 12: 퇴근 목표 저장 응답
+    RetreatChoiceSaveResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - CHOICE_SAVED
+              example: "CHOICE_SAVED"
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            selectedChoice:
+              type: string
+              enum:
+                - "A"
+                - "B"
+                - "C"
+              description: 선택한 경로 (A/B/C)
+              example: "B"
+            selectedLabel:
+              type: string
+              description: 선택지 레이블
+              example: "편안하게"
+            message:
+              type: string
+              description: 성공 메시지
+              example: "퇴근 목표 '편안하게'로 저장되었습니다."
+          required:
+            - action
+            - userId
+            - selectedChoice
+            - selectedLabel
+
+    # Phase 12: 퇴근 목표 조회 응답
+    RetreatChoiceGetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            selectedChoice:
+              type: string
+              enum:
+                - "A"
+                - "B"
+                - "C"
+              description: 선택한 경로 (A/B/C)
+              example: "B"
+            selectedLabel:
+              type: string
+              description: 선택지 레이블
+              example: "편안하게"
+          required:
+            - userId
+            - selectedChoice
+            - selectedLabel
 
 tags:
   - name: Health
