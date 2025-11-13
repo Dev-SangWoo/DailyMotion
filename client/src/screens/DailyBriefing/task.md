@@ -3,7 +3,7 @@
 ## 📋 개요
 DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
-**전체 진행률**: 7/15 (47%)
+**전체 진행률**: 8/15 (53%)
 
 ---
 
@@ -64,11 +64,14 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - ✅ 헌법 준수: Styled-components + theme, testID로 테스트 안정성
   - 테스트: 6개 (WeatherCard)
 
-- ⬜ **3.3** 카드 2.3: 대안 경로 카드 구현 (조건부)
-  - Logic 2.2 발동 시만 표시
-  - "💡 7분 단축 경로 발견!" 헤드라인
-  - 탭 시 경로 비교 모달 표시 (미구현)
-  - 초기 상태: 숨김 (Hidden)
+- ✅ **3.3** 카드 2.3: 대안 경로 카드 구현 (조건부) (완료)
+  - ✅ Logic 2.2 발동 시만 표시 (isVisible prop으로 제어)
+  - ✅ "💡 7분 단축 경로 발견!" 헤드라인
+  - ✅ 시간 단축 정보 표시 (숫자 + "분 단축")
+  - ⬜ 탭 시 경로 비교 모달 표시 (향후 구현)
+  - ✅ 초기 상태: 숨김 (Hidden)
+  - ✅ 헌법 준수: Styled-components + theme, testID
+  - 테스트: 8개 (AlternativePathCard)
 
 - ⬜ **3.4** 캐러셀 스와이프 기능
   - 좌우 스와이프로 카드 전환
