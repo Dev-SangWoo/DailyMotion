@@ -17,8 +17,9 @@ const Container = styled.View<{ isExpanded: boolean }>`
   padding: ${theme.spacing.md}px;
   border-bottom-width: 1px;
   border-bottom-color: ${theme.colors.border};
-  max-height: ${({ isExpanded }) => (isExpanded ? '300px' : '60px')};
-  transition: max-height 0.3s ease-in-out;
+  max-height: ${({ isExpanded }) => (isExpanded ? '400px' : '60px')};
+  transition: max-height 0.4s ease-in-out;
+  overflow: hidden;
 `;
 
 const TabsContainer = styled.ScrollView`
@@ -62,6 +63,8 @@ const ExpandButtonText = styled.Text`
 const SearchContainer = styled.View`
   flex-direction: column;
   margin-top: ${theme.spacing.md}px;
+  opacity: 1;
+  transition: opacity 0.4s ease-in-out;
 `;
 
 const SearchInput = styled.TextInput`

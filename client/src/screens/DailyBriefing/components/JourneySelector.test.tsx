@@ -205,6 +205,137 @@ describe('JourneySelector', () => {
     });
   });
 
+  describe('애니메이션 (Phase 2.2)', () => {
+    /**
+     * [DESIGN.md 4.1 확장 상태]
+     * 확장/축소 시 부드러운 애니메이션 전환이 필요함
+     */
+    it('확장 상태 전환 시 컨테이너가 렌더링되어야 한다', () => {
+      // Given: 기본 상태 → 확장 상태로 변경
+      const { rerender, getByTestId } = render(
+        <JourneySelector isExpanded={false} />
+      );
+
+      // When: 확장 상태로 변경
+      rerender(<JourneySelector isExpanded={true} />);
+
+      // Then: 검색 입력창이 표시되어야 함
+      expect(getByTestId('origin-input')).toBeTruthy();
+      expect(getByTestId('destination-input')).toBeTruthy();
+    });
+
+    /**
+     * [DESIGN.md 4.1 기본 상태]
+     * 축소 상태로 전환 시 검색 입력창이 숨겨져야 함
+     */
+    it('축소 상태 전환 시 검색 입력창이 숨겨져야 한다', () => {
+      // Given: 확장 상태 JourneySelector
+      const { rerender, queryByTestId } = render(
+        <JourneySelector isExpanded={true} />
+      );
+
+      // When: 축소 상태로 변경
+      rerender(<JourneySelector isExpanded={false} />);
+
+      // Then: 검색 입력창이 없어야 함
+      expect(queryByTestId('origin-input')).toBeFalsy();
+      expect(queryByTestId('destination-input')).toBeFalsy();
+    });
+  });
+
+  describe('여러 탭 전환 시나리오 (Phase 2.2)', () => {
+    /**
+     * [DESIGN.md 4.1 탭 선택]
+     * 여러 탭을 연속으로 선택할 때 상태가 올바르게 유지되어야 함
+     */
+    it('여러 탭을 연속으로 선택할 수 있어야 한다', async () => {
+      // Given: JourneySelector 렌더링
+      const onTabSelect = jest.fn();
+      render(
+        <JourneySelector
+          isExpanded={false}
+          onTabSelect={onTabSelect}
+          defaultSelectedTab="commute"
+        />
+      );
+
+      // When: [귀가] → [헬스장] → [출근] 순서로 탭 선택
+      const retreatTab = screen.getByTestId('tab-retreat');
+      const gymTab = screen.getByTestId('tab-gym');
+      const commuteTab = screen.getByTestId('tab-commute');
+
+      await userEvent.press(retreatTab);
+      await userEvent.press(gymTab);
+      await userEvent.press(commuteTab);
+
+      // Then: onTabSelect가 순서대로 호출되어야 함
+      expect(onTabSelect).toHaveBeenCalledWith('retreat');
+      expect(onTabSelect).toHaveBeenCalledWith('gym');
+      expect(onTabSelect).toHaveBeenCalledWith('commute');
+      expect(onTabSelect).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('검색 입력 필드 상호작용 (Phase 2.2)', () => {
+    /**
+     * [DESIGN.md 4.1 확장 상태 범용 검색]
+     * 출발지와 목적지를 동시에 입력하는 시나리오
+     */
+    it('출발지와 목적지를 동시에 입력할 수 있어야 한다', async () => {
+      // Given: 확장 상태 JourneySelector
+      const onSearchChange = jest.fn();
+      render(
+        <JourneySelector
+          isExpanded={true}
+          onSearchChange={onSearchChange}
+        />
+      );
+
+      // When: 출발지 입력
+      const originInput = screen.getByPlaceholderText('출발지');
+      await userEvent.typeText(originInput, '강남역');
+
+      // Then: onSearchChange가 origin과 함께 호출
+      expect(onSearchChange).toHaveBeenCalledWith(
+        expect.objectContaining({ origin: '강남역' })
+      );
+
+      // When: 목적지 입력
+      const destinationInput = screen.getByPlaceholderText('목적지');
+      await userEvent.typeText(destinationInput, '서울역');
+
+      // Then: onSearchChange가 destination과 함께 호출
+      expect(onSearchChange).toHaveBeenCalledWith(
+        expect.objectContaining({ destination: '서울역' })
+      );
+    });
+
+    /**
+     * [DESIGN.md 4.1 확장 상태 범용 검색]
+     * 입력값이 지워질 때도 콜백이 호출되어야 함
+     */
+    it('입력값을 지웠을 때도 콜백이 호출되어야 한다', async () => {
+      // Given: 확장 상태 with text input
+      const onSearchChange = jest.fn();
+      render(
+        <JourneySelector
+          isExpanded={true}
+          onSearchChange={onSearchChange}
+        />
+      );
+
+      // When: 출발지에 값 입력 후 지우기
+      const originInput = screen.getByPlaceholderText('출발지');
+      await userEvent.typeText(originInput, '강남역');
+      await userEvent.clear(originInput);
+
+      // Then: onSearchChange가 빈 값으로 호출되어야 함
+      expect(onSearchChange).toHaveBeenCalledWith(
+        expect.objectContaining({ origin: '' })
+      );
+    });
+  });
+
   describe('헌법 준수', () => {
     /**
      * [AGENTS.md 헌법 제2장] 스타일링

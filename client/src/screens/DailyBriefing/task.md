@@ -22,10 +22,10 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - 헌법 준수: Styled-components + theme 사용 ✅
   - 테스트 케이스: 5개 작성 (기본 상태 관련)
 
-- ⬜ **2.2** 확장 상태 (Expanded) UI 구현
-  - [출발지] / [목적지] 입력 범용 검색창 표시
-  - 검색창 애니메이션 (collapse/expand)
-  - 헌법 준수: RTL 테스트 먼저 작성
+- ✅ **2.2** 확장 상태 (Expanded) UI 구현 (완료)
+  - ✅ [출발지] / [목적지] 입력 범용 검색창 표시
+  - ✅ 검색창 애니메이션 (collapse/expand) - max-height 0.4s 전환, opacity 애니메이션
+  - ✅ 헌법 준수: RTL 테스트 먼저 작성 (7개 추가 테스트 케이스)
 
 - ⬜ **2.3** 상태 전환 로직
   - Zustand store로 collapse/expand 상태 관리
@@ -337,10 +337,11 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 |-------|------|--------|
 | Phase 1 | ✅ 완료 | 100% |
 | Phase 2.1 | ✅ 완료 | 100% |
-| Phase 2.2-2.4 | 🟨 진행중 | 25% |
+| Phase 2.2 | ✅ 완료 | 100% |
+| Phase 2.3-2.4 | ⬜ 미시작 | 0% |
 | Phase 3-8 | ⬜ 미시작 | 0% |
 | Phase 9-15 | ⬜ 미시작 | 0% |
-| **전체** | **2/15** | **13%** |
+| **전체** | **3/15** | **20%** |
 
 ---
 
