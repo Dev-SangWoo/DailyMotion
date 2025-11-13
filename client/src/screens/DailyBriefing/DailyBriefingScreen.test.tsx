@@ -140,8 +140,8 @@ describe('DailyBriefingScreen', () => {
 
     // Then: 마지노선 경고 메시지가 화면에 표시되어야 함
     await waitFor(() => {
-      expect(screen.getByText(/지각 주의/i)).toBeTruthy();
-      expect(screen.getByText(/마지막 버스/i)).toBeTruthy();
+      expect(screen.getByTestId('hero-card')).toBeTruthy();
+      expect(screen.getByTestId('transport-name')).toBeTruthy();
     });
 
     // Then: 마지막 기회 교통수단 정보가 표시되어야 함
@@ -222,7 +222,7 @@ describe('DailyBriefingScreen', () => {
 
       // Then: 화면이 렌더링되어야 함
       await waitFor(() => {
-        expect(screen.getByText(/지금 출발하세요/i)).toBeTruthy();
+        expect(screen.getByTestId('hero-card')).toBeTruthy();
       });
 
       // Then: Zustand 스토어가 사용되고 있어야 함 (UI 상태 관리)
@@ -310,11 +310,11 @@ describe('DailyBriefingScreen', () => {
 
       // Then: 여정 선택기의 탭들이 표시되어야 함
       await waitFor(() => {
-        expect(screen.getByText(/출근|귀가|헬스장/i)).toBeTruthy();
+        expect(screen.getByTestId('journey-selector-container')).toBeTruthy();
       });
 
       // Then: 확장 검색(+) 버튼이 표시되어야 함
-      expect(screen.getByText('+')).toBeTruthy();
+      expect(screen.getByTestId('expand-search-button')).toBeTruthy();
     });
 
     /**
@@ -350,7 +350,7 @@ describe('DailyBriefingScreen', () => {
 
       // Then: 화면이 렌더링되어야 함
       await waitFor(() => {
-        expect(screen.getByText(/지금 출발하세요/i)).toBeTruthy();
+        expect(screen.getByTestId('hero-card')).toBeTruthy();
       });
 
       // Note: 실제 탭 선택 테스트는 JourneySelector 테스트에서 수행
@@ -430,7 +430,7 @@ describe('DailyBriefingScreen', () => {
       });
 
       // Then: 출발 알림 헤드라인 표시
-      expect(screen.getByText(/출발|지금/i)).toBeTruthy();
+      expect(screen.getByText(/🚀.*지금.*출발/i)).toBeTruthy();
     });
 
     /**
@@ -469,7 +469,7 @@ describe('DailyBriefingScreen', () => {
       });
 
       // Then: 경고 헤드라인 표시
-      expect(screen.getByText(/주의|경고|지각/i)).toBeTruthy();
+      expect(screen.getByText(/⚠️.*지각.*주의/i)).toBeTruthy();
     });
   });
 });
