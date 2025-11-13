@@ -3,7 +3,7 @@
 ## 📋 개요
 DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
-**전체 진행률**: 2/15 (13%)
+**전체 진행률**: 7/15 (47%)
 
 ---
 
@@ -56,9 +56,13 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - ✅ 헌법 준수: Styled-components + theme, testID로 테스트 안정성 확보
   - 테스트: 8개 (HeroCard) + 2개 (DailyBriefingScreen 통합)
 
-- ⬜ **3.2** 카드 2.2: 날씨 카드 구현
-  - "현재 15°C, 비 예보 70%" 표시
-  - 탭 시 상세 날씨 페이지 모달 표시 (미구현)
+- ✅ **3.2** 카드 2.2: 날씨 카드 구현 (완료)
+  - ✅ "현재 15°C, 비 예보 70%" 표시
+  - ✅ 날씨 조건에 맞는 아이콘 (☀️, ☁️, 🌧️, ❄️, 💨, 🌫️)
+  - ✅ 탭 상호작용 (onPress 콜백)
+  - ⬜ 탭 시 상세 날씨 페이지 모달 표시 (향후 구현)
+  - ✅ 헌법 준수: Styled-components + theme, testID로 테스트 안정성
+  - 테스트: 6개 (WeatherCard)
 
 - ⬜ **3.3** 카드 2.3: 대안 경로 카드 구현 (조건부)
   - Logic 2.2 발동 시만 표시
