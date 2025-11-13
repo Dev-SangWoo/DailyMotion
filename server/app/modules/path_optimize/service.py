@@ -132,6 +132,7 @@ class PathOptimizeService:
                 }
             }
         """
+
         # 목표 도착 시간을 datetime으로 변환 (오늘 날짜 기준)
         target_arrival = datetime.combine(
             current_time.date(),

@@ -3,6 +3,8 @@
 > **SINGLE SOURCE OF TRUTH (SSOT)**: This document is the definitive guide for all developers (including AI agents) working on DailyMotion. Every code change must align with these principles.
 
 ---
+I'm Backend Server developer
+
 
 ## 📋 Document Hierarchy
 
@@ -49,7 +51,7 @@
 - **Process**: Define API spec in `docs/openapi/v1.yaml` BEFORE coding
 - **JSON Keys**: ALWAYS camelCase (`userId` ✓, `user_id` ✗)
 - **Response Format**:
-  ```json
+  ```json/
   // Success (2xx)
   { "data": { ... } }
 

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import api_router
+from app.api.v1.path_optimize_router import router as path_optimize_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -44,4 +45,6 @@ async def root():
         "version": settings.APP_VERSION,
         "docs": "/docs"
     }
+#테스트 11/12
+app.include_router(path_optimize_router, prefix="/api/v1")
 
