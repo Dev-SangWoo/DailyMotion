@@ -1,9 +1,10 @@
 /**
  * 데일리 브리핑 화면
- * 
+ *
  * 헌법 준수:
  * - AGENTS.md 프론트엔드 헌법 [제2장] 스타일링 (Styled-components)
  * - AGENTS.md 프론트엔드 헌법 [제3장] 데이터 페칭 (React Query)
+ * - AGENTS.md 프론트엔드 헌법 [제2장] 상태 관리 (Zustand)
  * - v3.0 명세서 [Logic 1.1] 출발 알림 / [Logic 1.2] 마지노선 경고
  * - OpenAPI 스펙 GET /v1/briefings/commute
  */
@@ -12,6 +13,8 @@ import styled from 'styled-components/native';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
+import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
+import { JourneySelector } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
 const Container = styled.View`
@@ -54,7 +57,12 @@ interface CommuteBriefingResponse {
 }
 
 const DailyBriefingScreen: React.FC = () => {
+  // Zustand Store: UI 상태 관리 (헌법 제2장 준수)
+  const { isExpanded, setExpanded, toggleExpanded, setSelectedTab } =
+    useJourneySelectorStore();
+
   // React Query useQuery (헌법 제3장 준수)
+  // 서버 상태 (API 데이터)는 React Query로 관리 - Zustand에는 절대 저장 금지
   const { data, isLoading, isError } = useQuery({
     queryKey: ['commuteBriefing'],
     queryFn: async (): Promise<CommuteBriefingResponse> => {
@@ -62,6 +70,19 @@ const DailyBriefingScreen: React.FC = () => {
       return response.data;
     },
   });
+
+  // 여정 선택기 핸들러
+  const handleExpandPress = () => {
+    toggleExpanded();
+  };
+
+  const handleCollapsePress = () => {
+    setExpanded(false);
+  };
+
+  const handleTabSelect = (tab: 'commute' | 'retreat' | 'gym') => {
+    setSelectedTab(tab);
+  };
 
   // 로딩 상태
   if (isLoading) {
@@ -85,6 +106,15 @@ const DailyBriefingScreen: React.FC = () => {
 
   return (
     <Container>
+      {/* Phase 2: 여정 선택기 컴포넌트 (Zustand 상태와 연동) */}
+      <JourneySelector
+        isExpanded={isExpanded}
+        onExpand={handleExpandPress}
+        onCollapse={handleCollapsePress}
+        onTabSelect={handleTabSelect}
+      />
+
+      {/* Phase 1: 기본 브리핑 정보 */}
       <MessageText>{briefingData.message}</MessageText>
       {briefingData.recommendedTransport && (
         <>
