@@ -33,9 +33,10 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - ✅ DailyBriefingScreen에 스토어 통합
   - ✅ 헌법 준수: 서버 상태는 Zustand에 저장 금지 (React Query와 명확한 분리)
 
-- ⬜ **2.4** 컴포넌트 1 테스트 작성
-  - 탭 전환 테스트
-  - 검색창 표시/숨김 테스트
+- ✅ **2.4** 컴포넌트 1 통합 테스트 (완료)
+  - ✅ JourneySelector와 DailyBriefingScreen 통합 테스트 3개
+  - ✅ 탭 전환 및 상태 동기화 테스트
+  - ✅ 에러 상태 처리 테스트
 
 ---
 
@@ -340,10 +341,10 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 | Phase 2.1 | ✅ 완료 | 100% |
 | Phase 2.2 | ✅ 완료 | 100% |
 | Phase 2.3 | ✅ 완료 | 100% |
-| Phase 2.4 | ⬜ 미시작 | 0% |
+| Phase 2.4 | ✅ 완료 | 100% |
 | Phase 3-8 | ⬜ 미시작 | 0% |
 | Phase 9-15 | ⬜ 미시작 | 0% |
-| **전체** | **4/15** | **27%** |
+| **전체** | **5/15** | **33%** |
 
 ---
 
