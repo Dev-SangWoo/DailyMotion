@@ -77,9 +77,14 @@ describe('DailyBriefingScreen', () => {
     });
 
     // Then: 추천 교통수단 정보가 표시되어야 함
-    // 메시지에 이미 포함되어 있으므로 getAllByText 사용
-    expect(screen.getAllByText(/123번/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/5분/i).length).toBeGreaterThan(0);
+    // testID를 사용하여 더 견고한 테스트 (헌법 제6장: 지속가능한 리팩토링)
+    const transportName = screen.getByTestId('transport-name');
+    const transportTime = screen.getByTestId('transport-time');
+    expect(transportName).toBeTruthy();
+    expect(transportTime).toBeTruthy();
+    // 텍스트 내용 검증 (지속가능한 테스트)
+    expect(transportName).toHaveTextContent('123번');
+    expect(transportTime).toHaveTextContent('5분');
   });
 
   /**
@@ -122,9 +127,14 @@ describe('DailyBriefingScreen', () => {
     });
 
     // Then: 마지막 기회 교통수단 정보가 표시되어야 함
-    // 메시지에 이미 포함되어 있으므로 getAllByText 사용
-    expect(screen.getAllByText(/456번/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/8분/i).length).toBeGreaterThan(0);
+    // testID를 사용하여 더 견고한 테스트 (헌법 제6장: 지속가능한 리팩토링)
+    const transportName = screen.getByTestId('transport-name');
+    const transportTime = screen.getByTestId('transport-time');
+    expect(transportName).toBeTruthy();
+    expect(transportTime).toBeTruthy();
+    // 텍스트 내용 검증 (지속가능한 테스트)
+    expect(transportName).toHaveTextContent('456번');
+    expect(transportTime).toHaveTextContent('8분');
   });
 
   /**

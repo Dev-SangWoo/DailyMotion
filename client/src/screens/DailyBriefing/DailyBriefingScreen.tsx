@@ -92,7 +92,7 @@ const DailyBriefingScreen: React.FC = () => {
             {briefingData.recommendedTransport.name}
           </BusInfoText>
           <BusInfoText testID="transport-time">
-            {briefingData.recommendedTransport.departureInMinutes}분
+            {`${briefingData.recommendedTransport.departureInMinutes}분`}
           </BusInfoText>
         </>
       )}
