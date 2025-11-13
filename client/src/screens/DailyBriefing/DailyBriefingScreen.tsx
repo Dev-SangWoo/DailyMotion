@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
-import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard } from './components';
+import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
 const Container = styled.View`
@@ -104,6 +104,42 @@ const DailyBriefingScreen: React.FC = () => {
 
   const briefingData = data.data;
 
+  // Phase 3.4: Carousel 카드 배열
+  const carouselCards = [
+    {
+      id: 'hero-card',
+      component: (
+        <HeroCard
+          alertType={briefingData.alertType as 'GO_NOW' | 'LAST_CHANCE' | 'NO_ACTION'}
+          transportName={briefingData.recommendedTransport?.name}
+          transportTime={briefingData.recommendedTransport?.departureInMinutes}
+        />
+      ),
+    },
+    {
+      id: 'weather-card',
+      component: (
+        <WeatherCard
+          temperature={15}
+          condition="비"
+          precipitationProbability={70}
+        />
+      ),
+    },
+    {
+      id: 'alternative-path-card',
+      component: (
+        <AlternativePathCard
+          isVisible={true}
+          timeSavings={7}
+          onPress={() => {
+            // TODO: 경로 비교 모달 표시 (Phase 3.3 향후 구현)
+          }}
+        />
+      ),
+    },
+  ];
+
   return (
     <Container>
       {/* Phase 2: 여정 선택기 컴포넌트 (Zustand 상태와 연동) */}
@@ -114,27 +150,10 @@ const DailyBriefingScreen: React.FC = () => {
         onTabSelect={handleTabSelect}
       />
 
-      {/* Phase 3.1: Hero 카드 (카드 2.1) */}
-      <HeroCard
-        alertType={briefingData.alertType as 'GO_NOW' | 'LAST_CHANCE' | 'NO_ACTION'}
-        transportName={briefingData.recommendedTransport?.name}
-        transportTime={briefingData.recommendedTransport?.departureInMinutes}
-      />
-
-      {/* Phase 3.2: 날씨 카드 (카드 2.2) */}
-      <WeatherCard
-        temperature={15}
-        condition="비"
-        precipitationProbability={70}
-      />
-
-      {/* Phase 3.3: 대안 경로 카드 (카드 2.3) - 조건부 렌더링 */}
-      <AlternativePathCard
-        isVisible={false}
-        timeSavings={7}
-        onPress={() => {
-          // TODO: 경로 비교 모달 표시 (Phase 3.3 향후 구현)
-        }}
+      {/* Phase 3.4: 캐러셀 (Hero, Weather, AlternativePathCard) */}
+      <Carousel
+        cards={carouselCards}
+        testID="primary-carousel"
       />
 
       {/* Phase 1: 기본 브리핑 정보 (Phase 3으로 통합되어 제거 예정) */}
