@@ -472,5 +472,130 @@ describe('DailyBriefingScreen', () => {
       expect(screen.getByText(/⚠️.*지각.*주의/i)).toBeTruthy();
     });
   });
+
+  /**
+   * [Phase 3.4] Carousel (스와이프 기능) 통합 테스트
+   *
+   * DailyBriefingScreen에서 Carousel이 올바르게 렌더링되고
+   * Hero, Weather, AlternativePathCard를 포함하는지 검증합니다.
+   */
+  describe('Carousel 통합 (Phase 3.4)', () => {
+    /**
+     * [DESIGN.md 4.2 캐러셀]
+     * 역할: 화면 상단에 위치하며, 좌우로 스와이프 가능한 카드 묶음
+     */
+    it('Carousel이 렌더링되고 모든 카드를 포함해야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 성공 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Carousel이 렌더링되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('primary-carousel')).toBeTruthy();
+      });
+
+      // Then: 첫 번째 카드 (Hero)가 렌더링되어야 함
+      expect(screen.getByTestId('carousel-card-0')).toBeTruthy();
+    });
+
+    /**
+     * [Phase 3.5] Carousel에 모든 컴포넌트 2 카드가 포함되어야 함
+     */
+    it('Carousel에 Hero, Weather, AlternativePathCard가 포함되어야 한다', async () => {
+      // Given: DailyBriefingScreen 렌더링
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API 응답
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Carousel의 모든 카드 슬라이드가 렌더링되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('carousel-card-0')).toBeTruthy(); // Hero Card
+        expect(screen.getByTestId('carousel-card-1')).toBeTruthy(); // Weather Card
+        expect(screen.getByTestId('carousel-card-2')).toBeTruthy(); // Alternative Path Card
+      });
+
+      // Then: 페이지 인디케이터가 렌더링되어야 함
+      expect(screen.getByTestId('pagination-dot-0')).toBeTruthy();
+      expect(screen.getByTestId('pagination-dot-1')).toBeTruthy();
+      expect(screen.getByTestId('pagination-dot-2')).toBeTruthy();
+    });
+
+    /**
+     * [Phase 3.5] Carousel과 JourneySelector의 통합
+     */
+    it('JourneySelector와 Carousel이 함께 렌더링되어야 한다', async () => {
+      // Given: DailyBriefingScreen 렌더링
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API 응답
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: JourneySelector와 Carousel이 모두 렌더링되어야 함
+      await waitFor(() => {
+        expect(screen.getByTestId('journey-selector-container')).toBeTruthy();
+        expect(screen.getByTestId('primary-carousel')).toBeTruthy();
+      });
+    });
+  });
 });
 
