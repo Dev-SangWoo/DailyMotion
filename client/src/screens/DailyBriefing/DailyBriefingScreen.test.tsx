@@ -39,6 +39,18 @@ jest.mock('../../stores/useJourneySelectorStore', () => ({
   }),
 }), { virtual: true });
 
+// Ambient Feedback Store Mock (Phase 5)
+const mockSetAmbientStatus = jest.fn();
+
+jest.mock('../../stores/useAmbientFeedbackStore', () => ({
+  useAmbientFeedbackStore: () => ({
+    status: 'normal',
+    lastUpdateTime: Date.now(),
+    setStatus: mockSetAmbientStatus,
+    reset: jest.fn(),
+  }),
+}), { virtual: true });
+
 // DailyBriefingScreen import
 // 파일이 없으면 undefined로 두고 테스트가 실패하도록 함
 let DailyBriefingScreen: any;
@@ -54,6 +66,7 @@ describe('DailyBriefingScreen', () => {
     mockSetExpanded.mockClear();
     mockToggleExpanded.mockClear();
     mockSetSelectedTab.mockClear();
+    mockSetAmbientStatus.mockClear();
   });
 
   /**
@@ -594,6 +607,211 @@ describe('DailyBriefingScreen', () => {
       await waitFor(() => {
         expect(screen.getByTestId('journey-selector-container')).toBeTruthy();
         expect(screen.getByTestId('primary-carousel')).toBeTruthy();
+      });
+    });
+  });
+
+  /**
+   * Phase 5: Ambient Feedback (배경색 알림) 로직
+   *
+   * [DESIGN.md Phase 5] Ambient Feedback - 배경색 동적 설정
+   * - 정상 상태 (GO_NOW): 파란색 (기본 배경색)
+   * - 지연 감지 (LAST_CHANCE): 주황색 (#FFA500)
+   * - 지각 확정 (알림): 빨간색 (#FF6B6B)
+   */
+  describe('Ambient Feedback (Phase 5)', () => {
+    /**
+     * [DESIGN.md Phase 5] 배경색 상태 관리
+     * Ambient Feedback Store를 통해 배경색 상태를 관리하고 업데이트
+     */
+    it('API가 GO_NOW 응답을 줄 때, 배경색은 정상 상태(파란색)가 되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 GO_NOW 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Ambient Feedback Store의 setStatus 액션이 'normal'으로 호출되어야 함
+      await waitFor(() => {
+        expect(mockSetAmbientStatus).toHaveBeenCalledWith('normal');
+      });
+    });
+
+    it('API가 LAST_CHANCE 응답을 줄 때, 배경색은 지연 감지 상태(주황색)가 되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 LAST_CHANCE 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'LAST_CHANCE',
+            message: '마지노선입니다. 지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '456번',
+              departureInMinutes: 2,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Ambient Feedback Store의 setStatus 액션이 'warning'으로 호출되어야 함
+      // Logic 3.1: 지연 감지 시뮬레이션 (주황색)
+      await waitFor(() => {
+        expect(mockSetAmbientStatus).toHaveBeenCalledWith('warning');
+      });
+    });
+
+    it('API가 NO_ACTION 응답을 줄 때, 배경색은 정상 상태(파란색)가 되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 NO_ACTION 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'NO_ACTION',
+            message: '여유롭게 준비하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '789번',
+              departureInMinutes: 10,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Ambient Feedback Store의 setStatus 액션이 'normal'으로 호출되어야 함
+      await waitFor(() => {
+        expect(mockSetAmbientStatus).toHaveBeenCalledWith('normal');
+      });
+    });
+
+    it('alertType이 변경될 때, 배경색이 업데이트되어야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 초기에 GO_NOW 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      const { rerender } = render(<DailyBriefingScreen />);
+
+      // Then: setStatus가 'normal'으로 호출됨
+      await waitFor(() => {
+        expect(mockSetAmbientStatus).toHaveBeenCalledWith('normal');
+      });
+
+      // When: alertType이 LAST_CHANCE로 변경됨
+      mockSetAmbientStatus.mockClear();
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'LAST_CHANCE',
+            message: '마지노선입니다.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '456번',
+              departureInMinutes: 2,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 컴포넌트를 다시 렌더링
+      rerender(<DailyBriefingScreen />);
+
+      // Then: setStatus가 'warning'으로 호출됨
+      await waitFor(() => {
+        expect(mockSetAmbientStatus).toHaveBeenCalledWith('warning');
+      });
+    });
+
+    /**
+     * [AGENTS.md 헌법 제2장] 스타일링 준수
+     * Ambient Feedback은 theme을 사용하고 styled-components로 구현되어야 함
+     */
+    it('Ambient Feedback은 Zustand Store를 통해 상태를 관리해야 한다', async () => {
+      // Given: DailyBriefingScreen이 존재
+      if (!DailyBriefingScreen) {
+        throw new Error('DailyBriefingScreen 컴포넌트가 구현되지 않았습니다.');
+      }
+
+      // Given: API가 성공 응답을 반환
+      mockUseQuery.mockReturnValue({
+        data: {
+          data: {
+            alertType: 'GO_NOW',
+            message: '지금 출발하세요.',
+            recommendedTransport: {
+              type: 'BUS',
+              name: '123번',
+              departureInMinutes: 5,
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      // When: 화면을 렌더링
+      render(<DailyBriefingScreen />);
+
+      // Then: Zustand Store의 setStatus 액션이 호출되어야 함 (추적 가능)
+      await waitFor(() => {
+        expect(mockSetAmbientStatus).toHaveBeenCalled();
       });
     });
   });

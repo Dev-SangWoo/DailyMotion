@@ -6,6 +6,7 @@
  * - AGENTS.md 프론트엔드 헌법 [제3장] 데이터 페칭 (React Query)
  * - AGENTS.md 프론트엔드 헌법 [제2장] 상태 관리 (Zustand)
  * - v3.0 명세서 [Logic 1.1] 출발 알림 / [Logic 1.2] 마지노선 경고
+ * - DESIGN.md Phase 5: Ambient Feedback (배경색 알림) 로직
  * - OpenAPI 스펙 GET /v1/briefings/commute
  */
 import React from 'react';
@@ -14,13 +15,34 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
+import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../stores/useAmbientFeedbackStore';
 import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
-const Container = styled.View`
+// Phase 5: Ambient Feedback - 배경색 동적 설정 (props 기반)
+interface ContainerProps {
+  ambientStatus?: AmbientFeedbackStatus;
+}
+
+const getBackgroundColor = (status?: AmbientFeedbackStatus): string => {
+  switch (status) {
+    case 'warning':
+      // Logic 3.1: 지연 감지 (주황색)
+      return '#FFA500'; // 주황색
+    case 'alert':
+      // Logic 3.2: 지각 확정 (빨간색)
+      return '#FF6B6B'; // 빨간색
+    case 'normal':
+    default:
+      return theme.colors.background; // 기본 파란색
+  }
+};
+
+const Container = styled.View<ContainerProps>`
   flex: 1;
   padding: ${theme.spacing.md}px;
-  background-color: ${theme.colors.background};
+  background-color: ${(props) => getBackgroundColor(props.ambientStatus)};
+  transition: background-color 0.2s ease-in-out;
 `;
 
 const LoadingText = styled.Text`
@@ -61,6 +83,10 @@ const DailyBriefingScreen: React.FC = () => {
   const { isExpanded, setExpanded, toggleExpanded, setSelectedTab } =
     useJourneySelectorStore();
 
+  // Phase 5: Ambient Feedback Store - 배경색 상태 관리
+  const { status: ambientStatus, setStatus: setAmbientStatus } =
+    useAmbientFeedbackStore();
+
   // React Query useQuery (헌법 제3장 준수)
   // 서버 상태 (API 데이터)는 React Query로 관리 - Zustand에는 절대 저장 금지
   const { data, isLoading, isError } = useQuery({
@@ -70,6 +96,26 @@ const DailyBriefingScreen: React.FC = () => {
       return response.data;
     },
   });
+
+  // Phase 5: alertType에 따라 배경색 상태 업데이트
+  React.useEffect(() => {
+    if (data?.data?.alertType) {
+      switch (data.data.alertType) {
+        case 'GO_NOW':
+          // Logic 3.1: 정상 상태 (파란색)
+          setAmbientStatus('normal');
+          break;
+        case 'LAST_CHANCE':
+          // Logic 3.1: 지연 감지 시뮬레이션 (주황색)
+          setAmbientStatus('warning');
+          break;
+        case 'NO_ACTION':
+          // 정상 상태 (파란색)
+          setAmbientStatus('normal');
+          break;
+      }
+    }
+  }, [data?.data?.alertType, setAmbientStatus]);
 
   // 여정 선택기 핸들러
   const handleExpandPress = () => {
@@ -141,7 +187,7 @@ const DailyBriefingScreen: React.FC = () => {
   ];
 
   return (
-    <Container>
+    <Container ambientStatus={ambientStatus}>
       {/* Phase 2: 여정 선택기 컴포넌트 (Zustand 상태와 연동) */}
       <JourneySelector
         isExpanded={isExpanded}
