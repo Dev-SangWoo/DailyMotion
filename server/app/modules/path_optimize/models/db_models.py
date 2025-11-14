@@ -7,8 +7,6 @@ PostGIS를 활용한 지리공간 데이터 지원.
 
 from datetime import datetime, time
 from sqlalchemy import Column, String, Float, Integer, DateTime, Time, JSON, Enum, CheckConstraint
-from sqlalchemy.dialects.postgresql import POINT
-from geoalchemy2 import Geometry
 from app.db.database import Base
 import enum
 
