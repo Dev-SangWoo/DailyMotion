@@ -2,8 +2,8 @@
 환경 설정 및 구성
 NHN Cloud 키 등 환경변수를 관리합니다.
 """
-from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import ConfigDict, Field
 from typing import Optional
 
 
@@ -39,14 +39,10 @@ class Settings(BaseSettings):
     # ODSAY API 설정
     ODSAY_API_KEY: Optional[str] = None
 
-    # 기타 환경설정
-    ENVIRONMENT: Optional[str] = "development"
-    LOG_LEVEL: Optional[str] = "INFO"
-
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
-        extra="ignore"  # 추가 환경변수는 무시
+        extra="allow"  # .env에서 정의된 모든 환경변수 허용
     )
 
 

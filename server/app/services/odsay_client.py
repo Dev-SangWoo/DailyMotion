@@ -269,7 +269,7 @@ class OdsayAPIClient:
                 total_time_seconds = total_time_minutes * 60
 
                 # 총 거리를 km 단위로도 계산
-                total_distance_meters = info.get("totalDistance", 0)
+                total_distance_meters = int(info.get("totalDistance", 0))  # 정수로 변환
                 total_distance_km = total_distance_meters / 1000
 
                 # trafficType 기반 버스/지하철 개수 계산
@@ -288,7 +288,7 @@ class OdsayAPIClient:
                     "totalTimeMinutes": total_time_minutes,  # 원본: 분 단위
                     "totalDistance": total_distance_meters,  # 미터 단위
                     "totalDistanceKm": f"{total_distance_km:.1f}",  # km 단위
-                    "totalPrice": info.get("totalPrice", 0),  # 요금 (원)
+                    "totalPrice": int(info.get("totalPrice", 0)),  # 요금 (원) - 정수 변환
                     "busCount": bus_count,  # trafficType 기반 계산
                     "subwayCount": subway_count,  # trafficType 기반 계산
                     "transferCount": transfer_count,  # 버스/지하철 환승 횟수
