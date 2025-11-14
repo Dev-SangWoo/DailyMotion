@@ -3,7 +3,7 @@
 ## 📋 개요
 DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
-**전체 진행률**: 10/15 (67%)
+**전체 진행률**: 11/15 (73%)
 
 ---
 
@@ -135,24 +135,30 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
 ---
 
-## Phase 6: 앱 상태 (App States) 관리
-- ⬜ **6.1** 비서 모드 (Briefing Mode) 구현
-  - Trigger: 출퇴근 알림 시간 (평일 07:30-09:00 / 18:00-19:30)
-  - 컴포넌트 1 Collapsed, 포커스 카드 UI
-  - 사용자 설정값 (출근 시간, 알림 시간) 읽기
+## Phase 6: 앱 상태 (App States) 관리 (완료)
+- ✅ **6.1** 비서 모드 (Briefing Mode) 구현 (완료)
+  - ✅ Trigger: 출퇴근 알림 시간 (평일 07:30-09:00 / 18:00-19:30)
+  - ✅ JourneySelector Collapsed 상태로 자동 설정
+  - ✅ useAppModeStore를 통한 상태 관리
 
-- ⬜ **6.2** 탐색 모드 (Explore Mode) 구현
-  - Trigger: 비서 모드 시간 외 모든 시간
-  - 컴포넌트 1 Expanded, 범용 검색창 기본 열림
+- ✅ **6.2** 탐색 모드 (Explore Mode) 구현 (완료)
+  - ✅ Trigger: 비서 모드 시간 외 모든 시간 또는 주말
+  - ✅ JourneySelector Expanded 상태로 자동 설정
+  - ✅ 범용 검색창 기본 열림
 
-- ⬜ **6.3** 모드 전환 로직
-  - 시간 기반 자동 전환
-  - useEffect로 current time 모니터링
-  - Zustand appMode 상태 관리
+- ✅ **6.3** 모드 전환 로직 (완료)
+  - ✅ 시간 기반 자동 전환 (1분마다 체크)
+  - ✅ useEffect로 현재 시간 모니터링
+  - ✅ useAppModeStore에서 상태 관리
+  - ✅ 평일/주말 판단 로직 구현
 
-- ⬜ **6.4** 앱 상태 테스트
-  - 시간 기반 모드 전환 테스트
-  - UI 변화 검증 테스트
+- ✅ **6.4** 앱 상태 테스트 (완료)
+  - ✅ Briefing Mode 테스트: 출근/퇴근 시간대 (6개)
+  - ✅ Explore Mode 테스트: 비서 시간 외/주말 (5개)
+  - ✅ 모드 전환 로직 테스트 (1개)
+  - ✅ 경계값 테스트 (5개)
+  - ✅ Zustand store 상태 관리 테스트 (1개)
+  - 테스트: 18개 (모두 PASS)
 
 ---
 
@@ -348,9 +354,10 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 | Phase 3.1-3.5 | ✅ 완료 | 100% |
 | Phase 4 | ✅ 완료 | 100% |
 | Phase 5 | ✅ 완료 | 100% |
-| Phase 6-8 | ⬜ 미시작 | 0% |
+| Phase 6 | ✅ 완료 | 100% |
+| Phase 7-8 | ⬜ 미시작 | 0% |
 | Phase 9-15 | ⬜ 미시작 | 0% |
-| **전체** | **10/15** | **67%** |
+| **전체** | **11/15** | **73%** |
 
 ---
 

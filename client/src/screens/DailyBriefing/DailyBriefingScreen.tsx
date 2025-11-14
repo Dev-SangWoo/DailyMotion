@@ -16,6 +16,7 @@ import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
 import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../stores/useAmbientFeedbackStore';
+import { useAppModeStore, type AppMode } from '../../stores/useAppModeStore';
 import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
@@ -87,6 +88,9 @@ const DailyBriefingScreen: React.FC = () => {
   const { status: ambientStatus, setStatus: setAmbientStatus } =
     useAmbientFeedbackStore();
 
+  // Phase 6: App Mode Store - 앱 상태 관리 (Briefing/Explore Mode)
+  const { appMode, updateAppMode } = useAppModeStore();
+
   // React Query useQuery (헌법 제3장 준수)
   // 서버 상태 (API 데이터)는 React Query로 관리 - Zustand에는 절대 저장 금지
   const { data, isLoading, isError } = useQuery({
@@ -96,6 +100,33 @@ const DailyBriefingScreen: React.FC = () => {
       return response.data;
     },
   });
+
+  // Phase 6: 시간 기반 앱 모드 자동 전환 (useEffect)
+  // 시간이 변경될 때마다 현재 시간에 기반해 모드를 업데이트
+  React.useEffect(() => {
+    // 초기 모드 설정
+    updateAppMode();
+
+    // 시간 변화 감지를 위한 인터벌 (1분마다 모드 체크)
+    const modeCheckInterval = setInterval(() => {
+      updateAppMode();
+    }, 60000); // 60초마다 체크
+
+    return () => clearInterval(modeCheckInterval);
+  }, [updateAppMode]);
+
+  // Phase 6: 앱 모드에 따라 JourneySelector 상태 설정
+  // - Briefing Mode: Collapsed (isExpanded = false)
+  // - Explore Mode: Expanded (isExpanded = true)
+  React.useEffect(() => {
+    if (appMode === 'briefing') {
+      // Briefing Mode: 여정 선택기는 collapsed 상태
+      setExpanded(false);
+    } else {
+      // Explore Mode: 여정 선택기는 expanded 상태
+      setExpanded(true);
+    }
+  }, [appMode, setExpanded]);
 
   // Phase 5: alertType에 따라 배경색 상태 업데이트
   React.useEffect(() => {
