@@ -5,3 +5,4 @@ export { default as AlternativePathCard } from './AlternativePathCard';
 export { default as Carousel } from './Carousel';
 export { default as StepCard } from './StepCard';
 export { default as StepCards } from './StepCards';
+export { default as OfflineBanner } from './OfflineBanner';

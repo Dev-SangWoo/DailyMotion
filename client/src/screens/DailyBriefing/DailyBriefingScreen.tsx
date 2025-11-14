@@ -7,6 +7,7 @@
  * - AGENTS.md 프론트엔드 헌법 [제2장] 상태 관리 (Zustand)
  * - v3.0 명세서 [Logic 1.1] 출발 알림 / [Logic 1.2] 마지노선 경고
  * - DESIGN.md Phase 5: Ambient Feedback (배경색 알림) 로직
+ * - DESIGN.md Phase 7: 예외 상황 처리 (오프라인 배너)
  * - OpenAPI 스펙 GET /v1/briefings/commute
  */
 import React from 'react';
@@ -17,12 +18,15 @@ import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
 import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../stores/useAmbientFeedbackStore';
 import { useAppModeStore, type AppMode } from '../../stores/useAppModeStore';
-import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards } from './components';
+import { useNetworkStore } from '../../stores/useNetworkStore';
+import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards, OfflineBanner } from './components';
 
 // Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
 // Phase 5: Ambient Feedback - 배경색 동적 설정 (props 기반)
+// Phase 7: 오프라인 배너를 위한 padding-top 추가
 interface ContainerProps {
   ambientStatus?: AmbientFeedbackStatus;
+  hasOfflineBanner?: boolean;
 }
 
 const getBackgroundColor = (status?: AmbientFeedbackStatus): string => {
@@ -42,6 +46,7 @@ const getBackgroundColor = (status?: AmbientFeedbackStatus): string => {
 const Container = styled.View<ContainerProps>`
   flex: 1;
   padding: ${theme.spacing.md}px;
+  padding-top: ${(props) => (props.hasOfflineBanner ? 60 : theme.spacing.md)}px;
   background-color: ${(props) => getBackgroundColor(props.ambientStatus)};
   transition: background-color 0.2s ease-in-out;
 `;
@@ -90,6 +95,10 @@ const DailyBriefingScreen: React.FC = () => {
 
   // Phase 6: App Mode Store - 앱 상태 관리 (Briefing/Explore Mode)
   const { appMode, updateAppMode } = useAppModeStore();
+
+  // Phase 7: Network Store - 네트워크 상태 관리 (오프라인 감지)
+  const { isOffline, lastUpdated, setOffline, setLastUpdated } =
+    useNetworkStore();
 
   // React Query useQuery (헌법 제3장 준수)
   // 서버 상태 (API 데이터)는 React Query로 관리 - Zustand에는 절대 저장 금지
@@ -147,6 +156,21 @@ const DailyBriefingScreen: React.FC = () => {
       }
     }
   }, [data?.data?.alertType, setAmbientStatus]);
+
+  // Phase 7: 네트워크 상태 모니터링
+  // GPS/모바일 데이터 30초 이상 수신 불가 시 오프라인 표시
+  React.useEffect(() => {
+    // 실제 환경에서는 react-native-netinfo 라이브러리 사용
+    // 현재는 API 호출 상태를 기반으로 네트워크 상태 추정
+    if (isError) {
+      // API 호출 실패 = 네트워크 문제
+      setOffline(true);
+    } else if (isLoading === false && !isError) {
+      // API 호출 성공 = 네트워크 정상
+      setOffline(false);
+      setLastUpdated(new Date());
+    }
+  }, [isError, isLoading, setOffline, setLastUpdated]);
 
   // 여정 선택기 핸들러
   const handleExpandPress = () => {
@@ -218,14 +242,18 @@ const DailyBriefingScreen: React.FC = () => {
   ];
 
   return (
-    <Container ambientStatus={ambientStatus}>
-      {/* Phase 2: 여정 선택기 컴포넌트 (Zustand 상태와 연동) */}
-      <JourneySelector
-        isExpanded={isExpanded}
-        onExpand={handleExpandPress}
-        onCollapse={handleCollapsePress}
-        onTabSelect={handleTabSelect}
-      />
+    <>
+      {/* Phase 7: 오프라인 배너 */}
+      <OfflineBanner isOffline={isOffline} lastUpdated={lastUpdated} />
+
+      <Container ambientStatus={ambientStatus} hasOfflineBanner={isOffline}>
+        {/* Phase 2: 여정 선택기 컴포넌트 (Zustand 상태와 연동) */}
+        <JourneySelector
+          isExpanded={isExpanded}
+          onExpand={handleExpandPress}
+          onCollapse={handleCollapsePress}
+          onTabSelect={handleTabSelect}
+        />
 
       {/* Phase 3.4: 캐러셀 (Hero, Weather, AlternativePathCard) */}
       <Carousel
@@ -270,7 +298,8 @@ const DailyBriefingScreen: React.FC = () => {
           </BusInfoText>
         </>
       )}
-    </Container>
+      </Container>
+    </>
   );
 };
 
