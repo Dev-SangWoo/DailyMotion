@@ -225,13 +225,14 @@ class OdsayAPIClient:
                 "paths": [
                     {
                         "id": "path_1",
-                        "totalTime": 3600,  # 초 단위
-                        "totalDistance": 15400,  # 미터 단위
-                        "totalPrice": 2500,  # 원
+                        "totalTime": 1680,  # 초 단위 (분을 초로 변환)
+                        "totalDistance": 9494,  # 미터 단위
+                        "totalPrice": 1450,  # 원
                         "busCount": 1,
                         "subwayCount": 1,
-                        "pathType": 1,
-                        "legs": [...]
+                        "transferCount": 1,
+                        "pathType": 2,
+                        "subPath": [...]  # 상세 구간 정보
                     }
                 ]
             } 또는 {"code": -1, "error": "..."}
@@ -260,28 +261,38 @@ class OdsayAPIClient:
             formatted_paths = []
             for idx, path in enumerate(paths):
                 info = path.get("info", {})
-                legs = path.get("legs", [])
+                sub_path = path.get("subPath", [])
 
-                # 총 소요시간을 분 단위로도 계산
-                total_time_seconds = info.get("totalTime", 0)
-                total_time_minutes = total_time_seconds // 60
+                # ⚠️ ODSAY API는 totalTime을 "분" 단위로 반환!
+                # 예: 28 (분) → 1680 (초)로 변환
+                total_time_minutes = info.get("totalTime", 0)
+                total_time_seconds = total_time_minutes * 60
 
                 # 총 거리를 km 단위로도 계산
                 total_distance_meters = info.get("totalDistance", 0)
                 total_distance_km = total_distance_meters / 1000
 
+                # trafficType 기반 버스/지하철 개수 계산
+                # trafficType: 1=지하철, 2=버스, 3=도보
+                bus_count = len([s for s in sub_path if s.get("trafficType") == 2])
+                subway_count = len([s for s in sub_path if s.get("trafficType") == 1])
+
+                # transferCount 계산 (버스/지하철 구간이 2개 이상이면 환승 발생)
+                transit_sections = [s for s in sub_path if s.get("trafficType") in [1, 2]]
+                transfer_count = max(0, len(transit_sections) - 1)
+
                 formatted_path = {
                     "id": f"path_{idx + 1}",
                     "pathType": path.get("pathType", 1),
-                    "totalTime": total_time_seconds,  # 초 단위
-                    "totalTimeMinutes": total_time_minutes,  # 분 단위
+                    "totalTime": total_time_seconds,  # 초 단위 (분을 초로 변환)
+                    "totalTimeMinutes": total_time_minutes,  # 원본: 분 단위
                     "totalDistance": total_distance_meters,  # 미터 단위
                     "totalDistanceKm": f"{total_distance_km:.1f}",  # km 단위
                     "totalPrice": info.get("totalPrice", 0),  # 요금 (원)
-                    "busCount": info.get("busCount", 0),
-                    "subwayCount": info.get("subwayCount", 0),
-                    "transferCount": info.get("transferCount", 0),
-                    "legs": legs  # 상세 구간 정보
+                    "busCount": bus_count,  # trafficType 기반 계산
+                    "subwayCount": subway_count,  # trafficType 기반 계산
+                    "transferCount": transfer_count,  # 버스/지하철 환승 횟수
+                    "subPath": sub_path  # 상세 구간 정보 (legs가 아니라 subPath!)
                 }
                 formatted_paths.append(formatted_path)
 

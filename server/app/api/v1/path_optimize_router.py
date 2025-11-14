@@ -102,16 +102,23 @@ service = PathOptimizeService()
 
 # 1️⃣ GET /api/v1/briefings/commute - 출근 브리핑 조회
 @router.get("/commute", response_model=dict)
-def get_commute_briefing(
+async def get_commute_briefing(
     user_id: str = Query("user_001", description="사용자 ID")
 ):
     """
-    출근 브리핑 조회
+    출근 브리핑 조회 (ODSAY API 통합)
 
     Logic 1.1 & 1.2 구현:
     - GO_NOW: 충분한 시간 있음 (15분 이상)
     - LAST_CHANCE: 마지막 기회 (0~15분)
     - NO_ACTION: 목표 시간 초과
+
+    📊 데이터 흐름:
+    1. 사용자 출퇴근 설정 조회 (MockUserDB)
+    2. ODSAY API로 정류장 검색 (homeAddress → 좌표)
+    3. ODSAY API로 경로 검색 (17개 경로)
+    4. service.get_commute_briefing()에 경로 데이터 전달
+    5. Logic 2.2 Gate 검증 (최적 경로 제안)
 
     Response Example:
     {
@@ -127,7 +134,7 @@ def get_commute_briefing(
     }
     """
     try:
-        # Mock DB에서 사용자 설정 조회
+        # 1️⃣ Mock DB에서 사용자 설정 조회
         commute_settings = MockUserDB.get_commute_settings(user_id)
         if not commute_settings:
             logger.error(f"❌ 사용자 없음: {user_id}")
@@ -136,12 +143,90 @@ def get_commute_briefing(
                 detail=f"User {user_id} not found"
             )
 
-        # 현재 시간으로 브리핑 생성
+        logger.info(f"📋 사용자 설정 조회: {user_id}")
+        logger.info(f"   집: {commute_settings['homeAddress']}")
+        logger.info(f"   회사: {commute_settings['workAddress']}")
+
+        # 2️⃣ ODSAY API 클라이언트 초기화
+        api_key = os.getenv("ODSAY_API_KEY")
+        if not api_key:
+            logger.warning("⚠️ ODSAY_API_KEY 환경변수 없음 - Mock 데이터로 계속 진행")
+            routes_data = None
+        else:
+            odsay_client = OdsayAPIClient(api_key=api_key)
+
+            # 3️⃣ 집 주소로 정류장 검색
+            logger.info(f"🔍 집 주소로 정류장 검색: {commute_settings['homeAddress']}")
+            home_station_response = await odsay_client.search_station(
+                station_name=commute_settings['homeAddress']
+            )
+
+            if "error" in home_station_response or "result" not in home_station_response:
+                logger.warning(f"⚠️ 집 주소 정류장 검색 실패")
+                routes_data = None
+            else:
+                home_stations = home_station_response.get("result", {}).get("station", [])
+                if not home_stations:
+                    logger.warning(f"⚠️ 집 주소 정류장 결과 없음")
+                    routes_data = None
+                else:
+                    home_station_data = home_stations[0]
+                    home_x = home_station_data["x"]
+                    home_y = home_station_data["y"]
+                    logger.info(f"✅ 집 정류장 발견: {home_station_data['stationName']}")
+                    logger.info(f"   좌표: ({home_x}, {home_y})")
+
+                    # 4️⃣ 회사 주소로 정류장 검색
+                    logger.info(f"🔍 회사 주소로 정류장 검색: {commute_settings['workAddress']}")
+                    work_station_response = await odsay_client.search_station(
+                        station_name=commute_settings['workAddress']
+                    )
+
+                    if "error" in work_station_response or "result" not in work_station_response:
+                        logger.warning(f"⚠️ 회사 주소 정류장 검색 실패")
+                        routes_data = None
+                    else:
+                        work_stations = work_station_response.get("result", {}).get("station", [])
+                        if not work_stations:
+                            logger.warning(f"⚠️ 회사 주소 정류장 결과 없음")
+                            routes_data = None
+                        else:
+                            work_station_data = work_stations[0]
+                            work_x = work_station_data["x"]
+                            work_y = work_station_data["y"]
+                            logger.info(f"✅ 회사 정류장 발견: {work_station_data['stationName']}")
+                            logger.info(f"   좌표: ({work_x}, {work_y})")
+
+                            # 5️⃣ 경로 검색 (좌표 기반)
+                            logger.info(f"🔍 경로 검색: ({home_x},{home_y}) → ({work_x},{work_y})")
+                            route_response = await odsay_client.search_route(
+                                start_x=home_x,
+                                start_y=home_y,
+                                end_x=work_x,
+                                end_y=work_y,
+                                search_type=0  # 모든 경로
+                            )
+
+                            if "error" in route_response:
+                                logger.warning(f"⚠️ 경로 검색 실패: {route_response['error']}")
+                                routes_data = None
+                            else:
+                                routes_data = route_response
+                                path_count = len(routes_data.get("result", {}).get("path", []))
+                                logger.info(f"✅ 경로 검색 성공: {path_count}개 경로")
+
+        # 6️⃣ 현재 시간으로 브리핑 생성
         current_time = datetime.now()
+
+        # routes_data가 있으면 전달, 없으면 None (향후 Logic 2.2에서 사용)
         result = service.get_commute_briefing(
             commute_settings=commute_settings,
             current_time=current_time
         )
+
+        # 📌 향후 확장: routes_data를 service에 전달하여 Logic 2.2 (대안 경로) 검증
+        # if routes_data:
+        #     result['data']['alternativeRoutes'] = routes_data
 
         logger.info(f"✅ 출근 브리핑 조회: {user_id} -> {result['data']['alertType']}")
         return result
