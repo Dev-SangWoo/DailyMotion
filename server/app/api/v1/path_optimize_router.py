@@ -218,17 +218,21 @@ async def get_commute_briefing(
         # 6️⃣ 현재 시간으로 브리핑 생성
         current_time = datetime.now()
 
-        # routes_data가 있으면 전달, 없으면 None (향후 Logic 2.2에서 사용)
+        # ✅ routes_data를 service에 전달 (ODSAY 실제 데이터 사용)
         result = service.get_commute_briefing(
             commute_settings=commute_settings,
-            current_time=current_time
+            current_time=current_time,
+            routes_data=routes_data  # ← ODSAY 데이터 전달!
         )
 
-        # 📌 향후 확장: routes_data를 service에 전달하여 Logic 2.2 (대안 경로) 검증
-        # if routes_data:
+        # 📌 향후 확장: Logic 2.2 (대안 경로) 검증에 routes_data 추가 활용
+        # if routes_data and len(routes_data.get("paths", [])) > 1:
         #     result['data']['alternativeRoutes'] = routes_data
 
-        logger.info(f"✅ 출근 브리핑 조회: {user_id} -> {result['data']['alertType']}")
+        if "error" in result:
+            logger.error(f"❌ 출근 브리핑 조회 실패: {result['error']}")
+        else:
+            logger.info(f"✅ 출근 브리핑 조회: {user_id} -> {result['data']['alertType']}")
         return result
 
     except HTTPException as e:

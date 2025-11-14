@@ -40,6 +40,26 @@ from app.modules.path_optimize.models import (
 
 logger = logging.getLogger(__name__)
 
+# =====================================================
+# 상수 정의 (Magic Numbers 제거)
+# =====================================================
+
+# Logic 1.1 & 1.2: 출발/막차 알림 상수
+COMFORTABLE_BUFFER_MINUTES = 10  # v3.0 명세서: 여유 시간 기준 (분)
+DEFAULT_FIRST_MILE_DURATION = 5  # First Mile 도보 시간 기본값 (분)
+DEFAULT_LAST_MILE_DURATION = 7   # Last Mile 도보 시간 기본값 (분)
+
+# Logic 2.2: 3가지 Gate 검증 상수
+MIN_TRANSFER_TIME_MINUTES = 3    # Gate 2: 환승 확정성 (최소 여유 시간)
+MAX_CONGESTION_THRESHOLD = 0.80  # Gate 3: 경험의 질 (혼잡도 임계값 80%)
+TIME_BENEFIT_THRESHOLD_COMMUTE = 7  # Gate 1: 출근 모드 시간 이득 기준 (분)
+SEATING_POSSIBILITY_THRESHOLD = 0.50  # Gate 1: 퇴근 모드 착석 가능성 기준 (50%)
+
+# 에러 코드
+ERROR_MISSING_REQUIRED_KEY = "E001"
+ERROR_INVALID_TYPE = "E002"
+ERROR_INTERNAL_SERVER_ERROR = "E500"
+
 
 class PathOptimizeService:
     """경로 최적화 서비스 클래스"""
@@ -101,9 +121,9 @@ class PathOptimizeService:
     
     def get_commute_briefing(
         self,
-
         commute_settings: Dict[str, Any],
-        current_time: datetime
+        current_time: datetime,
+        routes_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         출근 브리핑 조회
@@ -117,6 +137,28 @@ class PathOptimizeService:
                 - firstMileDefaultDuration: First Mile 도보 시간 (분)
                 - lastMileDefaultDuration: Last Mile 도보 시간 (분)
             current_time: 현재 시간 (datetime 객체)
+            routes_data: ODSAY API 응답 데이터 (선택)
+                {
+                    "paths": [
+                        {
+                            "id": "path_1",
+                            "totalTimeMinutes": 28,
+                            "subPath": [
+                                {
+                                    "trafficType": 2,  # 2=버스
+                                    "name": "146번",
+                                    "departureTime": "08:35",
+                                    "arrivalTime": "08:53"
+                                },
+                                {
+                                    "trafficType": 1,  # 1=지하철
+                                    "name": "2호선"
+                                }
+                            ]
+                        },
+                        ...
+                    ]
+                }
 
         Returns:
             OpenAPI 스펙 준수 응답 구조:
@@ -132,97 +174,209 @@ class PathOptimizeService:
                 }
             }
         """
+        try:
+            # 1️⃣ 입력 검증
+            if "targetArrivalTime" not in commute_settings:
+                logger.error("❌ targetArrivalTime 필수 필드 누락")
+                return {
+                    "error": {
+                        "code": ERROR_MISSING_REQUIRED_KEY,
+                        "message": "targetArrivalTime is required"
+                    }
+                }
 
-        # 목표 도착 시간을 datetime으로 변환 (오늘 날짜 기준)
-        target_arrival = datetime.combine(
-            current_time.date(),
-            commute_settings["targetArrivalTime"]
-        )
+            if not isinstance(commute_settings["targetArrivalTime"], time):
+                logger.error("❌ targetArrivalTime은 time 객체여야 함")
+                return {
+                    "error": {
+                        "code": ERROR_INVALID_TYPE,
+                        "message": "targetArrivalTime must be a time object"
+                    }
+                }
 
-        # 현재 시간과 목표 도착 시간의 차이 계산
-        time_until_arrival = target_arrival - current_time
-        minutes_until_arrival = int(time_until_arrival.total_seconds() / 60)
+            # 2️⃣ 목표 도착 시간을 datetime으로 변환 (오늘 날짜 기준)
+            target_arrival = datetime.combine(
+                current_time.date(),
+                commute_settings["targetArrivalTime"]
+            )
 
-        # First Mile 도보 시간
-        first_mile_duration = commute_settings.get("firstMileDefaultDuration", 5)
+            # 3️⃣ 현재 시간과 목표 도착 시간의 차이 계산
+            time_until_arrival = target_arrival - current_time
+            minutes_until_arrival = int(time_until_arrival.total_seconds() / 60)
 
-        # ❌ 목표 도착 시간을 이미 지난 경우
-        if minutes_until_arrival < 0:
-            # 이미 지난 경우 NO_ACTION
+            # 4️⃣ First Mile 도보 시간
+            first_mile_duration = commute_settings.get(
+                "firstMileDefaultDuration",
+                DEFAULT_FIRST_MILE_DURATION
+            )
+
+            # 5️⃣ ODSAY 데이터에서 추천 교통수단 추출
+            recommended_transport = self._extract_recommended_transport(routes_data)
+
+            # ❌ 목표 도착 시간을 이미 지난 경우
+            if minutes_until_arrival < 0:
+                logger.warning(f"⚠️ 목표 도착 시간 초과: {minutes_until_arrival}분")
+                return {
+                    "data": {
+                        "alertType": "NO_ACTION",
+                        "message": "목표 도착 시간이 이미 지났습니다.",
+                        "recommendedTransport": None
+                    }
+                }
+
+            # [Logic 1.1] 출발 알림 로직
+            # 목표 도착 시간까지 충분한 시간이 있는 경우 "GO_NOW" 알림
+            if minutes_until_arrival >= first_mile_duration + COMFORTABLE_BUFFER_MINUTES:
+                target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
+
+                # ODSAY 데이터가 있으면 실제 정보 사용, 없으면 fallback
+                if recommended_transport:
+                    transport_name = recommended_transport['name']
+                    message = (
+                        f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
+                        f"{first_mile_duration}분 뒤 오는 [{transport_name}]를 타세요."
+                    )
+                else:
+                    transport_name = "지금 출발 가능한 교통수단"
+                    message = (
+                        f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
+                        f"{first_mile_duration}분 뒤 오는 교통수단을 이용하세요."
+                    )
+
+                logger.info(f"✅ Logic 1.1 GO_NOW 알림: {minutes_until_arrival}분 여유")
+                return {
+                    "data": {
+                        "alertType": "GO_NOW",
+                        "message": message,
+                        "recommendedTransport": {
+                            "type": recommended_transport['type'] if recommended_transport else "BUS",
+                            "name": transport_name,
+                            "departureInMinutes": first_mile_duration
+                        }
+                    }
+                }
+
+            # [Logic 1.2] 마지노선 경고 로직
+            # Logic 1.1을 놓쳤을 경우, 마지막 교통수단 알림
+            if 0 <= minutes_until_arrival <= first_mile_duration + COMFORTABLE_BUFFER_MINUTES:
+                target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
+
+                # 마지노선 버스 정보
+                last_bus_departure = minutes_until_arrival
+                if recommended_transport:
+                    last_bus_number = recommended_transport['name']
+                else:
+                    last_bus_number = "마지막 교통수단"
+
+                message = (
+                    f"⚠️지각 주의! {target_time_str} 도착을 위한 마지막 버스[{last_bus_number}]가 "
+                    f"{last_bus_departure}분 뒤 도착합니다. (도보 {first_mile_duration}분 포함, 지금 출발하셔야 합니다!)"
+                )
+
+                logger.warning(f"⚠️ Logic 1.2 LAST_CHANCE 경고: {minutes_until_arrival}분 전")
+                return {
+                    "data": {
+                        "alertType": "LAST_CHANCE",
+                        "message": message,
+                        "recommendedTransport": {
+                            "type": recommended_transport['type'] if recommended_transport else "BUS",
+                            "name": last_bus_number,
+                            "departureInMinutes": last_bus_departure
+                        }
+                    }
+                }
+
+            # 기본 응답 (예상치 못한 경우)
+            logger.warning(f"⚠️ 예상치 못한 시간 조건: {minutes_until_arrival}분")
+            target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
             return {
                 "data": {
                     "alertType": "NO_ACTION",
-                    "message": "목표 도착 시간이 이미 지났습니다.",
+                    "message": f"{target_time_str} 도착을 위해 계획을 재조정하세요.",
                     "recommendedTransport": None
                 }
             }
 
-        # [Logic 1.1] 출발 알림 로직
-        # 목표 도착 시간까지 충분한 시간이 있는 경우 "GO_NOW" 알림
-        if minutes_until_arrival >= first_mile_duration + 10:  # 여유 시간 10분 포함
-            # v3.0 명세서 예시 메시지 형식
-            target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
-            message = (
-                f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
-                f"{first_mile_duration}분 뒤 오는 [123번 버스]를 타세요."
-            )
-
+        except KeyError as e:
+            logger.error(f"❌ 필드 누락: {str(e)}")
             return {
-                "data": {
-                    "alertType": "GO_NOW",
-                    "message": message,
-                    "recommendedTransport": {
-                        "type": "BUS",
-                        "name": "123번",
-                        "departureInMinutes": first_mile_duration
-                    }
+                "error": {
+                    "code": ERROR_MISSING_REQUIRED_KEY,
+                    "message": f"Missing required field: {str(e)}"
                 }
             }
-
-        # [Logic 1.2] 마지노선 경고 로직
-        # Logic 1.1을 놓쳤을 경우, 마지막 교통수단 알림
-        if 0 <= minutes_until_arrival <= first_mile_duration + 10:
-            target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
-
-            # 마지노선 버스 정보 (v3.0 명세서 예시)
-            last_bus_departure = minutes_until_arrival
-            last_bus_number = "456번"
-
-            message = (
-                f"⚠️지각 주의! {target_time_str} 도착을 위한 마지막 버스[{last_bus_number}]가 "
-                f"{last_bus_departure}분 뒤 도착합니다. (도보 {first_mile_duration}분 포함, 지금 출발하셔야 합니다!)"
-            )
-
+        except TypeError as e:
+            logger.error(f"❌ 타입 오류: {str(e)}")
             return {
-                "data": {
-                    "alertType": "LAST_CHANCE",
-                    "message": message,
-                    "recommendedTransport": {
-                        "type": "BUS",
-                        "name": last_bus_number,
-                        "departureInMinutes": last_bus_departure
-                    }
+                "error": {
+                    "code": ERROR_INVALID_TYPE,
+                    "message": f"Type error: {str(e)}"
+                }
+            }
+        except Exception as e:
+            logger.error(f"❌ 예상치 못한 오류: {str(e)}")
+            return {
+                "error": {
+                    "code": ERROR_INTERNAL_SERVER_ERROR,
+                    "message": f"Internal server error: {str(e)}"
                 }
             }
 
-        # 기본 응답 (예상치 못한 경우)
-        # 이 코드에 도달하면 안 됨 (위 조건들이 모든 경우를 커버)
-        target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
-        fallback_message = (
-            f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
-            f"{first_mile_duration}분 뒤 오는 교통수단을 이용하세요."
-        )
-        return {
-            "data": {
-                "alertType": "GO_NOW",
-                "message": fallback_message,
-                "recommendedTransport": {
-                    "type": "BUS",
-                    "name": "123번",
-                    "departureInMinutes": first_mile_duration
-                }
+    @staticmethod
+    def _extract_recommended_transport(routes_data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        ODSAY routes_data에서 추천 교통수단 추출 (가장 빠른 경로의 첫 번째 대중교통)
+
+        Args:
+            routes_data: ODSAY API 응답 (parse_route_info로 파싱된 데이터)
+
+        Returns:
+            {
+                "type": "BUS" | "SUBWAY",
+                "name": "146번" | "2호선",
+                "departureInMinutes": 5
             }
-        }
+            또는 None (데이터 없을 때)
+        """
+        if not routes_data or "paths" not in routes_data or not routes_data["paths"]:
+            logger.warning("⚠️ ODSAY routes_data 없음")
+            return None
+
+        try:
+            # 가장 빠른 경로 선택 (첫 번째)
+            fastest_path = routes_data["paths"][0]
+            sub_path = fastest_path.get("subPath", [])
+
+            if not sub_path:
+                logger.warning("⚠️ subPath 정보 없음")
+                return None
+
+            # subPath에서 첫 번째 대중교통 찾기 (trafficType: 1=지하철, 2=버스, 3=도보)
+            for segment in sub_path:
+                traffic_type = segment.get("trafficType")
+                name = segment.get("name", "교통수단")
+
+                if traffic_type == 2:  # 버스
+                    logger.info(f"✅ ODSAY 버스 추출: {name}")
+                    return {
+                        "type": "BUS",
+                        "name": name,
+                        "departureInMinutes": 5
+                    }
+                elif traffic_type == 1:  # 지하철
+                    logger.info(f"✅ ODSAY 지하철 추출: {name}")
+                    return {
+                        "type": "SUBWAY",
+                        "name": name,
+                        "departureInMinutes": 5
+                    }
+
+            logger.warning("⚠️ subPath에서 대중교통 정보 없음")
+            return None
+
+        except (KeyError, IndexError, TypeError) as e:
+            logger.warning(f"⚠️ ODSAY 데이터 파싱 오류: {str(e)}")
+            return None
 
     def get_retreat_mode_last_bus_alert(
         self,
