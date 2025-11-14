@@ -1,6 +1,7 @@
 # DailyBriefingScreen 구현 작업 체크리스트
 
 ## 📋 개요
+
 DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
 **전체 진행률**: 12.5/15 (83%) - Phase 8.0 (Mock API) 설정 완료
@@ -8,6 +9,7 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 1: 기초 구현 (현재 완료)
+
 - ✅ **1.1** DailyBriefingScreen 기본 컴포넌트 구현
   - React Query 기반 API 호출
   - 로딩/에러 상태 처리
@@ -16,18 +18,22 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 2: 컴포넌트 1 - 여정 선택기 (Journey Selector)
+
 - ✅ **2.1** 기본 상태 (Collapsed) UI 구현 (완료)
+
   - [출근], [귀가], [헬스장] 등 즐겨찾기 탭 표시 ✅
   - [확장 검색(+)] 버튼 구현 ✅
   - 헌법 준수: Styled-components + theme 사용 ✅
   - 테스트 케이스: 5개 작성 (기본 상태 관련)
 
 - ✅ **2.2** 확장 상태 (Expanded) UI 구현 (완료)
+
   - ✅ [출발지] / [목적지] 입력 범용 검색창 표시
   - ✅ 검색창 애니메이션 (collapse/expand) - max-height 0.4s 전환, opacity 애니메이션
   - ✅ 헌법 준수: RTL 테스트 먼저 작성 (7개 추가 테스트 케이스)
 
 - ✅ **2.3** 상태 전환 로직 (완료)
+
   - ✅ Zustand store (useJourneySelectorStore) 생성
   - ✅ isExpanded, selectedTab 상태 및 액션 정의
   - ✅ DailyBriefingScreen에 스토어 통합
@@ -41,7 +47,9 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 3: 컴포넌트 2 - 핵심 캐러셀 (Primary Carousel)
+
 - ✅ **3.1** 카드 2.1: Hero 상태 카드 구현 (기본 포커스) (완료)
+
   - ✅ Phase 1 (출발 전): "🚀 지금 출발하세요!" 헤드라인
     - ✅ "5분 뒤 123번 버스 도착" (핵심)
     - ✅ "총 예상 소요 시간 45분" (요약)
@@ -57,6 +65,7 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - 테스트: 8개 (HeroCard) + 2개 (DailyBriefingScreen 통합)
 
 - ✅ **3.2** 카드 2.2: 날씨 카드 구현 (완료)
+
   - ✅ "현재 15°C, 비 예보 70%" 표시
   - ✅ 날씨 조건에 맞는 아이콘 (☀️, ☁️, 🌧️, ❄️, 💨, 🌫️)
   - ✅ 탭 상호작용 (onPress 콜백)
@@ -65,6 +74,7 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - 테스트: 6개 (WeatherCard)
 
 - ✅ **3.3** 카드 2.3: 대안 경로 카드 구현 (조건부) (완료)
+
   - ✅ Logic 2.2 발동 시만 표시 (isVisible prop으로 제어)
   - ✅ "💡 7분 단축 경로 발견!" 헤드라인
   - ✅ 시간 단축 정보 표시 (숫자 + "분 단축")
@@ -74,6 +84,7 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - 테스트: 8개 (AlternativePathCard)
 
 - ✅ **3.4** 캐러셀 스와이프 기능 (완료)
+
   - ✅ 좌우 스와이프로 카드 전환 (FlatList + pagingEnabled)
   - ✅ Logic 2.2 발동 시 자동 슬라이드 (카드 1 → 카드 2.3)
   - ✅ 페이지네이션 인디케이터 (점) 표시
@@ -89,7 +100,9 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 4: 컴포넌트 3 - 단계별 경로 카드 (Step-by-Step Cards) (완료)
+
 - ✅ **4.1-4.4** 단계별 경로 UI 및 레이아웃 (완료)
+
   - ✅ StepCard.tsx: 개별 경로 단계 카드 컴포넌트
   - ✅ 도보: 🚶 아이콘, 점선 표시 (First/Last Mile)
   - ✅ 교통수단: 🚌 🚇 아이콘, 호선별 고유색 라인
@@ -113,13 +126,16 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 5: Ambient Feedback (배경색 알림) 로직 (완료)
+
 - ✅ **5.1-5.2** 색상 상태 및 Store 구현 (완료)
+
   - ✅ useAmbientFeedbackStore.ts 생성 (Zustand)
   - ✅ 🔵 파란색 (정상 / Default): theme.colors.background
   - ✅ 🟠 주황색 (주의 / Warning): #FFA500 (Logic 3.1 지연 감지)
   - ✅ 🔴 빨간색 (위기 / Alert): #FF6B6B (Logic 3.2 지각 확정)
 
 - ✅ **5.3-5.4** 상태 관리 및 애니메이션 (완료)
+
   - ✅ DailyBriefingScreen에 store 통합
   - ✅ alertType → ambientStatus 매핑 (useEffect)
   - ✅ 배경색 전환 애니메이션 (0.2s ease-in-out)
@@ -136,17 +152,21 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 6: 앱 상태 (App States) 관리 (완료)
+
 - ✅ **6.1** 비서 모드 (Briefing Mode) 구현 (완료)
+
   - ✅ Trigger: 출퇴근 알림 시간 (평일 07:30-09:00 / 18:00-19:30)
   - ✅ JourneySelector Collapsed 상태로 자동 설정
   - ✅ useAppModeStore를 통한 상태 관리
 
 - ✅ **6.2** 탐색 모드 (Explore Mode) 구현 (완료)
+
   - ✅ Trigger: 비서 모드 시간 외 모든 시간 또는 주말
   - ✅ JourneySelector Expanded 상태로 자동 설정
   - ✅ 범용 검색창 기본 열림
 
 - ✅ **6.3** 모드 전환 로직 (완료)
+
   - ✅ 시간 기반 자동 전환 (1분마다 체크)
   - ✅ useEffect로 현재 시간 모니터링
   - ✅ useAppModeStore에서 상태 관리
@@ -163,13 +183,16 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 7: 예외 상황 처리 (완료)
+
 - ✅ **7.1** 오프라인 상태 배너 구현 (완료)
+
   - OfflineBanner.tsx 컴포넌트 생성
   - 마지막 업데이트 시간을 상대 시간으로 표시 (방금 전, 1분 전, 1시간 전 등)
   - Styled-components + theme 색상 적용 (주황색 배경)
   - 앱 최상단 절대 위치 배치 (z-index: 1000)
 
 - ✅ **7.2** 네트워크 상태 관리 (완료)
+
   - useNetworkStore.ts 생성 (Zustand 스토어)
   - isOffline: 오프라인 상태 추적
   - lastUpdated: 마지막 업데이트 시간 기록
@@ -177,6 +200,7 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - UI 상태만 관리 (헌법 제1장 준수)
 
 - ✅ **7.3** 네트워크 모니터링 (완료)
+
   - DailyBriefingScreen에 useNetworkStore 통합
   - API 호출 상태(isLoading, isError)를 기반으로 네트워크 상태 관리
   - Container padding-top 동적 조정 (배너 표시 시 60px)
@@ -192,9 +216,11 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ## Phase 8: 데이터 연동 & API 통합
 
 ### 📌 Phase 8.0: 목업 데이터 설정 (Mock API)
+
 **목적**: Expo 개발 환경에서 실제 백엔드 API 없이 UI 시각 테스트 가능
 
 - ✅ **8.0.1** 목업 데이터 생성 (완료)
+
   - `client/src/services/mockData.ts` 생성
   - CommuteBriefingResponse 형식 정의
   - 6가지 시나리오 목업 데이터:
@@ -207,26 +233,29 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
   - 랜덤 선택 함수: `getRandomMockResponse()`
 
 - ✅ **8.0.2** API 클라이언트 수정 (완료)
+
   - `client/src/services/api.ts` 업데이트
   - 요청 인터셉터: 목업 데이터 제공
   - 응답 인터셉터: 목업 데이터 반환
   - 환경 변수 제어:
     - REACT_APP_USE_MOCK_API='true': 항상 목업 사용
     - REACT_APP_USE_MOCK_API='false': 항상 실제 API 사용
-    - 미설정 && __DEV__: 개발 환경에서 목업 자동 활성화
+    - 미설정 && **DEV**: 개발 환경에서 목업 자동 활성화
   - 네트워크 지연 시뮬레이션 (300-800ms)
 
 - ✅ **8.0.3** 환경 설정 (완료)
+
   - `.env.example` 생성 (배포 전 복사용)
   - `.env` 생성 (개발 환경 설정)
   - REACT_APP_USE_MOCK_API=true (기본값)
   - 주석: 환경별 전환 방법 설명
 
 - ✅ **8.0.4** API 테스트 (완료)
+
   - `client/src/services/api.test.ts` 생성
   - 목업 데이터 형식 검증 (CommuteBriefingResponse)
   - 시나리오별 데이터 유효성 검증
-  - 환경 감지 테스트 (__DEV__, REACT_APP_USE_MOCK_API)
+  - 환경 감지 테스트 (**DEV**, REACT_APP_USE_MOCK_API)
   - Mock API 인터셉터 동작 테스트
 
 - ⬜ **8.0.5** Expo 시각 테스트
@@ -241,26 +270,32 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 - ⬜ **8.1** 실시간 대중교통 API 연동
+
   - C2.1 (Hero 카드): "5분 뒤 123번 버스 도착"
   - C3 (단계별 카드): 소요 시간 동기화
   - React Query 커스텀 훅: `useCommuteBriefingQuery`
 
 - ⬜ **8.2** 실시간 도로 교통 API 연동
+
   - Logic 3.1 (지연 감지) 입력값
   - TPEG 등 API 호출
 
 - ⬜ **8.3** 경로 탐색 엔진 API 연동
+
   - C1 (여정 선택기) 범용 검색 시 사용
   - C2.3 (대안 경로 카드) 경로 계산
 
 - ⬜ **8.4** 실시간 혼잡도 API 연동
+
   - C3 (단계별 카드): "혼잡도: 혼잡" 표시
   - SKT/KT 통신사 기반 데이터
 
 - ⬜ **8.5** 날씨 API 연동
+
   - C2.2 (날씨 카드): 온도, 예보율 표시
 
 - ⬜ **8.6** 사용자 설정값 로드
+
   - useAuthStore에서 사용자 정보 읽기
   - [집], [회사] 주소, 출근 목표 시각, 알림 시간
 
@@ -271,28 +306,35 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 9: v3.0 로직 연동
+
 - ⬜ **9.1** Logic 1.1 (출발 알림) 연동
+
   - 백엔드에서 받은 alertType='GO_NOW' 처리
   - Hero 카드에 "지금 출발하세요!" 표시
   - 현재 구현 상태: ✅ 기본 테스트 완료
 
 - ⬜ **9.2** Logic 1.2 (마지노선 경고) 연동
+
   - alertType='LAST_CHANCE' 처리
   - Hero 카드에 경고 메시지 표시
   - 현재 구현 상태: ✅ 기본 테스트 완료
 
 - ⬜ **9.3** Logic 2.1 (탑승 인지) 연동
+
   - GPS 기반 탑승 상태 감지
   - Phase 2 UI로 전환
 
 - ⬜ **9.4** Logic 2.2 (경로 제안) 연동
+
   - C2.3 (대안 경로 카드) 표시/숨김
   - 캐러셀 자동 슬라이드
 
 - ⬜ **9.5** Logic 2.3 (세팅 최적화) 연동
+
   - C3에 "빠른 환승: 3-2칸 추천" 표시
 
 - ⬜ **9.6** Logic 3.1 (지연 감지) 연동
+
   - 배경색 🟠 주황색으로 변경
   - Hero 카드에 "⚠️ 5분 지연!" 표시
 
@@ -304,7 +346,9 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 10: Smart Polling (v3.0 최신) 연동
+
 - ⬜ **10.1** 폴링 빈도 동적 조절 로직
+
   - 사용자 상태별 GPS/API 호출 빈도 조정
   - '순항 구간'(지하철): Low Frequency
   - '환승 지점' 접근: High Frequency
@@ -316,16 +360,20 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 11: 상세 페이지 구현 (모달/화면)
+
 - ⬜ **11.1** 상세 경로 지도 페이지
+
   - Hero 카드 탭 시 표시
   - 지도 + 경로 시각화
   - react-native-maps 활용
 
 - ⬜ **11.2** 상세 날씨 페이지
+
   - 날씨 카드 탭 시 모달로 표시
   - 시간별 날씨 예보
 
 - ⬜ **11.3** 경로 비교 페이지
+
   - 대안 경로 카드 탭 시 모달로 표시
   - 현재 경로 vs 제안 경로 비교
 
@@ -336,12 +384,15 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 12: 접근성 & 성능 최적화
+
 - ⬜ **12.1** 접근성 (a11y) 개선
+
   - testID 추가 완료율 검증
   - 색상 대비도 WCAG 기준 확인
   - 화면 리더 지원
 
 - ⬜ **12.2** 성능 최적화
+
   - React Query 캐싱 전략 최적화
   - 컴포넌트 메모이제이션 (React.memo)
   - 불필요한 리렌더링 제거
@@ -353,11 +404,14 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 13: 문서화 & 유지보수
+
 - ⬜ **13.1** 컴포넌트 주석 추가
+
   - JSDoc 포맷으로 각 컴포넌트 문서화
   - Props, Return type 명시
 
 - ⬜ **13.2** 헌법 준수 확인
+
   - AGENTS.md 헌법 준수 코멘트 추가
   - "헌법 제2장 준수", "헌법 제3장 준수" 등
 
@@ -368,11 +422,14 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 14: 테스트 커버리지 강화
+
 - ⬜ **14.1** 단위 테스트 추가
+
   - 각 컴포넌트별 테스트
   - 헌법 제6장 (TDD) 준수
 
 - ⬜ **14.2** 통합 테스트
+
   - 전체 화면 Flow 테스트
   - API 모킹 없이 실제 백엔드 연동 테스트 (옵션)
 
@@ -382,15 +439,19 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 15: 최종 검수 & 배포
+
 - ⬜ **15.1** 코드 리뷰
+
   - 헌법 준수 최종 확인
   - 성능 최적화 재검토
 
 - ⬜ **15.2** 비즈니스 로직 검증
+
   - v3.0 명세서 요구사항 충족 확인
   - Logic 1.1-3.2 모두 동작 확인
 
 - ⬜ **15.3** UI/UX 최종 검증
+
   - DESIGN.md v2.3 모든 항목 구현 확인
   - 화면 플로우 테스트
 
@@ -403,22 +464,23 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
 ## 📊 진행률 추적
 
-| Phase | 상태 | 진행률 |
-|-------|------|--------|
-| Phase 1 | ✅ 완료 | 100% |
-| Phase 2 (2.1-2.4) | ✅ 완료 | 100% |
-| Phase 3.1-3.5 | ✅ 완료 | 100% |
-| Phase 4 | ✅ 완료 | 100% |
-| Phase 5 | ✅ 완료 | 100% |
-| Phase 6 | ✅ 완료 | 100% |
-| Phase 7 | ✅ 완료 | 100% |
-| Phase 8-9 | ⬜ 미시작 | 0% |
-| Phase 10-15 | ⬜ 미시작 | 0% |
-| **전체** | **12/15** | **80%** |
+| Phase             | 상태      | 진행률  |
+| ----------------- | --------- | ------- |
+| Phase 1           | ✅ 완료   | 100%    |
+| Phase 2 (2.1-2.4) | ✅ 완료   | 100%    |
+| Phase 3.1-3.5     | ✅ 완료   | 100%    |
+| Phase 4           | ✅ 완료   | 100%    |
+| Phase 5           | ✅ 완료   | 100%    |
+| Phase 6           | ✅ 완료   | 100%    |
+| Phase 7           | ✅ 완료   | 100%    |
+| Phase 8-9         | ⬜ 미시작 | 0%      |
+| Phase 10-15       | ⬜ 미시작 | 0%      |
+| **전체**          | **12/15** | **80%** |
 
 ---
 
 ## 📝 주요 참고사항
+
 - **헌법 준수**: AGENTS.md 프론트엔드 헌법 [제2장][제3장][제6장] 반드시 준수
 - **TDD 원칙**: 각 항목 시작 시 테스트 먼저 작성
 - **theme 활용**: 모든 색상/폰트/간격은 `src/styles/theme.ts`에서 가져오기
