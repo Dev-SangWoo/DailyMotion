@@ -542,58 +542,91 @@
 
 ---
 
-## 🗄️ Phase 11: 데이터베이스 모델 구현
+## 🗄️ Phase 11: 데이터베이스 모델 구현 ✅ COMPLETED (28/28 테스트)
 
-### 11.1 사용자 출퇴근 설정 테이블
-- [ ] **테스트 먼저**: `test_db_commute_settings.py` 작성
-  - [ ] CRUD 작업 테스트
-  - [ ] 유효성 검사 테스트
+### 11.1 사용자 출퇴근 설정 테이블 ✅ 완료
+- [x] **테스트 먼저**: `test_db_commute_settings.py` 작성 ✅ 완료 (8개 테스트)
+  - [x] CRUD 작업 테스트 ✅
+  - [x] 유효성 검사 테스트 ✅
+  - [x] 타임스탐프 자동 생성 ✅
+  - [x] 위도/경도 범위 검증 ✅
 
-- [ ] **구현**: `models/db_models.py` 추가
+- [x] **구현**: `models/db_models.py` 추가 ✅ 완료
   ```python
   class CommuteSettingsDB(Base):
-      user_id
-      home_address
-      home_latitude, home_longitude
-      work_address
-      work_latitude, work_longitude
+      user_id (PK)
+      home_address, home_latitude, home_longitude
+      work_address, work_latitude, work_longitude
       target_arrival_time
-      first_mile_duration
-      last_mile_duration
+      first_mile_duration, last_mile_duration
       preference_routes (JSON)
       alert_start_time
       created_at, updated_at
+      # 제약: 위도/경도 범위, 도보시간 양수
   ```
 
-### 11.2 최적화 이력 테이블
-- [ ] **테스트 먼저**: `test_db_optimization_history.py` 작성
+### 11.2 최적화 이력 테이블 ✅ 완료
+- [x] **테스트 먼저**: `test_db_optimization_history.py` 작성 ✅ 완료 (10개 테스트)
+  - [x] CRUD 작업 ✅
+  - [x] 사용자별/날짜별 조회 ✅
+  - [x] 모드별 구분 (COMMUTE/RETREAT) ✅
+  - [x] JSON 데이터 저장/조회 ✅
+  - [x] 지연 추적 ✅
 
-- [ ] **구현**: `models/db_models.py` 추가
+- [x] **구현**: `models/db_models.py` 추가 ✅ 완료
   ```python
   class OptimizationHistoryDB(Base):
-      user_id
-      journey_date
+      id (PK, auto-increment)
+      user_id, journey_date
       mode (COMMUTE or RETREAT)
-      suggested_route
-      selected_route
+      suggested_route (JSON)
+      selected_route (JSON)
       actual_arrival_time
-      delay_occurred (boolean)
-      created_at
+      delay_occurred (분 단위)
+      feedback
+      created_at (자동 생성)
   ```
 
-### 11.3 평균 소요시간 통계 테이블
-- [ ] **테스트 먼저**: `test_db_average_duration.py` 작성
+### 11.3 평균 소요시간 통계 테이블 ✅ 완료
+- [x] **테스트 먼저**: `test_db_average_duration.py` 작성 ✅ 완료 (10개 테스트)
+  - [x] 시간대별/요일별 조회 ✅
+  - [x] 샘플 카운트 업데이트 ✅
+  - [x] 신뢰도 지표 (MIN_SAMPLE=100) ✅
+  - [x] 교통수단별 구분 ✅
+  - [x] 복합 조건 쿼리 ✅
 
-- [ ] **구현**: `models/db_models.py` 추가 (또는 `ai_pattern` 모듈에서)
+- [x] **구현**: `models/db_models.py` 추가 ✅ 완료
   ```python
   class AverageDurationDB(Base):
+      id (PK, auto-increment)
       segment_id
-      departure_hour
-      day_of_week
+      departure_hour (0~23)
+      day_of_week (0~6)
       avg_duration_seconds
       sample_count
-      updated_at
+      transport_type (BUS, SUBWAY)
+      transport_name
+      start_station_name, end_station_name
+      is_reliable (0=낮음, 1=높음)
+      created_at, updated_at
+      # 복합 인덱스 (segment_id, hour, dow)
   ```
+
+### 📊 Phase 11 최종 결과: ✅ 28/28 테스트 PASSED
+
+**생성된 파일**:
+- `server/app/modules/path_optimize/models/db_models.py` (3개 테이블)
+- `server/app/modules/path_optimize/models/__init__.py` (모델 export)
+- `server/app/modules/path_optimize/tests/test_db_commute_settings.py` (8개 테스트)
+- `server/app/modules/path_optimize/tests/test_db_optimization_history.py` (10개 테스트)
+- `server/app/modules/path_optimize/tests/test_db_average_duration.py` (10개 테스트)
+
+**특징**:
+- ✅ PostGIS 준비 (위치 데이터 공간 쿼리 가능)
+- ✅ 제약 조건 (범위, 양수, NULL 검증)
+- ✅ 복합 인덱스 (쿼리 최적화)
+- ✅ 타임스탐프 자동 생성 (created_at, updated_at)
+- ✅ JSON 필드 (유연한 데이터 저장)
 
 ---
 
@@ -789,14 +822,14 @@
 | 8 | Logic 3.2 (택시 제안) | ✅ 완료 | 18/18 | 최후의 수단 |
 | 9 | Logic 4.1-4.2 (퇴근 목표) | ✅ 완료 | 22/22 | Retreat Mode (A/B/C) |
 | 10 | Logic 4.3 (스마트 폴링) | ✅ 완료 | 16/16 | 적응형 폴링 (10/30/300초) |
-| 11 | DB 모델 | ⏳ Pending | - | DB Schema |
+| 11 | DB 모델 | ✅ 완료 | 28/28 | 3개 테이블 (Commute/History/Duration) |
 | 12 | API Endpoint | ✅ 완료 | 12/12 | REST/OpenAPI (6개 엔드포인트) |
 | 13 | 타 모듈 통신 | ⏳ Pending | - | Service Layer |
 | 14 | 통합 테스트 | ⏳ Pending | - | E2E Tests |
 | 15 | 문서화 | ⏳ Pending | - | API Docs |
 | 16 | 배포 및 모니터링 | ⏳ Pending | - | K8s/Monitoring |
 
-**🟢 완료된 테스트**: 164/164 PASSED ✅ (Phase 12 완료: +12 테스트)
+**🟢 완료된 테스트**: 192/192 PASSED ✅ (Phase 11 완료: +28 테스트)
 
 ---
 
@@ -954,12 +987,12 @@
 ## 📊 **현재 완료도**
 
 ```
-✅ 완료된 Phase: 16개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6, 7, 8, 9, 10, 12)
-⏳ 미구현 Phase: 3개 (Phase 11, 13, 14, 15, 16)
-❌ Pending Phase: 5개 (Phase 11, 13, 14, 15, 16)
+✅ 완료된 Phase: 17개 (Phase 1.1, 1.2, 2, 3, 3.2, 2.1.1, 2.1.2, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+⏳ 미구현 Phase: 4개 (Phase 13, 14, 15, 16)
+❌ Pending Phase: 4개 (Phase 13, 14, 15, 16)
 
-🧪 총 테스트: 164/164 PASSED ✅
-📈 완료도: 100% (API Endpoint 구현 완료! 16/21 Phase)
+🧪 총 테스트: 192/192 PASSED ✅
+📈 완료도: 80.95% (DB 모델 구현 완료! 17/21 Phase)
 
 📋 Phase별 테스트 카운트:
 ┌─────────────────────────────────────┬────────┬──────────┐
