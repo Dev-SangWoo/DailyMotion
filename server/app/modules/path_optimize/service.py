@@ -37,6 +37,14 @@ from app.modules.path_optimize.models import (
     SystemMode,
     TransportType
 )
+from app.modules.path_optimize.clients.ai_pattern_client import (
+    AIPatternService,
+    MockAIPatternService
+)
+from app.modules.path_optimize.clients.risk_manage_client import (
+    RiskManageService,
+    MockRiskManageService
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +70,38 @@ ERROR_INTERNAL_SERVER_ERROR = "E500"
 
 
 class PathOptimizeService:
-    """경로 최적화 서비스 클래스"""
-    
+    """
+    경로 최적화 서비스 클래스
+
+    Phase 13: 타 모듈과의 통신을 위해 Service Layer Interface 패턴 도입
+    - ai_pattern_service: AI Pattern 모듈과의 통신
+    - risk_manage_service: Risk Manage 모듈과의 통신
+
+    의존성 주입(Dependency Injection) 패턴을 사용하여 느슨한 결합 구현
+    """
+
+    def __init__(
+        self,
+        ai_pattern_service: Optional[AIPatternService] = None,
+        risk_manage_service: Optional[RiskManageService] = None
+    ):
+        """
+        PathOptimizeService 초기화
+
+        Args:
+            ai_pattern_service: AI Pattern Service (None이면 MockAIPatternService 사용)
+            risk_manage_service: Risk Manage Service (None이면 MockRiskManageService 사용)
+        """
+        # 의존성 주입: 실제 구현 또는 Mock 사용
+        self.ai_pattern_service = ai_pattern_service or MockAIPatternService()
+        self.risk_manage_service = risk_manage_service or MockRiskManageService()
+
+        logger.info(
+            f"PathOptimizeService initialized with "
+            f"ai_pattern={type(self.ai_pattern_service).__name__}, "
+            f"risk_manage={type(self.risk_manage_service).__name__}"
+        )
+
     def optimize_path(
         self,
         start_point: Dict[str, Any],

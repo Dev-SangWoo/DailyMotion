@@ -1,5 +1,5 @@
 """
-Phase 1.1: 경로 최적화 모듈의 데이터 모델
+Phase 1.1: 경로 최적화 모듈의 Pydantic API 모델
 
 헌법 준수:
 - AGENTS.md 상호 규약 [제2장] 데이터 교환 (JSON camelCase)

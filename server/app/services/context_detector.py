@@ -21,7 +21,7 @@ from app.modules.path_optimize.models import (
     ContextAwarenessResult,
     ScreenSwitchResponse,
     CommuteSettings
-)
+)  # Pydantic 모델 (../models.py에서 정의됨)
 
 logger = logging.getLogger(__name__)
 
