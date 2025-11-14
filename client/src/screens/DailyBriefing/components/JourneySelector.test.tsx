@@ -172,7 +172,7 @@ describe('JourneySelector', () => {
 
       // When: 출발지 입력창에 "종로3가역"을 입력
       const originInput = screen.getByPlaceholderText('출발지');
-      await userEvent.typeText(originInput, '종로3가역');
+      await userEvent.type(originInput, '종로3가역');
 
       // Then: onSearchChange가 호출되어야 함
       expect(onSearchChange).toHaveBeenCalledWith(
@@ -196,7 +196,7 @@ describe('JourneySelector', () => {
 
       // When: 목적지 입력창에 "서울역"을 입력
       const destinationInput = screen.getByPlaceholderText('목적지');
-      await userEvent.typeText(destinationInput, '서울역');
+      await userEvent.type(destinationInput, '서울역');
 
       // Then: onSearchChange가 호출되어야 함
       expect(onSearchChange).toHaveBeenCalledWith(
@@ -293,7 +293,7 @@ describe('JourneySelector', () => {
 
       // When: 출발지 입력
       const originInput = screen.getByPlaceholderText('출발지');
-      await userEvent.typeText(originInput, '강남역');
+      await userEvent.type(originInput, '강남역');
 
       // Then: onSearchChange가 origin과 함께 호출
       expect(onSearchChange).toHaveBeenCalledWith(
@@ -302,7 +302,7 @@ describe('JourneySelector', () => {
 
       // When: 목적지 입력
       const destinationInput = screen.getByPlaceholderText('목적지');
-      await userEvent.typeText(destinationInput, '서울역');
+      await userEvent.type(destinationInput, '서울역');
 
       // Then: onSearchChange가 destination과 함께 호출
       expect(onSearchChange).toHaveBeenCalledWith(
@@ -326,7 +326,7 @@ describe('JourneySelector', () => {
 
       // When: 출발지에 값 입력 후 지우기
       const originInput = screen.getByPlaceholderText('출발지');
-      await userEvent.typeText(originInput, '강남역');
+      await userEvent.type(originInput, '강남역');
       await userEvent.clear(originInput);
 
       // Then: onSearchChange가 빈 값으로 호출되어야 함

@@ -10,13 +10,9 @@
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
-      }
+      "package": "com.dailymotion.client"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [],
+    "scheme": "dailymotion"
   }
 }

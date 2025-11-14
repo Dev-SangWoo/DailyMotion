@@ -20,6 +20,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
+        id={undefined}
         initialRouteName="CommuteSettings"
         screenOptions={{
           headerStyle: {

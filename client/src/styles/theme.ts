@@ -11,23 +11,25 @@ export const theme = {
     primary: '#007AFF',
     primaryDark: '#0051D5',
     primaryLight: '#5AC8FA',
-    
+
     // Secondary 색상
     secondary: '#5856D6',
-    
+
     // 상태 색상
     success: '#34C759',
     warning: '#FF9500',
     error: '#FF3B30',
     info: '#5AC8FA',
-    
+
     // 중성 색상
     background: '#FFFFFF',
     backgroundSecondary: '#F2F2F7',
+    surface: '#F2F2F7',
+    white: '#FFFFFF',
     text: '#000000',
     textSecondary: '#8E8E93',
     border: '#C6C6C8',
-    
+
     // 다크 모드 (추후 확장)
     dark: {
       background: '#000000',

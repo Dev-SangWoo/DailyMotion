@@ -19,7 +19,7 @@ describe('HeroCard (카드 2.1)', () => {
     it('GO_NOW 응답 시 "지금 출발하세요!" 헤드라인을 표시해야 한다', () => {
       // Given: GO_NOW 응답 데이터
       const briefingData = {
-        alertType: 'GO_NOW',
+        alertType: 'GO_NOW' as const,
         message: '8:50 도착을 위해, 지금 집에서 출발하셔서 5분 뒤 오는 [123번 버스]를 타세요.',
         recommendedTransport: {
           type: 'BUS',
@@ -42,7 +42,7 @@ describe('HeroCard (카드 2.1)', () => {
     it('교통수단 도착 시간을 표시해야 한다', () => {
       // Given: 교통수단 데이터
       const briefingData = {
-        alertType: 'GO_NOW',
+        alertType: 'GO_NOW' as const,
         message: '지금 출발하세요.',
         recommendedTransport: {
           type: 'BUS',
@@ -116,7 +116,7 @@ describe('HeroCard (카드 2.1)', () => {
     it('LAST_CHANCE 응답 시 "⚠️ 지각 주의!" 헤드라인을 표시해야 한다', () => {
       // Given: LAST_CHANCE 응답 데이터
       const briefingData = {
-        alertType: 'LAST_CHANCE',
+        alertType: 'LAST_CHANCE' as const,
         message: '⚠️ 지각 주의! 8:50 도착을 위한 마지막 버스[456번]가 8분 뒤 도착합니다.',
         recommendedTransport: {
           type: 'BUS',
@@ -141,7 +141,7 @@ describe('HeroCard (카드 2.1)', () => {
     it('NO_ACTION 응답 시 현재 상태를 표시해야 한다', () => {
       // Given: NO_ACTION 응답 데이터
       const briefingData = {
-        alertType: 'NO_ACTION',
+        alertType: 'NO_ACTION' as const,
         message: '현재 예정대로 진행 중입니다.',
         recommendedTransport: null,
       };
