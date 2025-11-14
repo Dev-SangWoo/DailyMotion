@@ -3,7 +3,7 @@
 ## 📋 개요
 DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 
-**전체 진행률**: 12/15 (80%)
+**전체 진행률**: 12.5/15 (83%) - Phase 8.0 (Mock API) 설정 완료
 
 ---
 
@@ -190,6 +190,56 @@ DESIGN.md v2.3의 UI/UX 명세에 따른 DailyBriefingScreen 단계별 구현
 ---
 
 ## Phase 8: 데이터 연동 & API 통합
+
+### 📌 Phase 8.0: 목업 데이터 설정 (Mock API)
+**목적**: Expo 개발 환경에서 실제 백엔드 API 없이 UI 시각 테스트 가능
+
+- ✅ **8.0.1** 목업 데이터 생성 (완료)
+  - `client/src/services/mockData.ts` 생성
+  - CommuteBriefingResponse 형식 정의
+  - 6가지 시나리오 목업 데이터:
+    - ✅ normalCommute: 정상 출퇴근
+    - ✅ lightCongestion: 약간의 혼잡
+    - ✅ heavyCongestion: 심각한 혼잡 (마지노선)
+    - ✅ subwayRecommendation: 지하철 추천
+    - ✅ alternativeRoute: 대안 경로 (택시)
+    - ✅ plentyOfTime: 여유 있음
+  - 랜덤 선택 함수: `getRandomMockResponse()`
+
+- ✅ **8.0.2** API 클라이언트 수정 (완료)
+  - `client/src/services/api.ts` 업데이트
+  - 요청 인터셉터: 목업 데이터 제공
+  - 응답 인터셉터: 목업 데이터 반환
+  - 환경 변수 제어:
+    - REACT_APP_USE_MOCK_API='true': 항상 목업 사용
+    - REACT_APP_USE_MOCK_API='false': 항상 실제 API 사용
+    - 미설정 && __DEV__: 개발 환경에서 목업 자동 활성화
+  - 네트워크 지연 시뮬레이션 (300-800ms)
+
+- ✅ **8.0.3** 환경 설정 (완료)
+  - `.env.example` 생성 (배포 전 복사용)
+  - `.env` 생성 (개발 환경 설정)
+  - REACT_APP_USE_MOCK_API=true (기본값)
+  - 주석: 환경별 전환 방법 설명
+
+- ✅ **8.0.4** API 테스트 (완료)
+  - `client/src/services/api.test.ts` 생성
+  - 목업 데이터 형식 검증 (CommuteBriefingResponse)
+  - 시나리오별 데이터 유효성 검증
+  - 환경 감지 테스트 (__DEV__, REACT_APP_USE_MOCK_API)
+  - Mock API 인터셉터 동작 테스트
+
+- ⬜ **8.0.5** Expo 시각 테스트
+  - `npm start` 로 Expo 개발 서버 실행
+  - iOS/Android 시뮬레이터/에뮬레이터에서 앱 실행
+  - 다양한 alertType (GO_NOW, LAST_CHANCE, NO_ACTION) 확인
+  - 배경색 변화 (파란색, 주황색) 검증
+  - HeroCard, WeatherCard, AlternativePathCard 렌더링 확인
+  - OfflineBanner 표시 여부 확인
+  - 모드 자동 전환 (Briefing/Explore) 테스트
+
+---
+
 - ⬜ **8.1** 실시간 대중교통 API 연동
   - C2.1 (Hero 카드): "5분 뒤 123번 버스 도착"
   - C3 (단계별 카드): 소요 시간 동기화
