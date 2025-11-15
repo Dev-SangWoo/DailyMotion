@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dailymotion-api
+  labels:
+    app: dailymotion-api
+    environment: production
+spec:
+  replicas: 3  # 고가용성을 위한 3개 레플리카
+  selector:
+    matchLabels:
+      app: dailymotion-api
+  template:
+    metadata:
+      labels:
+        app: dailymotion-api
+    spec:
+      containers:
+      - name: api
+        image: dailymotion-api:latest  # TODO: 실제 이미지 레지스트리 경로로 변경
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+
+        # 환경변수 (Secret에서 로드)
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: dailymotion-secrets
+              key: database-url
+        - name: ODSAY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dailymotion-secrets
+              key: odsay-api-key
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dailymotion-secrets
+              key: secret-key
+        - name: DEBUG
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: LOG_FORMAT
+          value: "json"
+
+        # Liveness Probe - 컨테이너가 살아있는지 확인
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+
+        # Readiness Probe - 트래픽을 받을 준비가 되었는지 확인
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+
+        # 리소스 제한
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        # 보안 설정
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+
+      # 배포 전략
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 0
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dailymotion-api-service
+  labels:
+    app: dailymotion-api
+spec:
+  type: LoadBalancer  # NHN Cloud에서는 LoadBalancer 사용
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: dailymotion-api
+  sessionAffinity: None
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dailymotion-api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dailymotion-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
