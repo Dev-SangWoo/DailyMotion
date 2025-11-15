@@ -8,53 +8,48 @@
  * - OpenAPI 스펙 PUT /v1/users/me/settings/commute
  */
 import React, { useState } from 'react';
-import { TextInput } from 'react-native';
-import styled from 'styled-components/native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 import apiClient from '../../services/api';
-import { theme } from '../../styles/theme';
 
-// Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
-const Container = styled.View`
-  flex: 1;
-  padding: ${theme.spacing.md}px;
-  background-color: ${theme.colors.background};
-`;
-
-const Section = styled.View`
-  margin-bottom: ${theme.spacing.lg}px;
-`;
-
-const InputLabel = styled.Text`
-  font-size: ${theme.fonts.sizes.md}px;
-  font-weight: ${theme.fonts.weights.medium};
-  color: ${theme.colors.text};
-  margin-bottom: ${theme.spacing.sm}px;
-`;
-
-const StyledInput = styled.TextInput`
-  border-width: 1px;
-  border-color: ${theme.colors.border};
-  border-radius: ${theme.borderRadius.md}px;
-  padding: ${theme.spacing.md}px;
-  font-size: ${theme.fonts.sizes.md}px;
-  color: ${theme.colors.text};
-  background-color: ${theme.colors.background};
-`;
-
-const SaveButton = styled.TouchableOpacity`
-  background-color: ${theme.colors.primary};
-  border-radius: ${theme.borderRadius.md}px;
-  padding: ${theme.spacing.md}px;
-  align-items: center;
-  margin-top: ${theme.spacing.xl}px;
-`;
-
-const SaveButtonText = styled.Text`
-  color: ${theme.colors.background};
-  font-size: ${theme.fonts.sizes.md}px;
-  font-weight: ${theme.fonts.weights.semibold};
-`;
+// 임시: styled-components 비활성화 (디버깅용)
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#C6C6C8',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    color: '#000000',
+    backgroundColor: '#FFFFFF',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
 
 // OpenAPI 스펙에 맞는 요청 타입
 interface CommuteSettingsRequest {
@@ -100,42 +95,46 @@ const CommuteSettingsScreen: React.FC = () => {
   };
 
   return (
-    <Container>
-      <Section>
-        <InputLabel>집 주소</InputLabel>
-        <StyledInput
+    <View style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.label}>집 주소</Text>
+        <TextInput
+          style={styles.input}
           placeholder="집 주소를 입력하세요"
           value={homeAddress}
           onChangeText={setHomeAddress}
         />
-      </Section>
+      </View>
 
-      <Section>
-        <InputLabel>회사 주소</InputLabel>
-        <StyledInput
+      <View style={styles.section}>
+        <Text style={styles.label}>회사 주소</Text>
+        <TextInput
+          style={styles.input}
           placeholder="회사 주소를 입력하세요"
           value={workAddress}
           onChangeText={setWorkAddress}
         />
-      </Section>
+      </View>
 
-      <Section>
-        <InputLabel>목표 도착 시각</InputLabel>
-        <StyledInput
+      <View style={styles.section}>
+        <Text style={styles.label}>목표 도착 시각</Text>
+        <TextInput
+          style={styles.input}
           placeholder="HH:MM"
           value={targetArrivalTime}
           onChangeText={setTargetArrivalTime}
         />
-      </Section>
+      </View>
 
-      <SaveButton
+      <TouchableOpacity
+        style={styles.button}
         onPress={handleSave}
         accessibilityRole="button"
         accessibilityLabel="저장"
       >
-        <SaveButtonText>저장</SaveButtonText>
-      </SaveButton>
-    </Container>
+        <Text style={styles.buttonText}>저장</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 

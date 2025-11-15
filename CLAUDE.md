@@ -246,15 +246,87 @@ dailyMotion/
 
 ---
 
+## 🎨 Onboarding Implementation Guide
+
+### Design Philosophy (desgin.md v3.2)
+- **"Value First"**: Show benefits before requesting data
+- **"Conversational Setup"**: Question-like UI instead of cold forms
+- **"One Thing at a Time"**: Single task per screen
+- **"Brainless Skeleton"**: Sensible defaults (90% of users accept them)
+
+### Visual Design System (3D Claymorphism + Glassmorphism)
+- **Colors**: Blue (#007AFF), Ambient variants (Normal/Warning/Alert)
+- **Typography**: Display-L (34px), Headline-M (22px), Body-L (17px)
+- **Components**:
+  - **Cards**: Soft UI with diffused shadows + glassmorphism (backdrop blur 12px, opacity 70-80%)
+  - **Buttons**: 3D effect with clear shadow on bottom
+  - **Icons**: High-quality 3D renders (bus 🚌, subway 🚇, location 📍, notification 🔔, trophy 🏆)
+  - **Input Fields**: Flat/Inset style (no 3D, clear input intent)
+
+### Onboarding Screen Structure (9 screens)
+```
+Screen 1-3:  ValueProposal (horizontal swipeable cards)
+Screen 4:    JourneySetup (origin + destination)
+Screen 5:    PathSelection (choose recommended path)
+Screen 6:    GoalTime (arrival time + first mile minutes)
+Screen 7:    ScheduleSetup (weekdays vs custom)
+Screen 8:    PermissionsScreen (notification + location)
+Screen 9:    CompletionScreen (success + preview briefing)
+```
+
+### Onboarding Store (`useOnboardingStore.ts`)
+```typescript
+// Location: src/screens/Onboarding/stores/useOnboardingStore.ts
+// - journeySetup: { origin, destination }
+// - pathSelection: { selectedPathIndex, customPath }
+// - goalTime: { arrivalTime, firstMileMinutes }
+// - schedule: { daysOfWeek, isCustom }
+// - permissions: { notificationGranted, locationGranted }
+// - currentStep: 1-9
+// - isCompleted: boolean
+// All state persisted to AsyncStorage
+```
+
+### TDD Pattern for Onboarding Screens
+1. **Write RTL test first** (user perspective):
+   ```typescript
+   // Test: "User can input origin and destination"
+   // Test: "Next button navigates to next screen"
+   // Test: "Back button reverts to previous screen"
+   ```
+2. **Implement screen component** to pass tests
+3. **Integrate into navigation** (OnboardingScreen stack navigator)
+4. **Test against Zustand store** (state persistence)
+
+### Onboarding Theme Extension
+- Location: `src/screens/Onboarding/styles/onboardingTheme.ts`
+- Extends `src/styles/theme.ts` with:
+  - 3D button shadow tokens
+  - Glassmorphism backdrop blur values
+  - Ambient background colors
+  - Animation/transition tokens
+
+### Key File Locations
+- **Navigation Controller**: `src/screens/Onboarding/OnboardingScreen.tsx`
+- **State Management**: `src/screens/Onboarding/stores/useOnboardingStore.ts`
+- **Screens**: `src/screens/Onboarding/screens/` (ValueProposalScreen, JourneySetupScreen, etc.)
+- **Reusable Components**: `src/screens/Onboarding/components/` (OnboardingButton, OnboardingCard, InputField)
+- **Tests**: `src/screens/Onboarding/__tests__/` (matching screen/component structure)
+- **Task Tracker**: `src/screens/Onboarding/Onboarding_task.md` (Phase breakdown)
+
+---
+
 ## 🔗 Reference Links
 
 - **Extended Rules**: See AGENTS.md
 - **API Spec**: `docs/openapi/v1.yaml`
 - **Module Designs**: `docs/MODULES.md`
+- **Onboarding Design**: `client/src/screens/Onboarding/desgin.md`
+- **Onboarding Tasks**: `client/src/screens/Onboarding/Onboarding_task.md`
 - **Frontend Entry**: `client/src/`
 - **Backend Entry**: `server/app/`
 
 ---
 
-**Last Updated**: November 12, 2025
+**Last Updated**: November 15, 2025
 **Status**: Constitutional Law (DO NOT MODIFY without team consensus)

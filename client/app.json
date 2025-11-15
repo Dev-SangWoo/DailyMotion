@@ -7,10 +7,12 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dailymotion.client"
     },
     "android": {
-      "package": "com.dailymotion.client"
+      "package": "com.dailymotion.client",
+      "versionCode": 1
     },
     "plugins": [],
     "scheme": "dailymotion"

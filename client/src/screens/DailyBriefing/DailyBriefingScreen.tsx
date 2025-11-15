@@ -12,7 +12,7 @@
  * - OpenAPI 스펙 GET /v1/briefings/commute
  */
 import React, { useState } from 'react';
-import { ScrollView, TouchableOpacity, View, TextInput, Dimensions } from 'react-native';
+import { ScrollView, TouchableOpacity, View, TextInput, Dimensions, Image } from 'react-native';
 import styled from 'styled-components/native';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
@@ -213,10 +213,13 @@ const CardBase = styled.View<{ bgGradient: string }>`
 `;
 
 const CardIconRight = styled.View`
-  position: absolute;
-  right: -20px;
-  top: 50%;
-  opacity: 0.3;
+  width: 30%;
+  height: 100%;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  padding-right: ${theme.spacing.lg}px;
+  align-self: flex-end;
 `;
 
 const CardHeader = styled.View`
@@ -250,6 +253,44 @@ const CardText = styled.Text`
   color: white;
   font-size: ${theme.fonts.sizes.sm}px;
   line-height: ${theme.fonts.sizes.sm * 1.5}px;
+`;
+
+// Departure Card 전용 스타일
+const DepartureInfoContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  gap: ${theme.spacing.sm}px;
+`;
+
+const StationName = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.lg}px;
+  font-weight: 700;
+`;
+
+const BusName = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.md}px;
+  font-weight: 600;
+`;
+
+const ArrivalTime = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.xl}px;
+  font-weight: 700;
+`;
+
+const NextBusTime = styled.Text`
+  color: rgba(255, 255, 255, 0.7);
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 400;
+`;
+
+const DepartureAlert = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.sm}px;
+  font-weight: 600;
+  margin-top: ${theme.spacing.sm}px;
 `;
 
 const CardBadge = styled.View`
@@ -718,32 +759,50 @@ const DailyBriefingScreen: React.FC = () => {
             {cards.map((card) => (
               <View key={card.id} style={{ width: cardWidth }}>
                 <CardBase bgGradient={card.bgGradient}>
-                  {/* Background Bus Icon (right side) */}
-                  {card.id === 'departure' && (
-                    <CardIconRight>
-                      <BusIcon width={180} height={180} color="rgba(255, 255, 255, 0.4)" flipped={true} />
-                    </CardIconRight>
+                  {card.id === 'departure' ? (
+                    /* 출발 정보 + Bus Icon */
+                    <View style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.lg }}>
+                      {/* 왼쪽: 정보 영역 (70%) */}
+                      <DepartureInfoContainer>
+                        <StationName>역삼역 3번 출구</StationName>
+                        <BusName>146번 버스</BusName>
+                        <ArrivalTime>5분 후 도착</ArrivalTime>
+                        <NextBusTime>다음 버스: 15분 후</NextBusTime>
+                        <DepartureAlert>지금 출발해야합니다! (가는 시간 5분)</DepartureAlert>
+                      </DepartureInfoContainer>
+                      
+                      {/* 오른쪽: Bus Icon (30%) */}
+                      <View style={{ width: '30%', alignItems: 'flex-end' }}>
+                        <Image 
+                          source={require('../../assets/BusIcon.png')} 
+                          style={{ width: 120, height: 120, opacity: 0.6, transform: [{ scaleX: -1 }] }}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </View>
+                  ) : (
+                    <>
+                      <CardHeader>
+                        <CardIconBox>
+                          <CardTitle style={{ fontSize: 28 }}>{card.icon}</CardTitle>
+                        </CardIconBox>
+                        <View style={{ flex: 1 }}>
+                          <CardTitle>{card.title}</CardTitle>
+                        </View>
+                      </CardHeader>
+
+                      <CardContent>
+                        <CardText>{card.content}</CardText>
+                        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                          {card.badges.map((badge, idx) => (
+                            <CardBadge key={idx}>
+                              <CardBadgeText>{badge}</CardBadgeText>
+                            </CardBadge>
+                          ))}
+                        </View>
+                      </CardContent>
+                    </>
                   )}
-
-                  <CardHeader>
-                    <CardIconBox>
-                      <CardTitle style={{ fontSize: 28 }}>{card.icon}</CardTitle>
-                    </CardIconBox>
-                    <View style={{ flex: 1 }}>
-                      <CardTitle>{card.title}</CardTitle>
-                    </View>
-                  </CardHeader>
-
-                  <CardContent>
-                    <CardText>{card.content}</CardText>
-                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                      {card.badges.map((badge, idx) => (
-                        <CardBadge key={idx}>
-                          <CardBadgeText>{badge}</CardBadgeText>
-                        </CardBadge>
-                      ))}
-                    </View>
-                  </CardContent>
 
                   {/* Carousel pagination dots */}
                   <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8 }}>
