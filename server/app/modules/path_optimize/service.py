@@ -13,10 +13,18 @@ v3.0 명세서:
 - Logic 4.1: 퇴근 모드 사용자 목표 설정 (Phase 9)
 - Logic 4.2: 퇴근 목표별 경로 제안 (Phase 9)
 - Logic 4.3: 배터리 최적화 폴링 전략 (Phase 10)
+
+✨ NEW: 실시간/통계 데이터 완전 통합 (Phase 14+)
+- 실시간 지하철 도착 정보 (서울시 realtimeStationArrival API)
+- 실시간 버스 도착 정보 (국토부/서울 버스 API)
+- 평균 시간표 · 평균 소요시간 (statistical_data_map / delay_detector 기반)
 """
 from typing import List, Dict, Any, Optional
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import logging
+import requests
+import xml.etree.ElementTree as ET
+import os
 
 from app.services.context_detector import context_detector
 from app.services.gate_validator import gate_validator
@@ -68,6 +76,405 @@ ERROR_MISSING_REQUIRED_KEY = "E001"
 ERROR_INVALID_TYPE = "E002"
 ERROR_INTERNAL_SERVER_ERROR = "E500"
 
+# =====================================================
+# 실시간 API 상수 (Phase 14+)
+# =====================================================
+
+# 서울시 지하철 실시간 도착 정보 API
+SEOUL_SUBWAY_API_KEY = os.getenv("SEOUL_SUBWAY_API_KEY", "sample_key")
+SEOUL_SUBWAY_API_URL = f"http://swopenapi.seoul.go.kr/api/subway/{SEOUL_SUBWAY_API_KEY}/xml/realtimeStationArrival"
+
+# 서울 버스 실시간 도착 정보 API
+SEOUL_BUS_API_KEY = os.getenv("SEOUL_BUS_API_KEY", "sample_key")
+SEOUL_BUS_API_URL = "http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRoute"
+
+# API 타임아웃
+API_TIMEOUT_SECONDS = 3
+
+# 지하철 노선 코드 매핑 (ODSay lane.subwayCode → 서울시 API subwayId)
+SUBWAY_CODE_MAP = {
+    1: "1001",   # 1호선
+    2: "1002",   # 2호선
+    3: "1003",   # 3호선
+    4: "1004",   # 4호선
+    5: "1005",   # 5호선
+    6: "1006",   # 6호선
+    7: "1007",   # 7호선
+    8: "1008",   # 8호선
+    9: "1009",   # 9호선
+}
+
+# 상/하행 매핑 (서울시 API updnLine)
+DIRECTION_MAP = {
+    1: "상행",  # ODSay wayCode 1 = 상행/내선
+    2: "하행",  # ODSay wayCode 2 = 하행/외선
+}
+
+
+# =====================================================
+# 실시간 데이터 클라이언트 클래스 (Phase 14+)
+# =====================================================
+
+class SeoulSubwayRealtimeClient:
+    """
+    서울시 지하철 실시간 도착 정보 API 클라이언트
+
+    API 응답 예시 (XML):
+    <row>
+        <subwayId>1001</subwayId>
+        <updnLine>상행</updnLine>
+        <trainLineNm>의정부행</trainLineNm>
+        <statnNm>온수</statnNm>
+        <barvlDt>300</barvlDt>  <!-- 도착 예정 시간(초) -->
+        <arvlMsg2>5분 후 (부천종합운동장)</arvlMsg2>
+    </row>
+    """
+
+    def __init__(self, api_key: str = SEOUL_SUBWAY_API_KEY, api_url: str = SEOUL_SUBWAY_API_URL):
+        self.api_key = api_key
+        self.api_url = api_url
+
+    def get_arrival_info(
+        self,
+        station_name: str,
+        subway_line: str,  # "1호선", "2호선", ...
+        direction: str = "상행"  # "상행" or "하행"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        지하철 실시간 도착 정보 조회
+
+        Args:
+            station_name: 역명 (예: "온수")
+            subway_line: 노선명 (예: "1호선", "7호선")
+            direction: 상/하행 (예: "상행", "하행")
+
+        Returns:
+            {
+                "arrivalMinutes": 5,  # 도착까지 남은 시간(분)
+                "arrivalSeconds": 300,  # 도착까지 남은 시간(초)
+                "trainDirection": "의정부행 - 오류동방면",
+                "message": "5분 후 (부천종합운동장)"
+            }
+            또는 None (실패 시)
+        """
+        try:
+            # 1️⃣ API 호출
+            url = f"{self.api_url}/1/50/{station_name}"
+            logger.info(f"🚇 지하철 실시간 API 호출: {url}")
+
+            response = requests.get(url, timeout=API_TIMEOUT_SECONDS)
+            response.raise_for_status()
+
+            # 2️⃣ XML 파싱
+            root = ET.fromstring(response.content)
+
+            # 3️⃣ 노선 코드 매핑 (예: "1호선" → "1001")
+            line_number = int(subway_line.replace("호선", ""))
+            target_subway_id = SUBWAY_CODE_MAP.get(line_number)
+
+            if not target_subway_id:
+                logger.warning(f"⚠️ 지하철 노선 매핑 실패: {subway_line}")
+                return None
+
+            # 4️⃣ 필터링: stationName, subwayId, updnLine 일치하는 열차 찾기
+            trains = []
+            for row in root.findall(".//row"):
+                row_subway_id = row.findtext("subwayId")
+                row_updn_line = row.findtext("updnLine")
+                row_station = row.findtext("statnNm")
+
+                if (row_subway_id == target_subway_id and
+                    row_updn_line == direction and
+                    row_station == station_name):
+
+                    barvl_dt = row.findtext("barvlDt")  # 도착 예정 시간(초)
+                    if barvl_dt and barvl_dt.isdigit():
+                        trains.append({
+                            "arrivalSeconds": int(barvl_dt),
+                            "trainDirection": row.findtext("trainLineNm", ""),
+                            "message": row.findtext("arvlMsg2", ""),
+                            "arvlCd": row.findtext("arvlCd", "99"),  # 0=진입, 1=도착, 99=진입전
+                        })
+
+            # 5️⃣ 가장 임박한 열차 선택 (barvlDt 최소값)
+            if not trains:
+                logger.warning(f"⚠️ 실시간 열차 정보 없음: {station_name} {subway_line} {direction}")
+                return None
+
+            best_train = min(trains, key=lambda x: x["arrivalSeconds"])
+
+            result = {
+                "arrivalMinutes": best_train["arrivalSeconds"] // 60,
+                "arrivalSeconds": best_train["arrivalSeconds"],
+                "trainDirection": best_train["trainDirection"],
+                "message": best_train["message"],
+            }
+
+            logger.info(f"✅ 지하철 실시간 정보: {station_name} {subway_line} - {result['arrivalMinutes']}분 후")
+            return result
+
+        except requests.RequestException as e:
+            logger.warning(f"⚠️ 지하철 실시간 API 호출 실패: {str(e)}")
+            return None
+        except ET.ParseError as e:
+            logger.warning(f"⚠️ 지하철 XML 파싱 실패: {str(e)}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ 지하철 실시간 정보 조회 실패: {str(e)}")
+            return None
+
+
+class SeoulBusRealtimeClient:
+    """
+    서울 버스 실시간 도착 정보 API 클라이언트
+
+    API 응답 예시 (XML):
+    <itemList>
+        <busRouteId>100100578</busRouteId>
+        <rtNm>3321</rtNm>
+        <stId>124000414</stId>
+        <staOrd>29</staOrd>
+        <arrmsg1>10분1초후[6번째 전]</arrmsg1>
+        <exps1>594</exps1>  <!-- 첫 번째 버스 도착 예정 시간(초) -->
+        <arrmsg2>28분57초후[14번째 전]</arrmsg2>
+        <exps2>1701</exps2>  <!-- 두 번째 버스 도착 예정 시간(초) -->
+    </itemList>
+    """
+
+    def __init__(self, api_key: str = SEOUL_BUS_API_KEY, api_url: str = SEOUL_BUS_API_URL):
+        self.api_key = api_key
+        self.api_url = api_url
+
+    def get_arrival_info(
+        self,
+        bus_route_id: str,  # 예: "100100578"
+        station_ord: Optional[int] = None  # 정류소 순번 (검증용, 선택)
+    ) -> Optional[Dict[str, Any]]:
+        """
+        버스 실시간 도착 정보 조회
+
+        Args:
+            bus_route_id: 버스 노선 ID
+            station_ord: 정류소 순번 (선택)
+
+        Returns:
+            {
+                "arrivalMinutes": 10,  # 도착까지 남은 시간(분)
+                "arrivalSeconds": 594,  # 도착까지 남은 시간(초)
+                "busNumber": "3321",
+                "message": "10분1초후[6번째 전]"
+            }
+            또는 None (실패 시)
+        """
+        try:
+            # 1️⃣ API 호출
+            params = {
+                "serviceKey": self.api_key,
+                "busRouteId": bus_route_id,
+            }
+
+            logger.info(f"🚌 버스 실시간 API 호출: {bus_route_id}")
+
+            response = requests.get(self.api_url, params=params, timeout=API_TIMEOUT_SECONDS)
+            response.raise_for_status()
+
+            # 2️⃣ XML 파싱
+            root = ET.fromstring(response.content)
+
+            # 3️⃣ itemList 찾기
+            buses = []
+            for item in root.findall(".//itemList"):
+                item_route_id = item.findtext("busRouteId")
+
+                if item_route_id == bus_route_id:
+                    # 첫 번째 버스
+                    exps1 = item.findtext("exps1")
+                    if exps1 and exps1.isdigit():
+                        buses.append({
+                            "arrivalSeconds": int(exps1),
+                            "busNumber": item.findtext("rtNm", ""),
+                            "message": item.findtext("arrmsg1", ""),
+                        })
+
+                    # 두 번째 버스
+                    exps2 = item.findtext("exps2")
+                    if exps2 and exps2.isdigit():
+                        buses.append({
+                            "arrivalSeconds": int(exps2),
+                            "busNumber": item.findtext("rtNm", ""),
+                            "message": item.findtext("arrmsg2", ""),
+                        })
+
+            # 4️⃣ 가장 임박한 버스 선택 (exps 최소값)
+            if not buses:
+                logger.warning(f"⚠️ 실시간 버스 정보 없음: {bus_route_id}")
+                return None
+
+            best_bus = min(buses, key=lambda x: x["arrivalSeconds"])
+
+            result = {
+                "arrivalMinutes": best_bus["arrivalSeconds"] // 60,
+                "arrivalSeconds": best_bus["arrivalSeconds"],
+                "busNumber": best_bus["busNumber"],
+                "message": best_bus["message"],
+            }
+
+            logger.info(f"✅ 버스 실시간 정보: {bus_route_id} - {result['arrivalMinutes']}분 후")
+            return result
+
+        except requests.RequestException as e:
+            logger.warning(f"⚠️ 버스 실시간 API 호출 실패: {str(e)}")
+            return None
+        except ET.ParseError as e:
+            logger.warning(f"⚠️ 버스 XML 파싱 실패: {str(e)}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ 버스 실시간 정보 조회 실패: {str(e)}")
+            return None
+
+
+# =====================================================
+# 헬퍼 함수들 (Phase 14+)
+# =====================================================
+
+def _map_direction(way_code: int) -> str:
+    """
+    ODSay wayCode를 서울시 API updnLine으로 매핑
+
+    Args:
+        way_code: ODSay 상/하행 코드 (1=상행/내선, 2=하행/외선)
+
+    Returns:
+        "상행" or "하행"
+    """
+    return DIRECTION_MAP.get(way_code, "상행")
+
+
+def extract_target_subway_segment(routes_data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    ODSay routes_data에서 첫 번째 지하철 구간 추출
+
+    Args:
+        routes_data: ODSay API 응답 (parse_route_info로 파싱된 데이터)
+
+    Returns:
+        {
+            "startName": "온수",
+            "endName": "을지로입구",
+            "subwayCode": 1,  # 1호선
+            "wayCode": 1,  # 상행
+            "lane": {...}  # 원본 lane 정보
+        }
+        또는 None
+    """
+    if not routes_data or "paths" not in routes_data:
+        return None
+
+    paths = routes_data.get("paths", [])
+    if not paths:
+        return None
+
+    fastest_path = paths[0]
+    sub_path = fastest_path.get("subPath", [])
+
+    for segment in sub_path:
+        if segment.get("trafficType") == 1:  # 1=지하철
+            lane_list = segment.get("lane", [])
+            if not lane_list:
+                continue
+
+            lane = lane_list[0]
+
+            return {
+                "startName": segment.get("startName"),
+                "endName": segment.get("endName"),
+                "subwayCode": lane.get("subwayCode"),  # 1, 2, 3, ...
+                "wayCode": segment.get("wayCode", 1),  # 1=상행, 2=하행
+                "lane": lane,
+                "segment": segment,
+            }
+
+    return None
+
+
+def extract_target_bus_segment(routes_data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    ODSay routes_data에서 첫 번째 버스 구간 추출
+
+    Args:
+        routes_data: ODSay API 응답
+
+    Returns:
+        {
+            "startName": "굽은다리사거리",
+            "endName": "고덕그라시움",
+            "busRouteId": "100100578",
+            "busNo": "3321",
+            "lane": {...}
+        }
+        또는 None
+    """
+    if not routes_data or "paths" not in routes_data:
+        return None
+
+    paths = routes_data.get("paths", [])
+    if not paths:
+        return None
+
+    fastest_path = paths[0]
+    sub_path = fastest_path.get("subPath", [])
+
+    for segment in sub_path:
+        if segment.get("trafficType") == 2:  # 2=버스
+            lane_list = segment.get("lane", [])
+            if not lane_list:
+                continue
+
+            lane = lane_list[0]
+
+            return {
+                "startName": segment.get("startName"),
+                "endName": segment.get("endName"),
+                "busRouteId": lane.get("busID"),  # "100100578"
+                "busNo": lane.get("busNo"),  # "3321"
+                "lane": lane,
+                "segment": segment,
+            }
+
+    return None
+
+
+def select_best_realtime_train(trains: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    실시간 열차 목록에서 가장 임박한 열차 선택
+
+    Args:
+        trains: 실시간 열차 정보 리스트
+
+    Returns:
+        가장 임박한 열차 정보 또는 None
+    """
+    if not trains:
+        return None
+
+    return min(trains, key=lambda x: x.get("arrivalSeconds", float("inf")))
+
+
+def select_best_realtime_bus(buses: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    실시간 버스 목록에서 가장 임박한 버스 선택
+
+    Args:
+        buses: 실시간 버스 정보 리스트
+
+    Returns:
+        가장 임박한 버스 정보 또는 None
+    """
+    if not buses:
+        return None
+
+    return min(buses, key=lambda x: x.get("arrivalSeconds", float("inf")))
+
 
 class PathOptimizeService:
     """
@@ -76,6 +483,11 @@ class PathOptimizeService:
     Phase 13: 타 모듈과의 통신을 위해 Service Layer Interface 패턴 도입
     - ai_pattern_service: AI Pattern 모듈과의 통신
     - risk_manage_service: Risk Manage 모듈과의 통신
+
+    Phase 14+: 실시간/통계 데이터 완전 통합
+    - SeoulSubwayRealtimeClient: 지하철 실시간 API
+    - SeoulBusRealtimeClient: 버스 실시간 API
+    - statistical_data_map: 평균 시간표/소요시간
 
     의존성 주입(Dependency Injection) 패턴을 사용하여 느슨한 결합 구현
     """
@@ -96,11 +508,286 @@ class PathOptimizeService:
         self.ai_pattern_service = ai_pattern_service or MockAIPatternService()
         self.risk_manage_service = risk_manage_service or MockRiskManageService()
 
+        # 실시간 데이터 클라이언트 초기화
+        self.subway_client = SeoulSubwayRealtimeClient()
+        self.bus_client = SeoulBusRealtimeClient()
+
         logger.info(
             f"PathOptimizeService initialized with "
             f"ai_pattern={type(self.ai_pattern_service).__name__}, "
             f"risk_manage={type(self.risk_manage_service).__name__}"
         )
+
+    # =====================================================
+    # 핵심 메서드: 실시간/통계 데이터 통합 (Phase 14+)
+    # =====================================================
+
+    @staticmethod
+    def _calc_departure_in_minutes(
+        departure_time_str: str,
+        current_time: datetime,
+    ) -> Optional[int]:
+        """
+        '08:35' 또는 '0835' 같은 문자열을 받아서
+        현재 시간(current_time) 기준으로 몇 분 뒤인지 계산
+
+        ⚠️ Phase 14+: 예외 없이 안전하게 int 반환 (실패 시 None)
+
+        Args:
+            departure_time_str: 출발 시간 문자열 ("HH:MM" or "HHMM")
+            current_time: 현재 시간
+
+        Returns:
+            출발까지 남은 시간(분) 또는 None (파싱 실패 시)
+        """
+        try:
+            # "HH:MM" 형식 지원
+            if ":" in departure_time_str:
+                hour_str, minute_str = departure_time_str.split(":")
+                hour = int(hour_str)
+                minute = int(minute_str)
+            else:
+                # "HHMM" 형식 지원 (예: "0835")
+                if len(departure_time_str) != 4 or not departure_time_str.isdigit():
+                    logger.warning(f"⚠️ 잘못된 출발 시간 형식: {departure_time_str}")
+                    return None
+                hour = int(departure_time_str[:2])
+                minute = int(departure_time_str[2:])
+
+            departure_dt = current_time.replace(
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
+
+            diff_minutes = int((departure_dt - current_time).total_seconds() // 60)
+            return diff_minutes
+        except Exception as e:
+            logger.warning(f"⚠️ 출발 시간 계산 실패: {str(e)}")
+            return None
+
+    def _extract_recommended_transport(
+        self,
+        routes_data: Optional[Dict[str, Any]],
+        current_time: datetime,
+        commute_settings: Optional[Dict[str, Any]] = None,
+        statistical_data_map: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        ODSAY routes_data에서 추천 교통수단 추출 (실시간/통계 데이터 통합)
+
+        ✨ Phase 14+ 핵심 로직:
+        우선순위 1: 실시간 데이터 (지하철/버스 API)
+        우선순위 2: 통계 데이터 (statistical_data_map)
+        우선순위 3: ODSAY 기본 데이터
+
+        Args:
+            routes_data: ODSAY API 응답 (parse_route_info로 파싱된 데이터)
+            current_time: 현재 시간
+            commute_settings: 사용자 출퇴근 설정 (선택)
+            statistical_data_map: 평균 시간표/소요시간 데이터 (선택)
+
+        Returns:
+            {
+                "type": "BUS" | "SUBWAY",
+                "name": "146번" | "2호선",
+                "departureInMinutes": 5,
+                "transitTimeMinutes": 28,  # 실시간 or 평균 or ODSay
+                "isRealtime": True  # 실시간 데이터 사용 여부
+            }
+            또는 None (데이터 없을 때)
+        """
+        if not routes_data or "paths" not in routes_data or not routes_data["paths"]:
+            logger.warning("⚠️ ODSAY routes_data 없음")
+            return None
+
+        try:
+            # 가장 빠른 경로 선택 (첫 번째)
+            fastest_path = routes_data["paths"][0]
+            sub_path = fastest_path.get("subPath", [])
+
+            if not sub_path:
+                logger.warning("⚠️ subPath 정보 없음")
+                return None
+
+            # ========================================
+            # Step 1: 첫 번째 대중교통 찾기
+            # ========================================
+            for segment in sub_path:
+                traffic_type = segment.get("trafficType")
+                if traffic_type not in (1, 2):  # 1=지하철, 2=버스
+                    continue
+
+                lane_list = segment.get("lane") or []
+                lane = lane_list[0] if lane_list else {}
+
+                # ODSay 기본 정보
+                departure_time_str = segment.get("departureTime") or segment.get("startTime")
+                departure_in_minutes_odsay = None
+                if departure_time_str:
+                    departure_in_minutes_odsay = self._calc_departure_in_minutes(
+                        departure_time_str, current_time
+                    )
+
+                # ========================================
+                # Step 2: 지하철인 경우 → 실시간 API 시도
+                # ========================================
+                if traffic_type == 1:  # 지하철
+                    name = (
+                        lane.get("name")
+                        or lane.get("subwayName")
+                        or segment.get("startName")
+                        or "지하철"
+                    )
+
+                    # ✅ BUG FIX 2: lineNumber & destination 추출
+                    subway_code = lane.get("subwayCode")  # 1, 2, 3, ...
+                    way_code = segment.get("wayCode", 1)  # 1=상행, 2=하행
+
+                    line_number = f"{subway_code}호선" if subway_code else name
+                    destination = _map_direction(way_code)  # "상행" or "하행"
+
+                    # 실시간 데이터 조회 시도
+                    realtime_info = None
+                    try:
+                        station_name = segment.get("startName")
+
+                        if subway_code and station_name:
+                            subway_line = f"{subway_code}호선"
+                            direction = destination
+
+                            logger.info(f"🚇 지하철 실시간 조회 시도: {station_name} {subway_line} {direction}")
+                            realtime_info = self.subway_client.get_arrival_info(
+                                station_name=station_name,
+                                subway_line=subway_line,
+                                direction=direction
+                            )
+                    except Exception as e:
+                        logger.warning(f"⚠️ 지하철 실시간 API 호출 예외: {str(e)}")
+
+                    # 실시간 성공 시
+                    if realtime_info:
+                        logger.info(f"✅ 지하철 실시간 데이터 사용: {name} - {realtime_info['arrivalMinutes']}분 후")
+                        return {
+                            "type": "SUBWAY",
+                            "name": name,
+                            "lineNumber": line_number,
+                            "destination": destination,
+                            "departureInMinutes": realtime_info["arrivalMinutes"],
+                            "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
+                            "isRealtime": True
+                        }
+
+                    # 통계 데이터 확인
+                    if statistical_data_map:
+                        key = f"SUBWAY_{name}_{segment.get('startName')}_{segment.get('endName')}"
+                        stat_data = statistical_data_map.get(key)
+                        if stat_data:
+                            logger.info(f"✅ 지하철 통계 데이터 사용: {name}")
+                            return {
+                                "type": "SUBWAY",
+                                "name": name,
+                                "lineNumber": line_number,
+                                "destination": destination,
+                                "departureInMinutes": stat_data.get("avgDepartureInterval", 5),
+                                "transitTimeMinutes": stat_data.get("avgTransitTime", 30),
+                                "isRealtime": False
+                            }
+
+                    # ✅ BUG FIX 1: departureInMinutes Null 방지 - Fallback 기본값 사용
+                    # Fallback: ODSay 데이터
+                    logger.info(f"✅ 지하철 ODSay 데이터 사용 (Fallback): {name}")
+                    return {
+                        "type": "SUBWAY",
+                        "name": name,
+                        "lineNumber": line_number,
+                        "destination": destination,
+                        "departureInMinutes": departure_in_minutes_odsay or DEFAULT_FIRST_MILE_DURATION,
+                        "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
+                        "isRealtime": False
+                    }
+
+                # ========================================
+                # Step 3: 버스인 경우 → 실시간 API 시도
+                # ========================================
+                elif traffic_type == 2:  # 버스
+                    name = (
+                        lane.get("busNo")
+                        or lane.get("name")
+                        or segment.get("startName")
+                        or "버스"
+                    )
+
+                    # ✅ BUG FIX 2: lineNumber & destination 추출
+                    bus_no = lane.get("busNo") or name
+                    line_number = f"{bus_no}번" if bus_no and not bus_no.endswith("번") else bus_no
+
+                    # 버스 방면 정보 추출 (ODSay의 way 필드 또는 기본값)
+                    way_info = segment.get("way") or lane.get("type") or "종점"
+                    destination = f"{way_info} 방면"
+
+                    # 실시간 데이터 조회 시도
+                    realtime_info = None
+                    try:
+                        bus_route_id = lane.get("busID")  # "100100578"
+
+                        if bus_route_id:
+                            logger.info(f"🚌 버스 실시간 조회 시도: {bus_route_id}")
+                            realtime_info = self.bus_client.get_arrival_info(
+                                bus_route_id=bus_route_id
+                            )
+                    except Exception as e:
+                        logger.warning(f"⚠️ 버스 실시간 API 호출 예외: {str(e)}")
+
+                    # 실시간 성공 시
+                    if realtime_info:
+                        logger.info(f"✅ 버스 실시간 데이터 사용: {name} - {realtime_info['arrivalMinutes']}분 후")
+                        return {
+                            "type": "BUS",
+                            "name": name,
+                            "lineNumber": line_number,
+                            "destination": destination,
+                            "departureInMinutes": realtime_info["arrivalMinutes"],
+                            "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
+                            "isRealtime": True
+                        }
+
+                    # 통계 데이터 확인
+                    if statistical_data_map:
+                        key = f"BUS_{name}_{segment.get('startName')}_{segment.get('endName')}"
+                        stat_data = statistical_data_map.get(key)
+                        if stat_data:
+                            logger.info(f"✅ 버스 통계 데이터 사용: {name}")
+                            return {
+                                "type": "BUS",
+                                "name": name,
+                                "lineNumber": line_number,
+                                "destination": destination,
+                                "departureInMinutes": stat_data.get("avgDepartureInterval", 5),
+                                "transitTimeMinutes": stat_data.get("avgTransitTime", 30),
+                                "isRealtime": False
+                            }
+
+                    # ✅ BUG FIX 1: departureInMinutes Null 방지 - Fallback 기본값 사용
+                    # Fallback: ODSay 데이터
+                    logger.info(f"✅ 버스 ODSay 데이터 사용 (Fallback): {name}")
+                    return {
+                        "type": "BUS",
+                        "name": name,
+                        "lineNumber": line_number,
+                        "destination": destination,
+                        "departureInMinutes": departure_in_minutes_odsay or DEFAULT_FIRST_MILE_DURATION,
+                        "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
+                        "isRealtime": False
+                    }
+
+            logger.warning("⚠️ subPath에서 대중교통 정보 없음")
+            return None
+
+        except (KeyError, IndexError, TypeError) as e:
+            logger.warning(f"⚠️ ODSAY 데이터 파싱 오류: {str(e)}")
+            return None
 
     def optimize_path(
         self,
@@ -110,12 +797,12 @@ class PathOptimizeService:
     ) -> Dict[str, Any]:
         """
         경로를 최적화합니다.
-        
+
         Args:
             start_point: 시작 지점
             end_point: 종료 지점
             constraints: 제약 조건 (예: 위험 지역 회피)
-            
+
         Returns:
             최적화된 경로
         """
@@ -129,43 +816,46 @@ class PathOptimizeService:
             "estimated_time": 0,
             "risk_score": 0.0
         }
-    
+
     def get_optimization_history(self, user_id: int) -> List[Dict[str, Any]]:
         """
         최적화 이력을 조회합니다.
-        
+
         Args:
             user_id: 사용자 ID
-            
+
         Returns:
             최적화 이력 목록
         """
         # TODO: 데이터베이스에서 이력 조회
         return []
-    
+
     def calculate_risk_score(self, path: List[Dict[str, Any]]) -> float:
         """
         경로의 위험도를 계산합니다.
-        
+
         Args:
             path: 경로 좌표 리스트
-            
+
         Returns:
             위험도 점수 (0.0 ~ 1.0)
         """
         # TODO: 위험 지역과의 거리 계산
         # TODO: 리포트 데이터 기반 위험도 계산
         return 0.0
-    
+
     def get_commute_briefing(
         self,
         commute_settings: Dict[str, Any],
         current_time: datetime,
-        routes_data: Optional[Dict[str, Any]] = None
+        routes_data: Optional[Dict[str, Any]] = None,
+        statistical_data_map: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        출근 브리핑 조회
+        출근 브리핑 조회 (실시간/통계 데이터 완전 통합)
+
         v3.0 명세서 [Logic 1.1] 출발 알림 + [Logic 1.2] 마지노선 경고 구현
+        ✨ Phase 14+: 슬랙(Slack) 기반 정확한 판단 로직 강화
 
         Args:
             commute_settings: 사용자 출퇴근 설정
@@ -176,27 +866,7 @@ class PathOptimizeService:
                 - lastMileDefaultDuration: Last Mile 도보 시간 (분)
             current_time: 현재 시간 (datetime 객체)
             routes_data: ODSAY API 응답 데이터 (선택)
-                {
-                    "paths": [
-                        {
-                            "id": "path_1",
-                            "totalTimeMinutes": 28,
-                            "subPath": [
-                                {
-                                    "trafficType": 2,  # 2=버스
-                                    "name": "146번",
-                                    "departureTime": "08:35",
-                                    "arrivalTime": "08:53"
-                                },
-                                {
-                                    "trafficType": 1,  # 1=지하철
-                                    "name": "2호선"
-                                }
-                            ]
-                        },
-                        ...
-                    ]
-                }
+            statistical_data_map: 평균 시간표/소요시간 데이터 (선택)
 
         Returns:
             OpenAPI 스펙 준수 응답 구조:
@@ -207,7 +877,9 @@ class PathOptimizeService:
                     "recommendedTransport": {
                         "type": "BUS" | "SUBWAY" | "WALK" | "TAXI",
                         "name": "교통수단 이름",
-                        "departureInMinutes": 출발까지 남은 시간 (분)
+                        "departureInMinutes": 출발까지 남은 시간 (분),
+                        "transitTimeMinutes": 예상 소요 시간 (분),
+                        "isRealtime": True/False
                     }
                 }
             }
@@ -238,95 +910,133 @@ class PathOptimizeService:
                 commute_settings["targetArrivalTime"]
             )
 
-            # 3️⃣ 현재 시간과 목표 도착 시간의 차이 계산
-            time_until_arrival = target_arrival - current_time
-            minutes_until_arrival = int(time_until_arrival.total_seconds() / 60)
-
-            # 4️⃣ First Mile 도보 시간
+            # 3️⃣ First Mile 도보 시간
             first_mile_duration = commute_settings.get(
                 "firstMileDefaultDuration",
                 DEFAULT_FIRST_MILE_DURATION
             )
 
-            # 5️⃣ ODSAY 데이터에서 추천 교통수단 추출
-            recommended_transport = self._extract_recommended_transport(routes_data)
+            # ✅ BUG FIX 3: Last Mile 도보 시간 추출 (Door-to-Door 완성)
+            last_mile_duration = commute_settings.get(
+                "lastMileDefaultDuration",
+                DEFAULT_LAST_MILE_DURATION
+            )
 
-            # ❌ 목표 도착 시간을 이미 지난 경우
-            if minutes_until_arrival < 0:
-                logger.warning(f"⚠️ 목표 도착 시간 초과: {minutes_until_arrival}분")
+            # 4️⃣ 실시간/통계 데이터 통합 교통수단 추출
+            recommended_transport = self._extract_recommended_transport(
+                routes_data=routes_data,
+                current_time=current_time,
+                commute_settings=commute_settings,
+                statistical_data_map=statistical_data_map,
+            )
+
+            # ========================================
+            # Phase 14+ 핵심 로직: 슬랙(Slack) 기반 판단
+            # ========================================
+
+            # (A) 실질 출발 가능 시간 & 소요 시간 결정
+            if recommended_transport:
+                departure_in_minutes = recommended_transport.get("departureInMinutes") or first_mile_duration
+                effective_transit_time = recommended_transport.get("transitTimeMinutes", 30)
+            else:
+                departure_in_minutes = first_mile_duration
+                effective_transit_time = 30  # 기본값
+
+            # ✅ BUG FIX 3: Door-to-Door 완전 계산
+            # (B) 슬랙(Slack) 계산 - First Mile + 대중교통 대기 + Transit + Last Mile
+            expected_arrival = current_time + timedelta(
+                minutes=first_mile_duration + departure_in_minutes + effective_transit_time + last_mile_duration
+            )
+            slack_delta = target_arrival - expected_arrival
+            slack_minutes = int(slack_delta.total_seconds() / 60)
+
+            logger.info(
+                f"🚪 Door-to-Door 계산: First Mile({first_mile_duration}분) + "
+                f"대중교통 대기({departure_in_minutes}분) + "
+                f"Transit({effective_transit_time}분) + "
+                f"Last Mile({last_mile_duration}분) = 총 {first_mile_duration + departure_in_minutes + effective_transit_time + last_mile_duration}분"
+            )
+
+            logger.info(
+                f"📊 슬랙 계산: 목표={target_arrival.strftime('%H:%M')}, "
+                f"예상={expected_arrival.strftime('%H:%M')}, "
+                f"슬랙={slack_minutes}분"
+            )
+
+            # (C) 판정 규칙
+            target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
+
+            # ❌ 이미 늦은 경우
+            if slack_minutes < 0:
+                logger.warning(f"⚠️ 지각 확정: 슬랙 {slack_minutes}분")
                 return {
                     "data": {
                         "alertType": "NO_ACTION",
-                        "message": "목표 도착 시간이 이미 지났습니다.",
+                        "message": f"{target_time_str} 도착은 불가능합니다. 택시를 고려하세요.",
                         "recommendedTransport": None
                     }
                 }
 
-            # [Logic 1.1] 출발 알림 로직
-            # 목표 도착 시간까지 충분한 시간이 있는 경우 "GO_NOW" 알림
-            if minutes_until_arrival >= first_mile_duration + COMFORTABLE_BUFFER_MINUTES:
-                target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
-
-                # ODSAY 데이터가 있으면 실제 정보 사용, 없으면 fallback
+            # ✅ 충분한 여유 있음 → GO_NOW
+            if slack_minutes >= COMFORTABLE_BUFFER_MINUTES:
                 if recommended_transport:
-                    transport_name = recommended_transport['name']
+                    transport_name = recommended_transport["name"]
+                    realtime_tag = " (실시간)" if recommended_transport.get("isRealtime") else ""
                     message = (
                         f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
-                        f"{first_mile_duration}분 뒤 오는 [{transport_name}]를 타세요."
+                        f"{departure_in_minutes}분 후 도착하는 [{transport_name}]를 타세요.{realtime_tag}"
                     )
                 else:
                     transport_name = "지금 출발 가능한 교통수단"
                     message = (
-                        f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
-                        f"{first_mile_duration}분 뒤 오는 교통수단을 이용하세요."
+                        f"{target_time_str} 도착을 위해, 지금 집에서 출발하세요. "
+                        f"(여유: {slack_minutes}분)"
                     )
 
-                logger.info(f"✅ Logic 1.1 GO_NOW 알림: {minutes_until_arrival}분 여유")
+                logger.info(f"✅ Logic 1.1 GO_NOW 알림: 슬랙 {slack_minutes}분")
                 return {
                     "data": {
                         "alertType": "GO_NOW",
                         "message": message,
-                        "recommendedTransport": {
-                            "type": recommended_transport['type'] if recommended_transport else "BUS",
+                        "recommendedTransport": recommended_transport or {
+                            "type": "BUS",
                             "name": transport_name,
-                            "departureInMinutes": first_mile_duration
+                            "departureInMinutes": departure_in_minutes,
+                            "transitTimeMinutes": effective_transit_time,
+                            "isRealtime": False
                         }
                     }
                 }
 
-            # [Logic 1.2] 마지노선 경고 로직
-            # Logic 1.1을 놓쳤을 경우, 마지막 교통수단 알림
-            if 0 <= minutes_until_arrival <= first_mile_duration + COMFORTABLE_BUFFER_MINUTES:
-                target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
-
-                # 마지노선 버스 정보
-                last_bus_departure = minutes_until_arrival
+            # ⚠️ 마지노선 → LAST_CHANCE
+            if 0 <= slack_minutes < COMFORTABLE_BUFFER_MINUTES:
                 if recommended_transport:
-                    last_bus_number = recommended_transport['name']
+                    last_bus_number = recommended_transport["name"]
                 else:
                     last_bus_number = "마지막 교통수단"
 
                 message = (
                     f"⚠️지각 주의! {target_time_str} 도착을 위한 마지막 버스[{last_bus_number}]가 "
-                    f"{last_bus_departure}분 뒤 도착합니다. (도보 {first_mile_duration}분 포함, 지금 출발하셔야 합니다!)"
+                    f"{departure_in_minutes}분 뒤 도착합니다. 지금 출발하세요! (여유: {slack_minutes}분)"
                 )
 
-                logger.warning(f"⚠️ Logic 1.2 LAST_CHANCE 경고: {minutes_until_arrival}분 전")
+                logger.warning(f"⚠️ Logic 1.2 LAST_CHANCE 경고: 슬랙 {slack_minutes}분")
                 return {
                     "data": {
                         "alertType": "LAST_CHANCE",
                         "message": message,
-                        "recommendedTransport": {
-                            "type": recommended_transport['type'] if recommended_transport else "BUS",
+                        "recommendedTransport": recommended_transport or {
+                            "type": "BUS",
                             "name": last_bus_number,
-                            "departureInMinutes": last_bus_departure
+                            "departureInMinutes": departure_in_minutes,
+                            "transitTimeMinutes": effective_transit_time,
+                            "isRealtime": False
                         }
                     }
                 }
 
             # 기본 응답 (예상치 못한 경우)
-            logger.warning(f"⚠️ 예상치 못한 시간 조건: {minutes_until_arrival}분")
-            target_time_str = commute_settings["targetArrivalTime"].strftime("%H:%M")
+            logger.warning(f"⚠️ 예상치 못한 슬랙 조건: {slack_minutes}분")
             return {
                 "data": {
                     "alertType": "NO_ACTION",
@@ -359,62 +1069,6 @@ class PathOptimizeService:
                     "message": f"Internal server error: {str(e)}"
                 }
             }
-
-    @staticmethod
-    def _extract_recommended_transport(routes_data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        """
-        ODSAY routes_data에서 추천 교통수단 추출 (가장 빠른 경로의 첫 번째 대중교통)
-
-        Args:
-            routes_data: ODSAY API 응답 (parse_route_info로 파싱된 데이터)
-
-        Returns:
-            {
-                "type": "BUS" | "SUBWAY",
-                "name": "146번" | "2호선",
-                "departureInMinutes": 5
-            }
-            또는 None (데이터 없을 때)
-        """
-        if not routes_data or "paths" not in routes_data or not routes_data["paths"]:
-            logger.warning("⚠️ ODSAY routes_data 없음")
-            return None
-
-        try:
-            # 가장 빠른 경로 선택 (첫 번째)
-            fastest_path = routes_data["paths"][0]
-            sub_path = fastest_path.get("subPath", [])
-
-            if not sub_path:
-                logger.warning("⚠️ subPath 정보 없음")
-                return None
-
-            # subPath에서 첫 번째 대중교통 찾기 (trafficType: 1=지하철, 2=버스, 3=도보)
-            for segment in sub_path:
-                traffic_type = segment.get("trafficType")
-                name = segment.get("name", "교통수단")
-
-                if traffic_type == 2:  # 버스
-                    logger.info(f"✅ ODSAY 버스 추출: {name}")
-                    return {
-                        "type": "BUS",
-                        "name": name,
-                        "departureInMinutes": 5
-                    }
-                elif traffic_type == 1:  # 지하철
-                    logger.info(f"✅ ODSAY 지하철 추출: {name}")
-                    return {
-                        "type": "SUBWAY",
-                        "name": name,
-                        "departureInMinutes": 5
-                    }
-
-            logger.warning("⚠️ subPath에서 대중교통 정보 없음")
-            return None
-
-        except (KeyError, IndexError, TypeError) as e:
-            logger.warning(f"⚠️ ODSAY 데이터 파싱 오류: {str(e)}")
-            return None
 
     def get_retreat_mode_last_bus_alert(
         self,
@@ -1311,7 +1965,7 @@ class PathOptimizeService:
             }
         """
         try:
-            # 1️⃣ 타임스탐프 파싱
+            # 1️⃣ 타임스탬프 파싱
             last_poll_time = datetime.fromisoformat(last_poll_timestamp)
             last_calc_time = datetime.fromisoformat(last_calc_timestamp)
 
@@ -1336,4 +1990,3 @@ class PathOptimizeService:
                     "message": f"Failed to get polling status: {str(e)}",
                 }
             }
-
