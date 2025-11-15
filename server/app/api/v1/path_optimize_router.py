@@ -7,7 +7,7 @@ Phase 12: API Endpoint 구현 (Mock 기반)
 - 퇴근 목표 선택 저장
 """
 from datetime import datetime, time
-from typing import Optional
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query
 import logging
 import os
@@ -16,6 +16,8 @@ from app.modules.path_optimize.service import PathOptimizeService
 from app.modules.path_optimize.models import (
     SystemMode,
     CommuteSettings,
+    BriefingResponse,
+    ErrorResponse,
 )
 from app.services.odsay_client import OdsayAPIClient
 from app.common.response import Envelope
@@ -102,9 +104,9 @@ service = PathOptimizeService()
 # =====================================================
 
 # 1️⃣ GET /api/v1/briefings/commute - 출근 브리핑 조회
-@router.get("/commute", response_model=dict)
+@router.get("/commute", response_model=Envelope[BriefingResponse])
 async def get_commute_briefing(
-    user_id: str = Query("user_001", description="사용자 ID")
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID")
 ):
     """
     출근 브리핑 조회 (ODSAY API 통합)
@@ -245,9 +247,9 @@ async def get_commute_briefing(
 
 
 # 2️⃣ GET /api/v1/briefings/retreat - 퇴근 막차 알림 조회
-@router.get("/retreat", response_model=dict)
+@router.get("/retreat", response_model=Envelope[BriefingResponse])
 def get_retreat_mode_last_bus_alert(
-    user_id: str = Query("user_001", description="사용자 ID")
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID")
 ):
     """
     퇴근 모드 막차 알림 조회
@@ -296,15 +298,15 @@ def get_retreat_mode_last_bus_alert(
 # =====================================================
 
 # 3️⃣ POST /api/v1/briefings/commute-settings - 출퇴근 설정 저장
-@router.post("/commute-settings", response_model=dict)
+@router.post("/commute-settings", response_model=Envelope[Dict[str, Any]])
 def save_commute_settings(
-    user_id: str = Query(..., description="사용자 ID"),
-    home_address: str = Query(..., description="집 주소"),
-    work_address: str = Query(..., description="회사 주소"),
-    target_arrival_hour: int = Query(..., ge=0, le=23, description="도착 시간 (시)"),
-    target_arrival_minute: int = Query(..., ge=0, le=59, description="도착 분 (분)"),
-    first_mile_duration: int = Query(5, ge=0, le=30, description="First Mile 도보 시간"),
-    last_mile_duration: int = Query(5, ge=0, le=30, description="Last Mile 도보 시간"),
+    user_id: str = Query(..., alias="userId", description="사용자 ID"),
+    home_address: str = Query(..., alias="homeAddress", description="집 주소"),
+    work_address: str = Query(..., alias="workAddress", description="회사 주소"),
+    target_arrival_hour: int = Query(..., alias="targetArrivalHour", ge=0, le=23, description="도착 시간 (시)"),
+    target_arrival_minute: int = Query(..., alias="targetArrivalMinute", ge=0, le=59, description="도착 분 (분)"),
+    first_mile_duration: int = Query(5, alias="firstMileDuration", ge=0, le=30, description="First Mile 도보 시간"),
+    last_mile_duration: int = Query(5, alias="lastMileDuration", ge=0, le=30, description="Last Mile 도보 시간"),
 ):
     """
     사용자 출퇴근 설정 저장
@@ -374,9 +376,9 @@ def save_commute_settings(
 
 
 # 4️⃣ GET /api/v1/briefings/commute-settings - 출퇴근 설정 조회
-@router.get("/commute-settings", response_model=dict)
+@router.get("/commute-settings", response_model=Envelope[Dict[str, Any]])
 def get_commute_settings(
-    user_id: str = Query("user_001", description="사용자 ID")
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID")
 ):
     """
     사용자 출퇴근 설정 조회
@@ -423,9 +425,9 @@ def get_commute_settings(
 # =====================================================
 
 # 5️⃣ POST /api/v1/briefings/retreat-choice - 퇴근 목표 선택 저장
-@router.post("/retreat-choice", response_model=dict)
+@router.post("/retreat-choice", response_model=Envelope[Dict[str, Any]])
 def save_retreat_choice(
-    user_id: str = Query(..., description="사용자 ID"),
+    user_id: str = Query(..., alias="userId", description="사용자 ID"),
     choice: str = Query(..., regex="^[ABC]$", description="선택지 (A/B/C)"),
 ):
     """
@@ -481,9 +483,9 @@ def save_retreat_choice(
 
 
 # 6️⃣ GET /api/v1/briefings/retreat-choice - 퇴근 목표 선택 조회
-@router.get("/retreat-choice", response_model=dict)
+@router.get("/retreat-choice", response_model=Envelope[Dict[str, Any]])
 def get_retreat_choice(
-    user_id: str = Query("user_001", description="사용자 ID")
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID")
 ):
     """
     사용자 퇴근 목표 선택 조회
