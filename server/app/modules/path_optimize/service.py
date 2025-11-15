@@ -474,6 +474,7 @@ class PathOptimizeService:
 
         return {
             "data": {
+                "alertType": "LAST_CHANCE",  # 막차 알림은 LAST_CHANCE로 분류
                 "message": message,
                 "recommendedTransport": {
                     "type": "BUS",  # 실제로는 선택 경로에 따라 결정됨

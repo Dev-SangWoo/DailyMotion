@@ -271,6 +271,15 @@ def get_retreat_mode_last_bus_alert(
     }
     """
     try:
+        # 사용자 존재 여부 확인 (출근 설정이 있어야 퇴근 브리핑 가능)
+        commute_settings = MockUserDB.get_commute_settings(user_id)
+        if not commute_settings:
+            logger.error(f"❌ 사용자 없음: {user_id}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"User {user_id} not found"
+            )
+
         # 퇴근 목표 선택 조회 (기본값: C)
         selected_route = MockUserDB.get_retreat_choice(user_id) or "C"
 
@@ -288,6 +297,8 @@ def get_retreat_mode_last_bus_alert(
         logger.info(f"✅ 퇴근 막차 알림 조회: {user_id} -> {selected_route}")
         return result
 
+    except HTTPException:
+        raise  # HTTPException은 그대로 전달 (404 등)
     except Exception as e:
         logger.error(f"❌ 퇴근 막차 알림 조회 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
