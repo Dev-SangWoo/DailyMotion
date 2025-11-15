@@ -260,24 +260,26 @@ const DepartureInfoContainer = styled.View`
   flex: 1;
   justify-content: center;
   gap: ${theme.spacing.sm}px;
+  padding-left: ${theme.spacing.sm}px;
 `;
 
 const StationName = styled.Text`
-  color: white;
-  font-size: ${theme.fonts.sizes.lg}px;
-  font-weight: 700;
-`;
-
-const BusName = styled.Text`
   color: white;
   font-size: ${theme.fonts.sizes.md}px;
   font-weight: 600;
 `;
 
+const BusName = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.sm}px;
+  font-weight: 500;
+`;
+
 const ArrivalTime = styled.Text`
   color: white;
-  font-size: ${theme.fonts.sizes.xl}px;
-  font-weight: 700;
+  font-size: ${theme.fonts.sizes.xxl || 32}px;
+  font-weight: 800;
+  line-height: ${(theme.fonts.sizes.xxl || 32) * 1.2}px;
 `;
 
 const NextBusTime = styled.Text`
@@ -768,7 +770,9 @@ const DailyBriefingScreen: React.FC = () => {
                         <BusName>146번 버스</BusName>
                         <ArrivalTime>5분 후 도착</ArrivalTime>
                         <NextBusTime>다음 버스: 15분 후</NextBusTime>
-                        <DepartureAlert>지금 출발해야합니다! (가는 시간 5분)</DepartureAlert>
+                        <DepartureAlert>
+                          지금 출발해야합니다!{'\n'}(가는 시간 5분)
+                        </DepartureAlert>
                       </DepartureInfoContainer>
                       
                       {/* 오른쪽: Bus Icon (30%) */}

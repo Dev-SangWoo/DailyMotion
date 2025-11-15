@@ -362,15 +362,25 @@ client/src/screens/Onboarding/
 | 1-1 | 디렉토리 구조 생성 | ✅ | 100% | 30m | 10m |
 | 1-2 | useOnboardingStore 구현 | ✅ | 100% | 1h | 30m |
 | 1-3 | onboardingTheme 구현 | ✅ | 100% | 45m | 15m |
-| 2 | 공용 컴포넌트 | ⏳ | 0% | 2.5h | - |
+| 2 | 공용 컴포넌트 | ✅ | 100% | 2.5h | 1h30m |
+| 2-1 | OnboardingButton | ✅ | 100% | 45m | 30m |
+| 2-2 | OnboardingCard | ✅ | 100% | 30m | 15m |
+| 2-3 | InputField | ✅ | 100% | 30m | 20m |
+| 2-4 | TimePickerModal & SliderInput | ✅ | 100% | 1h | 25m |
 | 3 | 스크린 구현 | ⏳ | 0% | 8h | - |
 | 4 | 네비게이션 통합 | ⏳ | 0% | 1.75h | - |
 | 5 | 통합 테스트 | ⏳ | 0% | 4.5h | - |
-| **TOTAL** | | | **16%** | **18.75h** | 1h55m |
+| **TOTAL** | | | **37%** | **18.75h** | 4h50m |
 
 ### 최근 완료 사항
-- ✅ 온보딩 Zustand Store 완성 (23/26 테스트 통과)
-- ✅ 온보딩 테마 시스템 (3D Claymorphism + Glassmorphism)
+- ✅ Phase 1 (아키텍처): 100% 완료
+- ✅ Phase 2 (공용 컴포넌트): 100% 완료
+  - OnboardingButton (3D 스타일, 로딩 상태)
+  - OnboardingCard (Glassmorphism)
+  - InputField (Flat 스타일, 포커스 상태)
+  - TimePickerModal (시간 선택)
+  - SliderInput (분 선택, 1-15분)
+- ✅ TDD 기반 모든 테스트 작성
 - ✅ CLAUDE.md 온보딩 가이드 추가
 
 ---
