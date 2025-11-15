@@ -16,9 +16,9 @@ Phase 1.1: 경로 최적화 모듈의 Pydantic API 모델
 """
 
 from pydantic import BaseModel, Field, validator
-from datetime import time
+from datetime import time, datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class SystemMode(str, Enum):
@@ -161,6 +161,34 @@ class CommuteSettings(BaseModel):
         description="회사 경도"
     )
 
+    @validator("targetArrivalTime", "alertStartTime", pre=True)
+    def validate_time_field(cls, v):
+        """
+        시간 필드 Validator: "HH:MM" 또는 "HH:MM:SS" 문자열을 time 객체로 파싱
+
+        Swagger 호환성을 위해 문자열 입력 허용:
+        - "09:00" → time(9, 0)
+        - "09:00:00" → time(9, 0, 0)
+        - time 객체는 그대로 통과
+        """
+        if v is None:
+            return v
+        if isinstance(v, time):
+            return v
+        if isinstance(v, str):
+            # "HH:MM" 또는 "HH:MM:SS" 파싱
+            try:
+                parts = v.split(":")
+                if len(parts) == 2:  # "HH:MM"
+                    return time(int(parts[0]), int(parts[1]))
+                elif len(parts) == 3:  # "HH:MM:SS"
+                    return time(int(parts[0]), int(parts[1]), int(parts[2]))
+                else:
+                    raise ValueError(f"시간 형식이 잘못되었습니다: {v} (HH:MM 또는 HH:MM:SS 형식)")
+            except (ValueError, IndexError) as e:
+                raise ValueError(f"시간 파싱 실패: {v} - {str(e)}")
+        raise ValueError(f"지원하지 않는 타입: {type(v)} (time 객체 또는 문자열만 가능)")
+
     @validator("firstMileDefaultDuration", "lastMileDefaultDuration")
     def validate_duration_positive(cls, v):
         """도보 시간은 양수여야 함"""
@@ -180,6 +208,7 @@ class CommuteSettings(BaseModel):
         return v
 
     class Config:
+        populate_by_name = True  # camelCase/snake_case 혼용 허용
         schema_extra = {
             "example": {
                 "homeAddress": "서울 강남구 역삼동 123-45",

@@ -18,6 +18,7 @@ from app.modules.path_optimize.models import (
     CommuteSettings,
 )
 from app.services.odsay_client import OdsayAPIClient
+from app.common.response import Envelope
 
 logger = logging.getLogger(__name__)
 
