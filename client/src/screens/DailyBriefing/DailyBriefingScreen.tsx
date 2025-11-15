@@ -1,5 +1,5 @@
 /**
- * 데일리 브리핑 화면
+ * 데일리 브리핑 화면 - IntelligentDashboard 패턴 적용
  *
  * 헌법 준수:
  * - AGENTS.md 프론트엔드 헌법 [제2장] 스타일링 (Styled-components)
@@ -8,9 +8,11 @@
  * - v3.0 명세서 [Logic 1.1] 출발 알림 / [Logic 1.2] 마지노선 경고
  * - DESIGN.md Phase 5: Ambient Feedback (배경색 알림) 로직
  * - DESIGN.md Phase 7: 예외 상황 처리 (오프라인 배너)
+ * - Phase 8.1-8.2: IntelligentDashboard 디자인 적용
  * - OpenAPI 스펙 GET /v1/briefings/commute
  */
-import React from 'react';
+import React, { useState } from 'react';
+import { ScrollView, TouchableOpacity, View, TextInput, Dimensions } from 'react-native';
 import styled from 'styled-components/native';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
@@ -20,55 +22,356 @@ import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../store
 import { useAppModeStore, type AppMode } from '../../stores/useAppModeStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards, OfflineBanner } from './components';
+import { BusIcon } from '../../components/icons/BusIcon';
 
-// Styled-components: 의미론적 이름 사용 (헌법 제2장 준수)
-// Phase 5: Ambient Feedback - 배경색 동적 설정 (props 기반)
-// Phase 7: 오프라인 배너를 위한 padding-top 추가
-interface ContainerProps {
+// Styled-components: IntelligentDashboard 디자인 패턴 적용
+// 헌법 제2장 준수: 의미론적 이름, theme 기반 스타일링
+
+interface OuterContainerProps {
   ambientStatus?: AmbientFeedbackStatus;
-  hasOfflineBanner?: boolean;
 }
 
 const getBackgroundColor = (status?: AmbientFeedbackStatus): string => {
   switch (status) {
     case 'warning':
-      // Logic 3.1: 지연 감지 (주황색)
-      return '#FFA500'; // 주황색
+      return '#FFF3E0'; // 라이트 주황
     case 'alert':
-      // Logic 3.2: 지각 확정 (빨간색)
-      return '#FF6B6B'; // 빨간색
+      return '#FFEBEE'; // 라이트 빨강
     case 'normal':
     default:
-      return theme.colors.background; // 기본 파란색
+      return '#F0F7FF'; // 라이트 블루
   }
 };
 
-const Container = styled.View<ContainerProps>`
+const OuterContainer = styled.View<OuterContainerProps>`
   flex: 1;
-  padding: ${theme.spacing.md}px;
-  padding-top: ${(props) => (props.hasOfflineBanner ? 60 : theme.spacing.md)}px;
   background-color: ${(props) => getBackgroundColor(props.ambientStatus)};
-  transition: background-color 0.2s ease-in-out;
+`;
+
+const ScrollContainer = styled(ScrollView)`
+  flex: 1;
+`;
+
+const Container = styled.View`
+  padding: ${theme.spacing.md}px;
+  gap: ${theme.spacing.md}px;
+`;
+
+const LoadingContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  padding: ${theme.spacing.xl}px;
 `;
 
 const LoadingText = styled.Text`
   font-size: ${theme.fonts.sizes.lg}px;
   color: ${theme.colors.textSecondary};
   text-align: center;
-  margin-top: ${theme.spacing.xl}px;
+  font-weight: 600;
 `;
 
-const MessageText = styled.Text`
-  font-size: ${theme.fonts.sizes.md}px;
-  color: ${theme.colors.text};
-  margin-top: ${theme.spacing.lg}px;
-  line-height: ${theme.fonts.sizes.md * 1.5}px;
+// Phase 8.1: 검색 바 (축소/확장 가능)
+const SearchBarContainer = styled.View`
+  background-color: white;
+  border-radius: ${theme.borderRadius.lg}px;
+  overflow: hidden;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 4px;
+  elevation: 2;
 `;
 
-const BusInfoText = styled.Text`
-  font-size: ${theme.fonts.sizes.md}px;
+// 축소된 상태
+const CollapsedSearchBar = styled.View`
+  padding: ${theme.spacing.md}px ${theme.spacing.md}px ${theme.spacing.xs}px ${theme.spacing.md}px;
+  gap: ${theme.spacing.sm}px;
+`;
+
+const JourneyTabsContainer = styled.View`
+  flex-direction: row;
+  gap: ${theme.spacing.sm}px;
+`;
+
+const JourneyTab = styled.View<{ isActive: boolean }>`
+  flex: 1;
+  background-color: ${(props) => props.isActive ? '#0066FF' : '#F0F0F0'};
+  border-radius: ${theme.borderRadius.md}px;
+  padding: ${theme.spacing.sm}px;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+`;
+
+const JourneyTabText = styled.Text<{ isActive: boolean }>`
+  color: ${(props) => props.isActive ? 'white' : '#666'};
+  font-size: ${theme.fonts.sizes.sm}px;
+  font-weight: 600;
+`;
+
+// 확장 버튼
+const ToggleButton = styled.View`
+  width: 100%;
+  padding: 0px ${theme.spacing.sm}px ${theme.spacing.xs}px ${theme.spacing.sm}px;
+  justify-content: center;
+  align-items: center;
+`;
+
+const ToggleButtonText = styled.Text`
+  color: #999;
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+// 확장된 상태
+const ExpandedSearchBar = styled.View`
+  padding: ${theme.spacing.xs}px ${theme.spacing.lg}px ${theme.spacing.lg}px ${theme.spacing.lg}px;
+  gap: ${theme.spacing.md}px;
+`;
+
+const SearchInputContainer = styled.View`
+  flex-direction: row;
+  gap: ${theme.spacing.md}px;
+  align-items: center;
+  margin-bottom: ${theme.spacing.sm}px;
+`;
+
+const SearchInputWrapper = styled.View`
+  flex: 1;
+  border-width: 1px;
+  border-color: #E0E0E0;
+  border-radius: ${theme.borderRadius.md}px;
+  padding: ${theme.spacing.sm}px ${theme.spacing.md}px;
+  background-color: #F8F8F8;
+`;
+
+const SearchInput = styled(TextInput)`
+  font-size: ${theme.fonts.sizes.sm}px;
   color: ${theme.colors.text};
+`;
+
+const ArrowIcon = styled.View`
+  width: 28px;
+  height: 28px;
+  background-color: #0066FF;
+  border-radius: ${theme.borderRadius.md}px;
+  justify-content: center;
+  align-items: center;
+`;
+
+const ArrowIconText = styled.Text`
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+`;
+
+// 즐겨찾기 목록
+const FavoritesList = styled.View`
+  flex-direction: row;
+  gap: ${theme.spacing.md}px;
   margin-top: ${theme.spacing.md}px;
+`;
+
+const FavoriteItem = styled.View`
+  align-items: center;
+  gap: ${theme.spacing.sm}px;
+`;
+
+const FavoriteIcon = styled.View`
+  width: 50px;
+  height: 50px;
+  background-color: #E8F0FF;
+  border-radius: 25px;
+  justify-content: center;
+  align-items: center;
+`;
+
+const FavoriteIconText = styled.Text`
+  font-size: 24px;
+`;
+
+const FavoriteName = styled.Text`
+  font-size: ${theme.fonts.sizes.xs}px;
+  color: ${theme.colors.text};
+  font-weight: 500;
+`;
+
+// Phase 8.2: CTA 카드 (캐러셀)
+const CardBase = styled.View<{ bgGradient: string }>`
+  background-color: ${(props) => props.bgGradient};
+  border-radius: ${theme.borderRadius.xl}px;
+  padding: ${theme.spacing.lg}px;
+  height: 240px;
+  shadow-color: #000;
+  shadow-opacity: 0.15;
+  shadow-radius: 8px;
+  elevation: 4;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+`;
+
+const CardIconRight = styled.View`
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  opacity: 0.3;
+`;
+
+const CardHeader = styled.View`
+  flex-direction: row;
+  gap: ${theme.spacing.md}px;
+  align-items: flex-start;
+  flex: 1;
+`;
+
+const CardIconBox = styled.View`
+  width: 60px;
+  height: 60px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: ${theme.borderRadius.lg}px;
+  justify-content: center;
+  align-items: center;
+`;
+
+const CardTitle = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.lg}px;
+  font-weight: 700;
+  margin-bottom: ${theme.spacing.sm}px;
+`;
+
+const CardContent = styled.View`
+  gap: ${theme.spacing.sm}px;
+`;
+
+const CardText = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.sm}px;
+  line-height: ${theme.fonts.sizes.sm * 1.5}px;
+`;
+
+const CardBadge = styled.View`
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: ${theme.borderRadius.md}px;
+  padding: ${theme.spacing.sm}px ${theme.spacing.md}px;
+  align-self: flex-start;
+`;
+
+const CardBadgeText = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 600;
+`;
+
+// Phase 8.3: 여정 세부 사항 카드
+const JourneyDetailsCard = styled.View`
+  background-color: white;
+  border-radius: ${theme.borderRadius.lg}px;
+  overflow: hidden;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 6px;
+  elevation: 3;
+`;
+
+const JourneyHeaderBar = styled.View`
+  background-color: #0066FF;
+  padding: ${theme.spacing.lg}px;
+  flex-direction: row;
+  justify-content: space-between;
+`;
+
+const JourneyHeaderText = styled.Text<{ isSubtitle?: boolean }>`
+  color: white;
+  font-size: ${(props) => props.isSubtitle ? theme.fonts.sizes.xs : theme.fonts.sizes.lg}px;
+  font-weight: ${(props) => props.isSubtitle ? '400' : '700'};
+`;
+
+// JourneyStepsContainer는 ref를 사용하기 위해 일반 ScrollView로 변경
+// 스타일은 인라인으로 적용
+
+// JourneyStepsContainer의 contentContainerStyle을 위한 스타일
+const JourneyStepsContent = styled.View`
+  padding-bottom: ${theme.spacing.md}px;
+`;
+
+const StepItem = styled.View`
+  margin-bottom: ${theme.spacing.md}px;
+  flex-direction: row;
+  gap: ${theme.spacing.md}px;
+`;
+
+const StepIconContainer = styled.View`
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  background-color: #E8E8E8;
+  justify-content: center;
+  align-items: center;
+  shadow-color: #999;
+  shadow-opacity: 0.1;
+  shadow-radius: 4px;
+  elevation: 1;
+`;
+
+const StepContentBox = styled.View`
+  flex: 1;
+  background-color: #F8F8F8;
+  border-radius: ${theme.borderRadius.md}px;
+  padding: ${theme.spacing.md}px;
+`;
+
+const StepTitle = styled.Text`
+  color: ${theme.colors.text};
+  font-size: ${theme.fonts.sizes.sm}px;
+  font-weight: 600;
+`;
+
+const StepDescription = styled.Text`
+  color: ${theme.colors.textSecondary};
+  font-size: ${theme.fonts.sizes.xs}px;
+  margin-top: 4px;
+`;
+
+// Quick Actions Grid
+const QuickActionsGrid = styled.View`
+  flex-direction: row;
+  gap: ${theme.spacing.md}px;
+`;
+
+const QuickActionButton = styled.View`
+  flex: 1;
+  background-color: #0066FF;
+  border-radius: ${theme.borderRadius.lg}px;
+  padding: ${theme.spacing.md}px;
+  height: 56px;
+  justify-content: center;
+  align-items: center;
+  shadow-color: #0066FF;
+  shadow-opacity: 0.3;
+  shadow-radius: 6px;
+  elevation: 3;
+`;
+
+const QuickActionText = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.md}px;
+  font-weight: 600;
+`;
+
+// Footer
+const FooterContainer = styled.View`
+  padding: ${theme.spacing.lg}px;
+  align-items: center;
+  gap: ${theme.spacing.sm}px;
+`;
+
+const FooterText = styled.Text`
+  font-size: ${theme.fonts.sizes.xs}px;
+  color: ${theme.colors.textSecondary};
+  text-align: center;
 `;
 
 // OpenAPI 스펙에 맞는 응답 타입
@@ -85,6 +388,20 @@ interface CommuteBriefingResponse {
 }
 
 const DailyBriefingScreen: React.FC = () => {
+  // Phase 8.0: 로컬 상태 관리 (IntelligentDashboard 패턴)
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [isSearchBarExpanded, setIsSearchBarExpanded] = useState(false);
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+
+  // 즐겨찾기 목록
+  const favorites = [
+    { id: '1', name: '집', icon: '🏠' },
+    { id: '2', name: '회사', icon: '🏢' },
+    { id: '3', name: '헬스장', icon: '💪' },
+    { id: '4', name: '추가', icon: '➕' },
+  ];
+
   // Zustand Store: UI 상태 관리 (헌법 제2장 준수)
   const { isExpanded, setExpanded, toggleExpanded, setSelectedTab } =
     useJourneySelectorStore();
@@ -185,121 +502,349 @@ const DailyBriefingScreen: React.FC = () => {
     setSelectedTab(tab);
   };
 
+  // Phase 8.1: 캐러셀 카드 너비 (SafeArea 제외)
+  const screenWidth = Dimensions.get('window').width;
+  const cardWidth = screenWidth - theme.spacing.md * 2; // Container padding 제외
+
+  // Phase 8.1: Quick Action 핸들러
+  const handleDepartureAlarmPress = () => {
+    // TODO: 출발 알림 액션 구현 (Phase 3의 Logic 1.1 연동)
+    console.log('출발 알림 버튼 클릭');
+  };
+
+  const handleCheckHazardsPress = () => {
+    // TODO: 위험 확인 액션 구현 (Phase 2의 안전 정보 표시)
+    console.log('위험 확인 버튼 클릭');
+  };
+
+
   // 로딩 상태
   if (isLoading) {
     return (
-      <Container>
-        <LoadingText>로딩 중</LoadingText>
-      </Container>
+      <OuterContainer ambientStatus={ambientStatus}>
+        <LoadingContainer>
+          <LoadingText>로딩 중</LoadingText>
+        </LoadingContainer>
+      </OuterContainer>
     );
   }
 
   // 에러 상태
   if (isError || !data?.data) {
     return (
-      <Container>
-        <MessageText>브리핑 정보를 불러올 수 없습니다.</MessageText>
-      </Container>
+      <OuterContainer ambientStatus={ambientStatus}>
+        <LoadingContainer>
+          <LoadingText>브리핑 정보를 불러올 수 없습니다.</LoadingText>
+        </LoadingContainer>
+      </OuterContainer>
     );
   }
 
   const briefingData = data.data;
 
-  // Phase 3.4: Carousel 카드 배열
-  const carouselCards = [
+  // Phase 8.0: IntelligentDashboard 카드 데이터
+  const cards = [
     {
-      id: 'hero-card',
-      component: (
-        <HeroCard
-          alertType={briefingData.alertType as 'GO_NOW' | 'LAST_CHANCE' | 'NO_ACTION'}
-          transportName={briefingData.recommendedTransport?.name}
-          transportTime={briefingData.recommendedTransport?.departureInMinutes}
-        />
-      ),
+      id: 'departure',
+      icon: '🚀',
+      title: '지금 출발하세요!',
+      bgGradient: '#0066FF',
+      content: `${briefingData.recommendedTransport?.departureInMinutes || 5}분 뒤 ${briefingData.recommendedTransport?.name || '버스'} 도착`,
+      badges: ['쾌적한 출근길', '정시 도착 예상'],
     },
     {
-      id: 'weather-card',
-      component: (
-        <WeatherCard
-          temperature={15}
-          condition="비"
-          precipitationProbability={70}
-        />
-      ),
+      id: 'hazard',
+      icon: '⚠️',
+      title: '출발 전 확인!',
+      bgGradient: '#FF5722',
+      content: '내 경로에 2건의 위험이 감지되었습니다',
+      badges: ['🚧 도로 공사', '🚗 교통사고'],
     },
     {
-      id: 'alternative-path-card',
-      component: (
-        <AlternativePathCard
-          isVisible={true}
-          timeSavings={7}
-          onPress={() => {
-            // TODO: 경로 비교 모달 표시 (Phase 3.3 향후 구현)
-          }}
-        />
-      ),
+      id: 'weather',
+      icon: '🌧️',
+      title: '날씨 체크!',
+      bgGradient: '#40B0FF',
+      content: '오늘 오후 비 예보 · 강수확률 80% · 18°C',
+      badges: ['☂️ 우산을 챙기세요'],
+    },
+    {
+      id: 'traffic',
+      icon: '📈',
+      title: '실시간 교통정보',
+      bgGradient: '#9C27B0',
+      content: '강남대로 보통 · 평소보다 5분 더 소요',
+      badges: ['출근 시간 45분', '도착 예정 9:15'],
     },
   ];
 
   return (
-    <>
+    <OuterContainer ambientStatus={ambientStatus}>
       {/* Phase 7: 오프라인 배너 */}
       <OfflineBanner isOffline={isOffline} lastUpdated={lastUpdated} />
 
-      <Container ambientStatus={ambientStatus} hasOfflineBanner={isOffline}>
-        {/* Phase 2: 여정 선택기 컴포넌트 (Zustand 상태와 연동) */}
-        <JourneySelector
-          isExpanded={isExpanded}
-          onExpand={handleExpandPress}
-          onCollapse={handleCollapsePress}
-          onTabSelect={handleTabSelect}
-        />
+      <ScrollContainer 
+        showsVerticalScrollIndicator={false} 
+        scrollEventThrottle={16}
+        nestedScrollEnabled={true}
+      >
+        <Container>
+          {/* Phase 8.1: 확장/축소 가능한 검색 바 */}
+          <SearchBarContainer>
+            {!isSearchBarExpanded ? (
+              // 축소된 상태
+              <>
+                <CollapsedSearchBar>
+                  <JourneyTabsContainer>
+                    <TouchableOpacity
+                      onPress={() => handleTabSelect('commute')}
+                      style={{ flex: 1 }}
+                    >
+                      <JourneyTab isActive={true}>
+                        <JourneyTabText isActive={true}>출근</JourneyTabText>
+                      </JourneyTab>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleTabSelect('gym')}
+                      style={{ flex: 1 }}
+                    >
+                      <JourneyTab isActive={false}>
+                        <JourneyTabText isActive={false}>헬스장</JourneyTabText>
+                      </JourneyTab>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleTabSelect('retreat')}
+                      style={{ flex: 1 }}
+                    >
+                      <JourneyTab isActive={false}>
+                        <JourneyTabText isActive={false}>귀가</JourneyTabText>
+                      </JourneyTab>
+                    </TouchableOpacity>
+                  </JourneyTabsContainer>
+                </CollapsedSearchBar>
 
-      {/* Phase 3.4: 캐러셀 (Hero, Weather, AlternativePathCard) */}
-      <Carousel
-        cards={carouselCards}
-        testID="primary-carousel"
-      />
+                {/* 확장 버튼 (아래쪽 화살표) */}
+                <TouchableOpacity onPress={() => setIsSearchBarExpanded(true)}>
+                  <ToggleButton>
+                    <ToggleButtonText>⌄</ToggleButtonText>
+                  </ToggleButton>
+                </TouchableOpacity>
+              </>
+            ) : (
+              // 확장된 상태
+              <>
+                <ExpandedSearchBar>
+                  {/* 축소 버튼 */}
+                  <TouchableOpacity onPress={() => setIsSearchBarExpanded(false)}>
+                    <ToggleButton>
+                      <ToggleButtonText>⌃</ToggleButtonText>
+                    </ToggleButton>
+                  </TouchableOpacity>
 
-      {/* Phase 4: 단계별 경로 카드 (Step-by-Step Cards) */}
-      <StepCards
-        steps={[
-          {
-            id: 'walk-1',
-            type: 'walking',
-            duration: 5,
-          },
-          {
-            id: 'bus-1',
-            type: 'bus',
-            duration: 10,
-            lineName: '123번',
-            lineColor: '#FF6B6B',
-            congestion: 'normal',
-          },
-          {
-            id: 'walk-2',
-            type: 'walking',
-            duration: 7,
-          },
-        ]}
-        testID="step-cards"
-      />
+                  {/* 출발지/목적지 입력 */}
+                  <SearchInputContainer>
+                    <SearchInputWrapper>
+                      <SearchInput
+                        placeholder="출발지"
+                        value={origin}
+                        onChangeText={setOrigin}
+                        placeholderTextColor="#999"
+                      />
+                    </SearchInputWrapper>
+                    <TouchableOpacity
+                      onPress={() => {
+                        // 출발지와 목적지 교환
+                        const temp = origin;
+                        setOrigin(destination);
+                        setDestination(temp);
+                      }}
+                    >
+                      <ArrowIcon>
+                        <ArrowIconText>⇄</ArrowIconText>
+                      </ArrowIcon>
+                    </TouchableOpacity>
+                    <SearchInputWrapper>
+                      <SearchInput
+                        placeholder="목적지"
+                        value={destination}
+                        onChangeText={setDestination}
+                        placeholderTextColor="#999"
+                      />
+                    </SearchInputWrapper>
+                  </SearchInputContainer>
 
-      {/* Phase 1: 기본 브리핑 정보 (Phase 3으로 통합되어 제거 예정) */}
-      <MessageText>{briefingData.message}</MessageText>
-      {briefingData.recommendedTransport && (
-        <>
-          <BusInfoText testID="transport-name">
-            {briefingData.recommendedTransport.name}
-          </BusInfoText>
-          <BusInfoText testID="transport-time">
-            {`${briefingData.recommendedTransport.departureInMinutes}분`}
-          </BusInfoText>
-        </>
-      )}
-      </Container>
-    </>
+                  {/* 즐겨찾기 목록 */}
+                  <FavoritesList>
+                    {favorites.map((fav) => (
+                      <TouchableOpacity
+                        key={fav.id}
+                        onPress={() => {
+                          if (!origin) {
+                            setOrigin(fav.name);
+                          } else if (!destination) {
+                            setDestination(fav.name);
+                          }
+                        }}
+                      >
+                        <FavoriteItem>
+                          <FavoriteIcon>
+                            <FavoriteIconText>{fav.icon}</FavoriteIconText>
+                          </FavoriteIcon>
+                          <FavoriteName>{fav.name}</FavoriteName>
+                        </FavoriteItem>
+                      </TouchableOpacity>
+                    ))}
+                  </FavoritesList>
+                </ExpandedSearchBar>
+              </>
+            )}
+          </SearchBarContainer>
+
+          {/* Phase 8.2: CTA Cards Carousel (그래디언트 카드) */}
+          <ScrollView
+            horizontal
+            pagingEnabled={false}
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={16}
+            snapToInterval={cardWidth}
+            decelerationRate="fast"
+            onMomentumScrollEnd={(event) => {
+              const contentOffsetX = event.nativeEvent.contentOffset.x;
+              const currentIndex = Math.round(contentOffsetX / cardWidth);
+              setActiveCardIndex(currentIndex);
+            }}
+            testID="cta-carousel"
+          >
+            {cards.map((card) => (
+              <View key={card.id} style={{ width: cardWidth }}>
+                <CardBase bgGradient={card.bgGradient}>
+                  {/* Background Bus Icon (right side) */}
+                  {card.id === 'departure' && (
+                    <CardIconRight>
+                      <BusIcon width={180} height={180} color="rgba(255, 255, 255, 0.4)" flipped={true} />
+                    </CardIconRight>
+                  )}
+
+                  <CardHeader>
+                    <CardIconBox>
+                      <CardTitle style={{ fontSize: 28 }}>{card.icon}</CardTitle>
+                    </CardIconBox>
+                    <View style={{ flex: 1 }}>
+                      <CardTitle>{card.title}</CardTitle>
+                    </View>
+                  </CardHeader>
+
+                  <CardContent>
+                    <CardText>{card.content}</CardText>
+                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                      {card.badges.map((badge, idx) => (
+                        <CardBadge key={idx}>
+                          <CardBadgeText>{badge}</CardBadgeText>
+                        </CardBadge>
+                      ))}
+                    </View>
+                  </CardContent>
+
+                  {/* Carousel pagination dots */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8 }}>
+                    {cards.map((_, dotIndex) => (
+                      <View
+                        key={dotIndex}
+                        style={{
+                          width: dotIndex === activeCardIndex ? 20 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: 'rgba(255, 255, 255, ' + (dotIndex === activeCardIndex ? '1' : '0.4') + ')',
+                        }}
+                      />
+                    ))}
+                  </View>
+                </CardBase>
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Phase 8.3: Journey Details Card */}
+          <JourneyDetailsCard>
+            <JourneyHeaderBar>
+              <View>
+                <JourneyHeaderText isSubtitle>총 예상 소요 시간</JourneyHeaderText>
+                <JourneyHeaderText>45분</JourneyHeaderText>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <JourneyHeaderText isSubtitle>여정 단계</JourneyHeaderText>
+                <JourneyHeaderText>5개</JourneyHeaderText>
+              </View>
+            </JourneyHeaderBar>
+
+            <ScrollView
+              style={{
+                height: 450,
+                padding: theme.spacing.md,
+              }}
+              scrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              bounces={true}
+            >
+              <JourneyStepsContent>
+                {[
+                  { icon: '🏠', title: '집', description: '서울시 강남구 역삼동', duration: 0 },
+                  { icon: '👣', title: '도보 이동', description: '역삼역 3번 출구까지', duration: 5 },
+                  { icon: '🚇', title: '2호선 탑승', description: '시청역 방면 · 3-2칸 추천', duration: 30 },
+                  { icon: '👣', title: '도보 이동', description: '시청역 2번 출구에서', duration: 5 },
+                  { icon: '🏢', title: '회사', description: '서울시 중구 시청역', duration: 0 },
+                ].map((step, index) => (
+                  <StepItem key={index}>
+                    <StepIconContainer>
+                      <CardTitle style={{ fontSize: 22, color: '#666' }}>{step.icon}</CardTitle>
+                    </StepIconContainer>
+                    <StepContentBox>
+                      <StepTitle>{step.title}</StepTitle>
+                      <StepDescription>{step.description}</StepDescription>
+                    </StepContentBox>
+                    {step.duration > 0 && (
+                      <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
+                        <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>{step.duration}</CardTitle>
+                        <StepDescription>분</StepDescription>
+                      </View>
+                    )}
+                  </StepItem>
+                ))}
+              </JourneyStepsContent>
+            </ScrollView>
+          </JourneyDetailsCard>
+
+          {/* Phase 8.4: Quick Actions Grid */}
+          <QuickActionsGrid>
+            <TouchableOpacity
+              onPress={handleDepartureAlarmPress}
+              style={{ flex: 1 }}
+              activeOpacity={0.8}
+            >
+              <QuickActionButton>
+                <QuickActionText>🔔 출발 알림</QuickActionText>
+              </QuickActionButton>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleCheckHazardsPress}
+              style={{ flex: 1 }}
+              activeOpacity={0.8}
+            >
+              <QuickActionButton style={{ backgroundColor: '#FF5722' }}>
+                <QuickActionText>⚠️ 위험 확인</QuickActionText>
+              </QuickActionButton>
+            </TouchableOpacity>
+          </QuickActionsGrid>
+
+          {/* Phase 8.5: Footer Info */}
+          <FooterContainer>
+            <FooterText>협력 서비스: Odsay API, SKT 혼잡도 API, 행정안전부</FooterText>
+            <FooterText>실시간 정보는 5분마다 자동 업데이트됩니다</FooterText>
+          </FooterContainer>
+        </Container>
+      </ScrollContainer>
+    </OuterContainer>
   );
 };
 
