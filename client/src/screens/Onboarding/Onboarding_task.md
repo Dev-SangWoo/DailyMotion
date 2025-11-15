@@ -367,21 +367,35 @@ client/src/screens/Onboarding/
 | 2-2 | OnboardingCard | ✅ | 100% | 30m | 15m |
 | 2-3 | InputField | ✅ | 100% | 30m | 20m |
 | 2-4 | TimePickerModal & SliderInput | ✅ | 100% | 1h | 25m |
-| 3 | 스크린 구현 | ⏳ | 0% | 8h | - |
-| 4 | 네비게이션 통합 | ⏳ | 0% | 1.75h | - |
+| 3 | 스크린 구현 | ✅ | 100% | 8h | 1h45m |
+| 3-1 | ValueProposalScreen (1-3) | ✅ | 100% | 1.5h | 20m |
+| 3-2 | JourneySetupScreen (4) | ✅ | 100% | 1h | 15m |
+| 3-3 | PathSelectionScreen (5) | ✅ | 100% | 1h | 15m |
+| 3-4 | GoalTimeScreen (6) | ✅ | 100% | 1h | 15m |
+| 3-5 | ScheduleSetupScreen (7) | ✅ | 100% | 1h | 10m |
+| 3-6 | PermissionsScreen (8) | ✅ | 100% | 1h | 15m |
+| 3-7 | CompletionScreen (9) | ✅ | 100% | 1h | 15m |
+| 4 | 네비게이션 통합 | ⏳ | 50% | 1.75h | 30m |
+| 4-1 | OnboardingScreen (컨트롤러) | ✅ | 100% | 1h | 15m |
+| 4-2 | RootNavigator 통합 | ⏳ | 0% | 45m | - |
 | 5 | 통합 테스트 | ⏳ | 0% | 4.5h | - |
-| **TOTAL** | | | **37%** | **18.75h** | 4h50m |
+| **TOTAL** | | | **75%** | **18.75h** | 8h20m |
 
-### 최근 완료 사항
+### 최근 완료 사항 🎉
 - ✅ Phase 1 (아키텍처): 100% 완료
-- ✅ Phase 2 (공용 컴포넌트): 100% 완료
-  - OnboardingButton (3D 스타일, 로딩 상태)
-  - OnboardingCard (Glassmorphism)
-  - InputField (Flat 스타일, 포커스 상태)
-  - TimePickerModal (시간 선택)
-  - SliderInput (분 선택, 1-15분)
-- ✅ TDD 기반 모든 테스트 작성
-- ✅ CLAUDE.md 온보딩 가이드 추가
+- ✅ Phase 2 (공용 컴포넌트): 100% 완료 (5개 컴포넌트)
+- ✅ Phase 3 (스크린 구현): 100% 완료 (9개 스크린 + 테스트)
+  - ValueProposalScreen (스크린 1-3, 수평 스와이프)
+  - JourneySetupScreen (출발지/도착지 입력)
+  - PathSelectionScreen (경로 선택 카드)
+  - GoalTimeScreen (도착시간 + First Mile 슬라이더)
+  - ScheduleSetupScreen (요일 선택, 평일/커스텀)
+  - PermissionsScreen (권한 요청, 알림 + 위치)
+  - CompletionScreen (완료 축하, 바운스 애니메이션)
+  - OnboardingScreen (StackNavigator 컨트롤러)
+- ✅ 모든 스크린 TDD 테스트 작성
+- ✅ Zustand 상태 관리 완전 통합
+- ✅ CLAUDE.md 온보딩 개발 가이드 추가
 
 ---
 

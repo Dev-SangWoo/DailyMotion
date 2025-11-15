@@ -259,20 +259,23 @@ const CardText = styled.Text`
 const DepartureInfoContainer = styled.View`
   flex: 1;
   justify-content: center;
+  align-items: flex-start;
   gap: ${theme.spacing.sm}px;
-  padding-left: ${theme.spacing.sm}px;
+  padding-left: 0;
 `;
 
 const StationName = styled.Text`
   color: white;
   font-size: ${theme.fonts.sizes.md}px;
   font-weight: 600;
+  text-align: left;
 `;
 
 const BusName = styled.Text`
   color: white;
   font-size: ${theme.fonts.sizes.sm}px;
   font-weight: 500;
+  text-align: left;
 `;
 
 const ArrivalTime = styled.Text`
@@ -280,12 +283,14 @@ const ArrivalTime = styled.Text`
   font-size: ${theme.fonts.sizes.xxl || 32}px;
   font-weight: 800;
   line-height: ${(theme.fonts.sizes.xxl || 32) * 1.2}px;
+  text-align: left;
 `;
 
 const NextBusTime = styled.Text`
   color: rgba(255, 255, 255, 0.7);
   font-size: ${theme.fonts.sizes.xs}px;
   font-weight: 400;
+  text-align: left;
 `;
 
 const DepartureAlert = styled.Text`
@@ -293,6 +298,7 @@ const DepartureAlert = styled.Text`
   font-size: ${theme.fonts.sizes.sm}px;
   font-weight: 600;
   margin-top: ${theme.spacing.sm}px;
+  text-align: left;
 `;
 
 const CardBadge = styled.View`
@@ -763,7 +769,7 @@ const DailyBriefingScreen: React.FC = () => {
                 <CardBase bgGradient={card.bgGradient}>
                   {card.id === 'departure' ? (
                     /* 출발 정보 + Bus Icon */
-                    <View style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.lg }}>
+                    <View style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', paddingRight: theme.spacing.lg, marginLeft: -theme.spacing.md, paddingLeft: theme.spacing.md }}>
                       {/* 왼쪽: 정보 영역 (70%) */}
                       <DepartureInfoContainer>
                         <StationName>역삼역 3번 출구</StationName>
