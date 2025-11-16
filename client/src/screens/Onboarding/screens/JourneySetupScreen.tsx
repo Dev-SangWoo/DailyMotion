@@ -113,7 +113,11 @@ export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({
 
   return (
     <OuterContainer>
-      <ScrollContainer showsVerticalScrollIndicator={false}>
+      <ScrollContainer
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="interactive"
+      >
         <ContentContainer>
           {/* 제목 */}
           <HeadlineText>

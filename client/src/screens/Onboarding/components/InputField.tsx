@@ -77,7 +77,6 @@ const IconText = styled.Text`
  */
 const TextInputStyled = styled(RNTextInput)`
   flex: 1;
-  height: 56px;
   font-size: 16px;
   color: ${theme.colors.text};
   padding-vertical: 0px;
@@ -125,6 +124,7 @@ export const InputField: React.FC<InputFieldProps> = ({
       isFocused={isFocused && !disabled}
       disabled={disabled}
       testID={testID}
+      pointerEvents="box-none"
     >
       {icon && (
         <IconContainer>
@@ -145,6 +145,8 @@ export const InputField: React.FC<InputFieldProps> = ({
         accessible={accessible}
         accessibilityLabel={accessibilityLabel || placeholder}
         accessibilityHint={`텍스트 입력 필드: ${placeholder}`}
+        returnKeyType="next"
+        blurOnSubmit={true}
       />
     </InputContainer>
   );
