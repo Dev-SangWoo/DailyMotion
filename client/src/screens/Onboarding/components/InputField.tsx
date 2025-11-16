@@ -134,6 +134,7 @@ export const InputField: React.FC<InputFieldProps> = ({
       isFocused={isFocused && !disabled}
       disabled={disabled}
       testID={testID}
+      pointerEvents="box-none"
     >
       {icon && (
         <IconContainer>
