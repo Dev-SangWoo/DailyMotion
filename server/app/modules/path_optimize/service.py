@@ -609,6 +609,13 @@ class PathOptimizeService:
             # 가장 빠른 경로 선택 (첫 번째)
             fastest_path = routes_data["paths"][0]
             sub_path = fastest_path.get("subPath", [])
+            logger.info(
+                "📊 ODSAY 최적 경로 요약: "
+                f"totalTimeMinutes={fastest_path.get('totalTimeMinutes')}, "
+                f"busCount={fastest_path.get('busCount')}, "
+                f"subwayCount={fastest_path.get('subwayCount')}, "
+                f"transferCount={fastest_path.get('transferCount')}"
+            )
 
             if not sub_path:
                 logger.warning("⚠️ subPath 정보 없음")
@@ -745,6 +752,16 @@ class PathOptimizeService:
 
                     # 실시간 성공 시
                     if realtime_info:
+                        # 실시간 응답에 노선 번호가 있으면 우선 사용
+                        realtime_bus_no = realtime_info.get("busNumber") or name
+                        if realtime_bus_no:
+                            name = realtime_bus_no
+                            line_number = (
+                                f"{realtime_bus_no}번"
+                                if not str(realtime_bus_no).endswith("번")
+                                else str(realtime_bus_no)
+                            )
+
                         logger.info(f"✅ 버스 실시간 데이터 사용: {name} - {realtime_info['arrivalMinutes']}분 후")
                         return {
                             "type": "BUS",

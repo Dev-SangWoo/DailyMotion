@@ -45,6 +45,11 @@ async def update_commute_settings(
         "targetArrivalTime": settings.targetArrivalTime,
         "firstMileDefaultDuration": settings.firstMileDefaultDuration,
         "lastMileDefaultDuration": settings.lastMileDefaultDuration,
+        # 좌표가 넘어온 경우에는 함께 저장하여 좌표 기반 ODSAY 경로 검색에 활용
+        "homeLatitude": settings.homeLatitude,
+        "homeLongitude": settings.homeLongitude,
+        "workLatitude": settings.workLatitude,
+        "workLongitude": settings.workLongitude,
     }
     success = MockUserDB.save_commute_settings(user_id, settings_dict)
 

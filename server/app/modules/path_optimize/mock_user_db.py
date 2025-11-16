@@ -77,7 +77,7 @@ class MockUserDB:
                 )
                 if row:
                     logger.info(f"✅ DB에서 출근 설정 조회: {user_id}")
-                    return {
+                    result = {
                         "homeAddress": row.home_address,
                         "workAddress": row.work_address,
                         "targetArrivalTime": row.target_arrival_time
@@ -87,6 +87,14 @@ class MockUserDB:
                         "firstMileDefaultDuration": row.first_mile_duration,
                         "lastMileDefaultDuration": row.last_mile_duration,
                     }
+                    # 좌표 정보가 있으면 함께 반환 (좌표 기반 경로 검색에 활용)
+                    if getattr(row, "home_latitude", None) is not None:
+                        result["homeLatitude"] = row.home_latitude
+                        result["homeLongitude"] = row.home_longitude
+                    if getattr(row, "work_latitude", None) is not None:
+                        result["workLatitude"] = row.work_latitude
+                        result["workLongitude"] = row.work_longitude
+                    return result
             except SQLAlchemyError as e:
                 logger.warning(f"⚠️ DB 출근 설정 조회 실패: {str(e)}")
             finally:
@@ -136,12 +144,25 @@ class MockUserDB:
                     "lastMileDefaultDuration", 7
                 )
 
-                # 위치 정보는 아직 없는 상태라, 일단 (0,0)으로 저장
-                # 나중에 지오코딩/실제 좌표 연동 시 업데이트
-                row.home_latitude = getattr(row, "home_latitude", 0.0) or 0.0
-                row.home_longitude = getattr(row, "home_longitude", 0.0) or 0.0
-                row.work_latitude = getattr(row, "work_latitude", 0.0) or 0.0
-                row.work_longitude = getattr(row, "work_longitude", 0.0) or 0.0
+                # 위치 정보: 클라이언트에서 좌표를 제공하면 그대로 저장, 없으면 기존 값 유지 or 0.0
+                home_lat = commute_settings.get("homeLatitude")
+                home_lng = commute_settings.get("homeLongitude")
+                work_lat = commute_settings.get("workLatitude")
+                work_lng = commute_settings.get("workLongitude")
+
+                if home_lat is not None and home_lng is not None:
+                    row.home_latitude = float(home_lat)
+                    row.home_longitude = float(home_lng)
+                else:
+                    row.home_latitude = getattr(row, "home_latitude", 0.0) or 0.0
+                    row.home_longitude = getattr(row, "home_longitude", 0.0) or 0.0
+
+                if work_lat is not None and work_lng is not None:
+                    row.work_latitude = float(work_lat)
+                    row.work_longitude = float(work_lng)
+                else:
+                    row.work_latitude = getattr(row, "work_latitude", 0.0) or 0.0
+                    row.work_longitude = getattr(row, "work_longitude", 0.0) or 0.0
 
                 db.add(row)
                 db.commit()

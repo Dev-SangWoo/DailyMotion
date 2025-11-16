@@ -1,0 +1,98 @@
+-- rds.alembic_version definition
+
+-- Drop table
+
+-- DROP TABLE rds.alembic_version;
+
+CREATE TABLE rds.alembic_version (
+	version_num varchar(32) NOT NULL,
+	CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+);
+
+
+-- rds.average_duration definition
+
+-- Drop table
+
+-- DROP TABLE rds.average_duration;
+
+CREATE TABLE rds.average_duration (
+	id serial4 NOT NULL,
+	segment_id varchar(100) NOT NULL,
+	departure_hour int4 NOT NULL,
+	day_of_week int4 NOT NULL,
+	avg_duration_seconds int4 NOT NULL,
+	sample_count int4 NOT NULL,
+	transport_type varchar(20) NOT NULL,
+	transport_name varchar(50) NULL,
+	start_station_name varchar(100) NULL,
+	end_station_name varchar(100) NULL,
+	is_reliable int4 NOT NULL,
+	created_at timestamp NOT NULL,
+	updated_at timestamp NOT NULL,
+	CONSTRAINT average_duration_pkey PRIMARY KEY (id),
+	CONSTRAINT day_range_valid CHECK (((day_of_week >= 0) AND (day_of_week <= 6))),
+	CONSTRAINT duration_positive CHECK ((avg_duration_seconds > 0)),
+	CONSTRAINT hour_range_valid CHECK (((departure_hour >= 0) AND (departure_hour <= 23))),
+	CONSTRAINT sample_count_non_negative CHECK ((sample_count >= 0))
+);
+CREATE INDEX ix_average_duration_segment_id ON rds.average_duration USING btree (segment_id);
+CREATE INDEX ix_average_duration_updated_at ON rds.average_duration USING btree (updated_at);
+CREATE INDEX ix_avg_duration_composite ON rds.average_duration USING btree (segment_id, departure_hour, day_of_week);
+
+
+-- rds.commute_settings definition
+
+-- Drop table
+
+-- DROP TABLE rds.commute_settings;
+
+CREATE TABLE rds.commute_settings (
+	user_id varchar(50) NOT NULL,
+	home_address varchar(255) NOT NULL,
+	home_latitude float8 NOT NULL,
+	home_longitude float8 NOT NULL,
+	work_address varchar(255) NOT NULL,
+	work_latitude float8 NOT NULL,
+	work_longitude float8 NOT NULL,
+	target_arrival_time time NULL,
+	first_mile_duration int4 NOT NULL,
+	last_mile_duration int4 NOT NULL,
+	preference_routes json NULL,
+	alert_start_time time NULL,
+	created_at timestamp NOT NULL,
+	updated_at timestamp NOT NULL,
+	CONSTRAINT commute_settings_pkey PRIMARY KEY (user_id),
+	CONSTRAINT first_mile_positive CHECK ((first_mile_duration > 0)),
+	CONSTRAINT home_lat_valid CHECK (((home_latitude >= ('-90'::integer)::double precision) AND (home_latitude <= (90)::double precision))),
+	CONSTRAINT home_lon_valid CHECK (((home_longitude >= ('-180'::integer)::double precision) AND (home_longitude <= (180)::double precision))),
+	CONSTRAINT last_mile_positive CHECK ((last_mile_duration > 0)),
+	CONSTRAINT work_lat_valid CHECK (((work_latitude >= ('-90'::integer)::double precision) AND (work_latitude <= (90)::double precision))),
+	CONSTRAINT work_lon_valid CHECK (((work_longitude >= ('-180'::integer)::double precision) AND (work_longitude <= (180)::double precision)))
+);
+CREATE INDEX ix_commute_settings_user_id ON rds.commute_settings USING btree (user_id);
+
+
+-- rds.optimization_history definition
+
+-- Drop table
+
+-- DROP TABLE rds.optimization_history;
+
+CREATE TABLE rds.optimization_history (
+	id serial4 NOT NULL,
+	user_id varchar(50) NOT NULL,
+	journey_date timestamp NOT NULL,
+	"mode" varchar(20) NOT NULL,
+	suggested_route json NULL,
+	selected_route json NULL,
+	actual_arrival_time timestamp NULL,
+	delay_occurred int4 NOT NULL,
+	feedback varchar(255) NULL,
+	created_at timestamp NOT NULL,
+	CONSTRAINT optimization_history_pkey PRIMARY KEY (id)
+);
+CREATE INDEX ix_optimization_history_composite ON rds.optimization_history USING btree (user_id, journey_date);
+CREATE INDEX ix_optimization_history_created_at ON rds.optimization_history USING btree (created_at);
+CREATE INDEX ix_optimization_history_journey_date ON rds.optimization_history USING btree (journey_date);
+CREATE INDEX ix_optimization_history_user_id ON rds.optimization_history USING btree (user_id);

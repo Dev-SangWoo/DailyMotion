@@ -71,6 +71,39 @@ async def _get_routes_data_for_commute(commute_settings: dict) -> Optional[Dict[
 
     odsay_client = OdsayAPIClient(api_key=api_key)
 
+    # 0️⃣ 좌표가 이미 있는 경우: 주소 지오코딩이 끝났다고 보고, 바로 좌표 기반 경로 검색
+    home_lat = commute_settings.get("homeLatitude")
+    home_lng = commute_settings.get("homeLongitude")
+    work_lat = commute_settings.get("workLatitude")
+    work_lng = commute_settings.get("workLongitude")
+
+    if all(v is not None for v in (home_lat, home_lng, work_lat, work_lng)):
+        try:
+            logger.info(
+                "📍 좌표 기반 경로 검색 사용: "
+                f"home=({home_lng},{home_lat}) → work=({work_lng},{work_lat})"
+            )
+            route_response = await odsay_client.search_route(
+                start_x=home_lng,
+                start_y=home_lat,
+                end_x=work_lng,
+                end_y=work_lat,
+                search_type=0,
+            )
+
+            if "error" in route_response:
+                logger.warning(
+                    f"⚠️ 좌표 기반 경로 검색 실패, station 검색으로 Fallback: "
+                    f"{route_response.get('error') or route_response.get('message')}"
+                )
+            else:
+                routes_data = odsay_client.parse_route_info(route_response)
+                path_count = len(routes_data.get("paths", []))
+                logger.info(f"✅ 좌표 기반 경로 검색 성공: {path_count}개 경로")
+                return routes_data
+        except Exception as e:
+            logger.warning(f"⚠️ 좌표 기반 경로 검색 중 오류, station 검색으로 Fallback: {str(e)}")
+
     # 집 주소로 정류장 검색
     logger.info(f"🔍 집 주소로 정류장 검색: {commute_settings['homeAddress']}")
     home_station_response = await odsay_client.search_station(
