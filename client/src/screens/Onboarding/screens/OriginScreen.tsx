@@ -1,14 +1,13 @@
 /**
- * 온보딩 스크린 4: 핵심 여정 설정 (JourneySetup)
+ * 온보딩 스크린 4: 출발지 설정 (Origin)
  *
  * 설계:
- * - Headline-M: "가장 중요한 여정을 알려주세요."
+ * - Headline-M: "출발지를 알려주세요."
  * - InputField: 출발지 (📍)
- * - InputField: 도착지 (🏢)
  * - Button: 다음
  *
  * desgin.md v3.2 준수:
- * - 대화형 설정 (한 번에 하나씩)
+ * - "한 번에 하나씩" 원칙 (대화형)
  * - 입력 필드는 Flat 스타일
  * - CTA는 3D 버튼
  */
@@ -21,7 +20,7 @@ import { useOnboardingActions } from '../stores/useOnboardingStore';
 import { InputField } from '../components/InputField';
 import { OnboardingButton } from '../components/OnboardingButton';
 
-interface JourneySetupScreenProps {
+interface OriginScreenProps {
   navigation: {
     navigate: (screen: string) => void;
   };
@@ -64,13 +63,6 @@ const HeadlineText = styled.Text`
 `;
 
 /**
- * InputsContainer - 입력 필드 그룹
- */
-const InputsContainer = styled.View`
-  gap: ${theme.spacing.lg}px;
-`;
-
-/**
  * ButtonContainer - 버튼 영역
  */
 const ButtonContainer = styled.View`
@@ -79,46 +71,40 @@ const ButtonContainer = styled.View`
 `;
 
 /**
- * JourneySetupScreen 컴포넌트
+ * OriginScreen 컴포넌트
  *
- * 사용자가 가장 중요한 여정(예: 회사)의 출발지와 도착지를 입력
+ * 사용자가 가장 중요한 여정의 출발지를 입력
  */
-export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({
+export const OriginScreen: React.FC<OriginScreenProps> = ({
   navigation,
 }) => {
   const actions = useOnboardingActions();
   const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
 
   // onChange 핸들러를 useCallback으로 메모이제이션하여 불필요한 리렌더링 방지
   const handleOriginChange = useCallback((text: string) => {
     setOrigin(text);
   }, []);
 
-  const handleDestinationChange = useCallback((text: string) => {
-    setDestination(text);
-  }, []);
-
   /**
    * 다음 버튼 탭 핸들러
-   * - 출발지/도착지 상태 저장
+   * - 출발지 상태 저장
    * - 다음 스크린으로 이동
    */
   const handleNext = useCallback(() => {
     // 상태 저장 (Zustand)
     actions.updateOrigin(origin);
-    actions.updateDestination(destination);
     actions.nextStep();
 
     // 네비게이션
-    navigation.navigate('PathSelection');
-  }, [origin, destination, actions, navigation]);
+    navigation.navigate('Destination');
+  }, [origin, actions, navigation]);
 
   /**
    * 다음 버튼 활성화 여부
-   * - 출발지와 도착지 모두 입력되어야 함
+   * - 출발지가 입력되어야 함
    */
-  const isNextEnabled = origin.trim() !== '' && destination.trim() !== '';
+  const isNextEnabled = origin.trim() !== '';
 
   return (
     <OuterContainer>
@@ -130,26 +116,17 @@ export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({
         <ContentContainer>
           {/* 제목 */}
           <HeadlineText>
-            가장 중요한 여정을{'\n'}알려주세요.
+            출발지를{'\n'}알려주세요.
           </HeadlineText>
 
           {/* 입력 필드 */}
-          <InputsContainer>
-            <InputField
-              placeholder="출발지 (예: 집)"
-              value={origin}
-              onChange={handleOriginChange}
-              icon="📍"
-              testID="origin-input"
-            />
-            <InputField
-              placeholder="도착지 (예: 회사)"
-              value={destination}
-              onChange={handleDestinationChange}
-              icon="🏢"
-              testID="destination-input"
-            />
-          </InputsContainer>
+          <InputField
+            placeholder="출발지 (예: 집)"
+            value={origin}
+            onChange={handleOriginChange}
+            icon="📍"
+            testID="origin-input"
+          />
 
           {/* 버튼 */}
           <ButtonContainer>
@@ -167,4 +144,4 @@ export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({
   );
 };
 
-export default JourneySetupScreen;
+export default OriginScreen;

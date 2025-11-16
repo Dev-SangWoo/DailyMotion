@@ -1,20 +1,22 @@
 /**
  * OnboardingScreen - 온보딩 네비게이션 컨트롤러
  *
- * 9개 스크린을 StackNavigator로 관리합니다.
+ * 10개 스크린을 StackNavigator로 관리합니다.
  * - 스크린 1-3: ValueProposalScreen
- * - 스크린 4: JourneySetupScreen
- * - 스크린 5: PathSelectionScreen
- * - 스크린 6: GoalTimeScreen
- * - 스크린 7: ScheduleSetupScreen
- * - 스크린 8: PermissionsScreen
- * - 스크린 9: CompletionScreen
+ * - 스크린 4: OriginScreen (출발지)
+ * - 스크린 5: DestinationScreen (도착지)
+ * - 스크린 6: PathSelectionScreen
+ * - 스크린 7: GoalTimeScreen
+ * - 스크린 8: ScheduleSetupScreen
+ * - 스크린 9: PermissionsScreen
+ * - 스크린 10: CompletionScreen
  */
 
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ValueProposalScreen } from './screens/ValueProposalScreen';
-import { JourneySetupScreen } from './screens/JourneySetupScreen';
+import { OriginScreen } from './screens/OriginScreen';
+import { DestinationScreen } from './screens/DestinationScreen';
 import { PathSelectionScreen } from './screens/PathSelectionScreen';
 import { GoalTimeScreen } from './screens/GoalTimeScreen';
 import { ScheduleSetupScreen } from './screens/ScheduleSetupScreen';
@@ -49,16 +51,25 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 4: 출발지/도착지 설정 */}
+      {/* 스크린 4: 출발지 설정 */}
       <Stack.Screen
-        name="JourneySetup"
-        component={JourneySetupScreen}
+        name="Origin"
+        component={OriginScreen}
         options={{
           gestureEnabled: true,
         }}
       />
 
-      {/* 스크린 5: 경로 선택 */}
+      {/* 스크린 5: 도착지 설정 */}
+      <Stack.Screen
+        name="Destination"
+        component={DestinationScreen}
+        options={{
+          gestureEnabled: true,
+        }}
+      />
+
+      {/* 스크린 6: 경로 선택 */}
       <Stack.Screen
         name="PathSelection"
         component={PathSelectionScreen}
@@ -67,7 +78,7 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 6: 도착시간 + First Mile */}
+      {/* 스크린 7: 도착시간 + First Mile */}
       <Stack.Screen
         name="GoalTime"
         component={GoalTimeScreen}
@@ -76,7 +87,7 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 7: 스케줄 설정 */}
+      {/* 스크린 8: 스케줄 설정 */}
       <Stack.Screen
         name="ScheduleSetup"
         component={ScheduleSetupScreen}
@@ -85,7 +96,7 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 8: 권한 요청 */}
+      {/* 스크린 9: 권한 요청 */}
       <Stack.Screen
         name="Permissions"
         component={PermissionsScreen}
@@ -94,7 +105,7 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 9: 완료 */}
+      {/* 스크린 10: 완료 */}
       <Stack.Screen
         name="Completion"
         component={CompletionScreen}

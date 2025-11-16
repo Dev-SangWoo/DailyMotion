@@ -12,7 +12,7 @@
  * - Disabled 상태 지원
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { TextInput as RNTextInput, View } from 'react-native';
 import styled from 'styled-components/native';
 import { theme } from '../../../styles/theme';
@@ -119,12 +119,21 @@ export const InputField: React.FC<InputFieldProps> = ({
     }
   };
 
+  const handleFocus = useCallback(() => {
+    if (!disabled) {
+      setIsFocused(true);
+    }
+  }, [disabled]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+  }, []);
+
   return (
     <InputContainer
       isFocused={isFocused && !disabled}
       disabled={disabled}
       testID={testID}
-      pointerEvents="box-none"
     >
       {icon && (
         <IconContainer>
@@ -137,8 +146,8 @@ export const InputField: React.FC<InputFieldProps> = ({
         placeholderTextColor="#999999"
         value={value}
         onChangeText={handleChangeText}
-        onFocus={() => !disabled && setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         editable={editable}
         keyboardType={keyboardType}
         secureTextEntry={secureTextEntry}
@@ -146,7 +155,7 @@ export const InputField: React.FC<InputFieldProps> = ({
         accessibilityLabel={accessibilityLabel || placeholder}
         accessibilityHint={`텍스트 입력 필드: ${placeholder}`}
         returnKeyType="next"
-        blurOnSubmit={true}
+        blurOnSubmit={false}
       />
     </InputContainer>
   );
