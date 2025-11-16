@@ -325,21 +325,24 @@ client/src/screens/Onboarding/
 ### [5-1] 전체 온보딩 플로우 통합 테스트
 
 **테스트 시나리오**:
-1. ✅ 스크린 1 → 9까지 순차적으로 진행
-2. ✅ 각 스크린에서 입력값 저장 확인
-3. ✅ 뒤로가기 버튼 동작
-4. ✅ 스토어 상태 정확성 확인
+1. ✅ RootNavigator: 초기 로딩 상태 확인
+2. ✅ RootNavigator: isOnboarded=false 일 때 OnboardingStack 표시
+3. ✅ RootNavigator: isOnboarded=true 일 때 MainStack 표시
+4. ✅ 스크린 1 → 9까지 순차적으로 진행
+5. ✅ 각 스크린에서 입력값 저장 확인
+6. ✅ 뒤로가기 버튼 동작
+7. ✅ 스토어 상태 정확성 확인
 
-**상태**: ⏳ 보류 (Phase 5-1)
+**상태**: ⏳ 진행중 (Phase 5-1)
 **예상 시간**: 2시간
 
 ### [5-2] 엣지 케이스 테스트
 
 **케이스**:
-- ✅ 빈 입력값 처리
-- ✅ 권한 거부 후 재요청
-- ✅ 화면 회전 (orientation change)
-- ✅ 앱 백그라운드 후 복귀 (상태 유지)
+- ⏳ 빈 입력값 처리 (JourneySetup에서 버튼 비활성화)
+- ⏳ 권한 거부 후 재요청
+- ⏳ 화면 회전 (orientation change)
+- ⏳ 앱 백그라운드 후 복귀 (상태 유지 - AsyncStorage 확인)
 
 **상태**: ⏳ 보류 (Phase 5-2)
 **예상 시간**: 1.5시간
@@ -347,8 +350,8 @@ client/src/screens/Onboarding/
 ### [5-3] 시각적 회귀 테스트 (Snapshot Testing)
 
 **항목**:
-- ✅ 각 스크린의 스냅샷
-- ✅ 다크 모드 (향후 지원)
+- ⏳ 각 스크린의 스냅샷
+- ⏳ 다크 모드 (향후 지원)
 
 **상태**: ⏳ 보류 (Phase 5-3)
 **예상 시간**: 1시간
