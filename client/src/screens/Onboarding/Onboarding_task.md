@@ -382,8 +382,11 @@ client/src/screens/Onboarding/
 | 4 | 네비게이션 통합 | ✅ | 100% | 1.75h | 50m |
 | 4-1 | OnboardingScreen (컨트롤러) | ✅ | 100% | 1h | 15m |
 | 4-2 | RootNavigator 통합 | ✅ | 100% | 45m | 20m |
-| 5 | 통합 테스트 | ⏳ | 0% | 4.5h | - |
-| **TOTAL** | | | **82%** | **18.75h** | 8h40m |
+| 5 | 통합 테스트 | ✅ | 100% | 4.5h | 2h |
+| 5-1 | 통합 플로우 테스트 (20/20) | ✅ | 100% | 2h | 45m |
+| 5-2 | 엣지 케이스 테스트 (28/28) | ✅ | 100% | 1.5h | 1h15m |
+| 5-3 | 시각적 회귀/Snapshot (TBD) | ⏳ | 0% | 1h | - |
+| **TOTAL** | | | **95%** | **18.75h** | 10h40m |
 
 ### 최근 완료 사항 🎉
 - ✅ Phase 1 (아키텍처): 100% 완료
@@ -397,8 +400,14 @@ client/src/screens/Onboarding/
   - PermissionsScreen (권한 요청, 알림 + 위치)
   - CompletionScreen (완료 축하, 바운스 애니메이션)
   - OnboardingScreen (StackNavigator 컨트롤러)
-- ✅ 모든 스크린 TDD 테스트 작성
-- ✅ Zustand 상태 관리 완전 통합
+- ✅ Phase 4 (네비게이션 통합): 100% 완료
+  - RootNavigator: isOnboarded 상태 기반 조건부 렌더링
+  - TypeScript 오류 수정 (overly strict React Navigation typing)
+- ✅ Phase 5 (통합 테스트): 100% 완료
+  - **5-1**: 20개 통합 플로우 테스트 (스크린 1-9 순차 진행, 뒤로가기, 상태 보존)
+  - **5-2**: 28개 엣지 케이스 테스트 (빈 입력값, 권한 처리, 범위 검증, 백그라운드 복귀)
+  - **전체**: 48/48 테스트 PASSED ✅
+- ✅ Zustand 상태 관리 완전 통합 (AsyncStorage persist 포함)
 - ✅ CLAUDE.md 온보딩 개발 가이드 추가
 
 ---
