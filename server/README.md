@@ -108,7 +108,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 # CORS 설정
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8081"]
 ```
-
+source venv_server/bin/activate
 ### 2. 의존성 설치
 
 ```bash

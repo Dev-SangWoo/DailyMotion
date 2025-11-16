@@ -5,13 +5,16 @@ Phase 12: API Endpoint 구현 (Mock 기반)
 - 출근 브리핑 조회
 - 출퇴근 설정 저장/조회
 - 퇴근 목표 선택 저장
+- (추가) 환승 리마인더 조회 (Logic 2.4)
 """
 from datetime import datetime, time
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query
+from typing import Optional, Dict, Any, List
+
 import logging
 import os
+from fastapi import APIRouter, HTTPException, Query, Body
 
+from app.common.response import Envelope
 from app.modules.path_optimize.service import PathOptimizeService
 from app.modules.path_optimize.models import (
     SystemMode,
@@ -19,8 +22,14 @@ from app.modules.path_optimize.models import (
     BriefingResponse,
     ErrorResponse,
 )
+from app.modules.path_optimize.mock_user_db import MockUserDB
+from app.modules.path_optimize.average_duration_repository import (
+    get_average_duration_map_for_segments,
+)
+from app.modules.path_optimize.optimization_history_repository import (
+    log_optimization_history,
+)
 from app.services.odsay_client import OdsayAPIClient
-from app.common.response import Envelope
 
 logger = logging.getLogger(__name__)
 
@@ -28,68 +37,17 @@ logger = logging.getLogger(__name__)
 # 라우터 정의
 # =====================================================
 
+# 브리핑 관련 엔드포인트 (기존)
 router = APIRouter(
     prefix="/briefings",
     tags=["Briefings"],
 )
 
-# =====================================================
-# Phase 12: Mock 기반 사용자 데이터 저장소
-# =====================================================
-
-class MockUserDB:
-    """
-    메모리 기반 Mock 데이터베이스 (테스트/개발용)
-    나중에 실제 PostgreSQL로 교체될 예정
-    """
-    # 기본 사용자 데이터 (하드코딩)
-    _commute_settings = {
-        "user_001": {
-            "homeAddress": "서울 강남구 역삼동",
-            "workAddress": "서울 중구 을지로",
-            "targetArrivalTime": time(8, 50),
-            "firstMileDefaultDuration": 5,
-            "lastMileDefaultDuration": 7,
-        },
-        "user_002": {
-            "homeAddress": "서울 서초구",
-            "workAddress": "서울 강남구 테헤란로",
-            "targetArrivalTime": time(9, 30),
-            "firstMileDefaultDuration": 3,
-            "lastMileDefaultDuration": 5,
-        }
-    }
-
-    # 퇴근 목표 저장소
-    _retreat_choices = {}  # user_id -> choice (A/B/C)
-
-    @classmethod
-    def get_commute_settings(cls, user_id: str) -> Optional[dict]:
-        """출근 설정 조회"""
-        return cls._commute_settings.get(user_id)
-
-    @classmethod
-    def save_commute_settings(cls, user_id: str, settings: dict) -> bool:
-        """출근 설정 저장"""
-        if not settings.get("targetArrivalTime"):
-            return False
-        cls._commute_settings[user_id] = settings
-        logger.info(f"✅ 출근 설정 저장: {user_id}")
-        return True
-
-    @classmethod
-    def get_retreat_choice(cls, user_id: str) -> Optional[str]:
-        """퇴근 목표 선택 조회 (A/B/C)"""
-        return cls._retreat_choices.get(user_id)
-
-    @classmethod
-    def save_retreat_choice(cls, user_id: str, choice: str) -> bool:
-        """퇴근 목표 선택 저장 (A/B/C)"""
-        if choice not in ["A", "B", "C"]:
-            return False
-        cls._retreat_choices[user_id] = choice
-        logger.info(f"✅ 퇴근 목표 저장: {user_id} -> {choice}")
-        return True
+# 컨텍스트 인식 / 모드 전환 관련 엔드포인트 (Logic 2.1 등)
+context_router = APIRouter(
+    prefix="/context",
+    tags=["Briefings"],
+)
 
 
 # =====================================================
@@ -99,9 +57,440 @@ class MockUserDB:
 service = PathOptimizeService()
 
 
+async def _get_routes_data_for_commute(commute_settings: dict) -> Optional[Dict[str, Any]]:
+    """
+    사용자 출퇴근 설정을 기반으로 ODSAY 경로 데이터를 조회합니다.
+
+    Returns:
+        OdsayAPIClient.parse_route_info() 결과 또는 None
+    """
+    api_key = os.getenv("ODSAY_API_KEY")
+    if not api_key:
+        logger.warning("⚠️ ODSAY_API_KEY 환경변수 없음 - routes_data 없이 진행")
+        return None
+
+    odsay_client = OdsayAPIClient(api_key=api_key)
+
+    # 집 주소로 정류장 검색
+    logger.info(f"🔍 집 주소로 정류장 검색: {commute_settings['homeAddress']}")
+    home_station_response = await odsay_client.search_station(
+        station_name=commute_settings["homeAddress"]
+    )
+
+    if "error" in home_station_response or "result" not in home_station_response:
+        logger.warning("⚠️ 집 주소 정류장 검색 실패")
+        return None
+
+    home_stations = home_station_response.get("result", {}).get("station", [])
+    if not home_stations:
+        logger.warning("⚠️ 집 주소 정류장 결과 없음")
+        return None
+
+    home_station_data = home_stations[0]
+    home_x = home_station_data["x"]
+    home_y = home_station_data["y"]
+    logger.info(f"✅ 집 정류장 발견: {home_station_data['stationName']} ({home_x}, {home_y})")
+
+    # 회사 주소로 정류장 검색
+    logger.info(f"🔍 회사 주소로 정류장 검색: {commute_settings['workAddress']}")
+    work_station_response = await odsay_client.search_station(
+        station_name=commute_settings["workAddress"]
+    )
+
+    if "error" in work_station_response or "result" not in work_station_response:
+        logger.warning("⚠️ 회사 주소 정류장 검색 실패")
+        return None
+
+    work_stations = work_station_response.get("result", {}).get("station", [])
+    if not work_stations:
+        logger.warning("⚠️ 회사 주소 정류장 결과 없음")
+        return None
+
+    work_station_data = work_stations[0]
+    work_x = work_station_data["x"]
+    work_y = work_station_data["y"]
+    logger.info(f"✅ 회사 정류장 발견: {work_station_data['stationName']} ({work_x}, {work_y})")
+
+    # 좌표 기반 경로 검색
+    logger.info(f"🔍 경로 검색: ({home_x},{home_y}) → ({work_x},{work_y})")
+    route_response = await odsay_client.search_route(
+        start_x=home_x,
+        start_y=home_y,
+        end_x=work_x,
+        end_y=work_y,
+        search_type=0,
+    )
+
+    if "error" in route_response:
+        logger.warning(f"⚠️ 경로 검색 실패: {route_response['error']}")
+        return None
+
+    routes_data = odsay_client.parse_route_info(route_response)
+    path_count = len(routes_data.get("paths", []))
+    logger.info(f"✅ 경로 검색 성공: {path_count}개 경로")
+    return routes_data
+
+
+def _build_transfer_points_from_path(path: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    ODSAY 경로의 subPath에서 환승 지점 목록을 추출합니다.
+
+    간단한 규칙:
+    - trafficType 1/2(지하철/버스) 구간들 사이의 경계에서 환승이 발생했다고 간주
+    - 앞 구간의 endName / endX,endY 또는 다음 구간의 startName / startX,startY를 사용
+    """
+    sub_path = path.get("subPath", []) or []
+    # transit 구간 인덱스 (1=지하철, 2=버스)
+    transit_indices = [
+        idx for idx, segment in enumerate(sub_path) if segment.get("trafficType") in (1, 2)
+    ]
+
+    transfer_points: List[Dict[str, Any]] = []
+
+    if len(transit_indices) <= 1:
+        return transfer_points
+
+    for first_idx, second_idx in zip(transit_indices, transit_indices[1:]):
+        first_seg = sub_path[first_idx] or {}
+        second_seg = sub_path[second_idx] or {}
+
+        # 환승역 이름
+        station_name = (
+            first_seg.get("endName")
+            or second_seg.get("startName")
+            or first_seg.get("startName")
+        )
+        if not station_name:
+            continue
+
+        # 좌표 (endX/endY 또는 startX/startY)
+        lon = first_seg.get("endX") or second_seg.get("startX")
+        lat = first_seg.get("endY") or second_seg.get("startY")
+        if lat is None or lon is None:
+            continue
+
+        # 다음 구간 기준 환승 교통수단/노선 정보
+        second_type = second_seg.get("trafficType")
+        if second_type == 1:
+            transport_type = "SUBWAY"
+            subway_line = (
+                second_seg.get("subwayName")
+                or (f"{second_seg.get('subwayCode')}호선" if second_seg.get("subwayCode") else None)
+            )
+            transfer_points.append(
+                {
+                    "stationName": station_name,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "transportType": transport_type,
+                    "subwayLine": subway_line,
+                    # 방향 정보는 현재 ODSAY 응답에서 직접 제공되지 않으므로 기본값 사용
+                    "direction": "상행",
+                }
+            )
+        elif second_type == 2:
+            transport_type = "BUS"
+            transfer_points.append(
+                {
+                    "stationName": station_name,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "transportType": transport_type,
+                    "busNumber": second_seg.get("busNo"),
+                    "busRouteId": second_seg.get("busID") or second_seg.get("busRouteId"),
+                }
+            )
+
+    return transfer_points
+
+
+# =====================================================
+# Logic 2.1: 자동 모드 전환 엔드포인트
+# =====================================================
+
+@context_router.get(
+    "/mode-switch",
+    response_model=Envelope[Dict[str, Any]],
+)
+def get_auto_mode_switch_action(
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID"),
+    current_latitude: float = Query(..., alias="currentLatitude", description="현재 위도"),
+    current_longitude: float = Query(..., alias="currentLongitude", description="현재 경도"),
+    current_accuracy: Optional[float] = Query(
+        None,
+        alias="currentAccuracy",
+        description="GPS 정확도 (미터, 선택)",
+    ),
+    mode: str = Query("COMMUTE", alias="mode", description="현재 모드 (COMMUTE/RETREAT)"),
+):
+    """
+    자동 모드 전환 (Logic 2.1 - Context Awareness)
+
+    사용자의 현재 GPS 위치와 저장된 출퇴근 설정을 기반으로
+    탑승 상태를 감지하고, 화면 전환이 필요한 경우 ETA 정보를 반환합니다.
+    """
+    try:
+        commute_settings = MockUserDB.get_commute_settings(user_id)
+        if not commute_settings:
+            logger.error(f"❌ 사용자 없음: {user_id}")
+            raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+        user_context = {
+            "currentGPS": {
+                "latitude": current_latitude,
+                "longitude": current_longitude,
+                "accuracy": current_accuracy,
+            },
+            "commute_settings": commute_settings,
+            "mode": mode,
+        }
+
+        result = service.get_auto_mode_switch_action(user_context=user_context)
+
+        logger.info(
+            "✅ 자동 모드 전환 결과: user=%s, action=%s",
+            user_id,
+            result.get("data", {}).get("action"),
+        )
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 자동 모드 전환 처리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # =====================================================
 # Phase 12: API Endpoint 구현
 # =====================================================
+
+# 2.x / 3.x / 4.x 보조 엔드포인트 (Logic 2.2, 2.3, 3.1, 3.2, 4.2, 4.3)
+
+@context_router.post("/routes/alternative", response_model=Envelope[Dict[str, Any]])
+def get_alternative_route_suggestion(
+    payload: Dict[str, Any] = Body(..., description="대안 경로 제안 입력 데이터"),
+):
+    """
+    고신뢰 대안 경로 제안 (Logic 2.2)
+
+    현재 경로 대비 대안 경로의 시간 이득, 환승 여유, 혼잡도를 검증하여
+    모든 Gate를 통과한 경우에만 대안 경로를 제안합니다.
+    """
+    try:
+        mode_value = payload.get("mode", "COMMUTE")
+        try:
+            mode = SystemMode(mode_value)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid mode: {mode_value}")
+
+        result = service.get_alternative_route_suggestion(
+            current_route_time=payload.get("currentRouteTime"),
+            alternative_route_time=payload.get("alternativeRouteTime"),
+            mode=mode,
+            current_bus_arrival_minutes=payload.get("currentBusArrivalMinutes"),
+            current_bus_duration_minutes=payload.get("currentBusDurationMinutes"),
+            transfer_bus_arrival_minutes=payload.get("transferBusArrivalMinutes"),
+            transfer_bus_congestion=payload.get("transferBusCongestion"),
+            transfer_location=payload.get("transferLocation"),
+            transfer_line=payload.get("transferLine"),
+            congestion_level=payload.get("congestionLevel"),
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 대안 경로 제안 처리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@context_router.get("/seating/optimize", response_model=Envelope[Dict[str, Any]])
+def get_seating_optimization(
+    guidance_type: str = Query(..., alias="guidanceType", description="안내 유형"),
+    transfer_station: Optional[str] = Query(
+        None, alias="transferStation", description="환승역 이름"
+    ),
+    transfer_line: Optional[str] = Query(
+        None, alias="transferLine", description="환승 노선"
+    ),
+    exit_location: Optional[str] = Query(
+        None, alias="exitLocation", description="출구 위치 (FRONT/CENTER/REAR 등)"
+    ),
+):
+    """
+    탑승/환승 최적화 가이드 조회 (Logic 2.3)
+    """
+    try:
+        result = service.get_seating_optimization(
+            guidance_type=guidance_type,
+            transfer_station=transfer_station,
+            transfer_line=transfer_line,
+            exit_location=exit_location,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"❌ 탑승/환승 최적화 처리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@context_router.post("/exceptions/delays", response_model=Envelope[Dict[str, Any]])
+def get_exception_alert(
+    payload: Dict[str, Any] = Body(..., description="지연 감지 입력 데이터"),
+):
+    """
+    돌발상황 지연 감지 (Logic 3.1)
+    """
+    try:
+        segments_raw = payload.get("segments") or []
+        segments: List[Dict[str, Any]] = []
+        for seg in segments_raw:
+            segments.append(
+                {
+                    "segment_id": seg.get("segmentId"),
+                    "segment_name": seg.get("segmentName"),
+                    "from_station": seg.get("fromStation"),
+                    "to_station": seg.get("toStation"),
+                }
+            )
+
+        current_hour = payload.get("currentHour")
+        current_day_of_week = payload.get("currentDayOfWeek")
+
+        # DB에서 통계 데이터 조회 (없으면 빈 dict)
+        statistical_data_map = get_average_duration_map_for_segments(
+            segments=segments,
+            current_hour=current_hour,
+            current_day_of_week=current_day_of_week,
+        )
+
+        result = service.get_exception_alert(
+            segments=segments,
+            current_hour=current_hour,
+            current_day_of_week=current_day_of_week,
+            statistical_data_map=statistical_data_map,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"❌ 지연 감지 처리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@context_router.post("/taxi/suggest", response_model=Envelope[Dict[str, Any]])
+def get_taxi_suggestion(
+    payload: Dict[str, Any] = Body(..., description="택시 제안 입력 데이터"),
+):
+    """
+    택시 제안 (Logic 3.2)
+    """
+    try:
+        mode_value = payload.get("mode", "COMMUTE")
+        try:
+            mode = SystemMode(mode_value)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid mode: {mode_value}")
+
+        current_time = datetime.fromisoformat(payload["currentTime"])
+
+        def _parse_dt(key: str) -> Optional[datetime]:
+            value = payload.get(key)
+            return datetime.fromisoformat(value) if value else None
+
+        result = service.get_taxi_suggestion(
+            mode=mode,
+            current_time=current_time,
+            target_arrival_time=_parse_dt("targetArrivalTime"),
+            transit_arrival_time=_parse_dt("transitArrivalTime"),
+            taxi_arrival_time=_parse_dt("taxiArrivalTime"),
+            selected_route_choice=payload.get("selectedRouteChoice"),
+            selected_route_name=payload.get("selectedRouteName"),
+            last_bus_time=_parse_dt("lastBusTime"),
+        )
+        return result
+    except KeyError as e:
+        logger.error(f"❌ 택시 제안 필수 필드 누락: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Missing field: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 택시 제안 처리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@context_router.get("/routes/by-goal", response_model=Envelope[Dict[str, Any]])
+def get_routes_by_goal(
+    goal: str = Query(..., alias="goal", description="퇴근 목표 (A/B/C)"),
+    routes_json: str = Query(..., alias="routesJson", description="경로 목록 JSON"),
+):
+    """
+    퇴근 목표별 경로 조회 (Logic 4.2)
+
+    현재는 경로 목록을 JSON 문자열로 받아 임시로 필터링합니다.
+    클라이언트/DB 연동이 완성되면 별도 모델/소스를 사용할 수 있습니다.
+    """
+    import json
+
+    try:
+        try:
+            routes = json.loads(routes_json)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid routesJson (must be JSON)")
+
+        if not isinstance(routes, list):
+            raise HTTPException(status_code=400, detail="routesJson must be a list")
+
+        result = service.get_routes_by_retreat_goal(routes=routes, user_goal=goal)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 퇴근 목표별 경로 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@context_router.get("/polling/frequency", response_model=Envelope[Dict[str, Any]])
+def get_smart_polling_frequency(
+    user_latitude: float = Query(..., alias="userLatitude", description="사용자 위도"),
+    user_longitude: float = Query(..., alias="userLongitude", description="사용자 경도"),
+    user_speed: float = Query(..., alias="userSpeed", description="사용자 속도 (km/h)"),
+    transit_mode: str = Query(..., alias="transitMode", description="대중교통 모드"),
+    distance_to_transfer: float = Query(
+        999999.0,
+        alias="distanceToTransfer",
+        description="환승 지점까지 거리 (미터)",
+    ),
+    in_congestion_zone: bool = Query(
+        False,
+        alias="inCongestionZone",
+        description="정체 구간 여부",
+    ),
+    minutes_until_alert: int = Query(
+        9999,
+        alias="minutesUntilAlert",
+        description="알림까지 남은 시간 (분)",
+    ),
+):
+    """
+    스마트 폴링 빈도 조회 (Logic 4.3)
+    """
+    try:
+        result = service.get_smart_polling_frequency(
+            user_latitude=user_latitude,
+            user_longitude=user_longitude,
+            user_speed=user_speed,
+            transit_mode=transit_mode,
+            distance_to_transfer=distance_to_transfer,
+            in_congestion_zone=in_congestion_zone,
+            minutes_until_alert=minutes_until_alert,
+        )
+        # 서비스가 {"data": ...} 또는 {"error": ...}를 직접 반환
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"]["message"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 스마트 폴링 빈도 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 1️⃣ GET /api/v1/briefings/commute - 출근 브리핑 조회
 @router.get("/commute", response_model=Envelope[BriefingResponse])
@@ -150,73 +539,8 @@ async def get_commute_briefing(
         logger.info(f"   집: {commute_settings['homeAddress']}")
         logger.info(f"   회사: {commute_settings['workAddress']}")
 
-        # 2️⃣ ODSAY API 클라이언트 초기화
-        api_key = os.getenv("ODSAY_API_KEY")
-        if not api_key:
-            logger.warning("⚠️ ODSAY_API_KEY 환경변수 없음 - Mock 데이터로 계속 진행")
-            routes_data = None
-        else:
-            odsay_client = OdsayAPIClient(api_key=api_key)
-
-            # 3️⃣ 집 주소로 정류장 검색
-            logger.info(f"🔍 집 주소로 정류장 검색: {commute_settings['homeAddress']}")
-            home_station_response = await odsay_client.search_station(
-                station_name=commute_settings['homeAddress']
-            )
-
-            if "error" in home_station_response or "result" not in home_station_response:
-                logger.warning(f"⚠️ 집 주소 정류장 검색 실패")
-                routes_data = None
-            else:
-                home_stations = home_station_response.get("result", {}).get("station", [])
-                if not home_stations:
-                    logger.warning(f"⚠️ 집 주소 정류장 결과 없음")
-                    routes_data = None
-                else:
-                    home_station_data = home_stations[0]
-                    home_x = home_station_data["x"]
-                    home_y = home_station_data["y"]
-                    logger.info(f"✅ 집 정류장 발견: {home_station_data['stationName']}")
-                    logger.info(f"   좌표: ({home_x}, {home_y})")
-
-                    # 4️⃣ 회사 주소로 정류장 검색
-                    logger.info(f"🔍 회사 주소로 정류장 검색: {commute_settings['workAddress']}")
-                    work_station_response = await odsay_client.search_station(
-                        station_name=commute_settings['workAddress']
-                    )
-
-                    if "error" in work_station_response or "result" not in work_station_response:
-                        logger.warning(f"⚠️ 회사 주소 정류장 검색 실패")
-                        routes_data = None
-                    else:
-                        work_stations = work_station_response.get("result", {}).get("station", [])
-                        if not work_stations:
-                            logger.warning(f"⚠️ 회사 주소 정류장 결과 없음")
-                            routes_data = None
-                        else:
-                            work_station_data = work_stations[0]
-                            work_x = work_station_data["x"]
-                            work_y = work_station_data["y"]
-                            logger.info(f"✅ 회사 정류장 발견: {work_station_data['stationName']}")
-                            logger.info(f"   좌표: ({work_x}, {work_y})")
-
-                            # 5️⃣ 경로 검색 (좌표 기반)
-                            logger.info(f"🔍 경로 검색: ({home_x},{home_y}) → ({work_x},{work_y})")
-                            route_response = await odsay_client.search_route(
-                                start_x=home_x,
-                                start_y=home_y,
-                                end_x=work_x,
-                                end_y=work_y,
-                                search_type=0  # 모든 경로
-                            )
-
-                            if "error" in route_response:
-                                logger.warning(f"⚠️ 경로 검색 실패: {route_response['error']}")
-                                routes_data = None
-                            else:
-                                routes_data = route_response
-                                path_count = len(routes_data.get("result", {}).get("path", []))
-                                logger.info(f"✅ 경로 검색 성공: {path_count}개 경로")
+        # 2️⃣ ODSAY 경로 데이터 조회
+        routes_data = await _get_routes_data_for_commute(commute_settings)
 
         # 6️⃣ 현재 시간으로 브리핑 생성
         current_time = datetime.now()
@@ -236,6 +560,12 @@ async def get_commute_briefing(
             logger.error(f"❌ 출근 브리핑 조회 실패: {result['error']}")
         else:
             logger.info(f"✅ 출근 브리핑 조회: {user_id} -> {result['data']['alertType']}")
+            # 최적화 이력 기록 (출근 모드)
+            log_optimization_history(
+                user_id=user_id,
+                mode=SystemMode.COMMUTE,
+                suggested_route=result.get("data", {}),
+            )
         return result
 
     except HTTPException as e:
@@ -295,12 +625,114 @@ def get_retreat_mode_last_bus_alert(
         )
 
         logger.info(f"✅ 퇴근 막차 알림 조회: {user_id} -> {selected_route}")
+        # 최적화 이력 기록 (퇴근 모드)
+        log_optimization_history(
+            user_id=user_id,
+            mode=SystemMode.RETREAT,
+            suggested_route=result.get("data", {}),
+        )
         return result
 
     except HTTPException:
         raise  # HTTPException은 그대로 전달 (404 등)
     except Exception as e:
         logger.error(f"❌ 퇴근 막차 알림 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 7️⃣ GET /api/v1/briefings/transfer-reminder - 환승 리마인더 조회 (Logic 2.4)
+@router.get("/transfer-reminder", response_model=Envelope[Dict[str, Any]])
+async def get_transfer_reminder(
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID"),
+    current_latitude: float = Query(..., alias="currentLatitude", description="현재 위도"),
+    current_longitude: float = Query(..., alias="currentLongitude", description="현재 경도"),
+    radius_meters: float = Query(500.0, alias="radiusMeters", description="환승역 반경 (미터)"),
+):
+    """
+    환승 리마인더 조회 (Logic 2.4)
+
+    사용자의 현재 위치와 선택된 출근 경로(기본: 최단 시간 경로)를 기준으로,
+    다가오는 환승역 반경 내에 진입했을 때 환승 알림과 실시간 도착 정보를 제공합니다.
+
+    Request (Query):
+    - userId: 사용자 ID
+    - currentLatitude: 현재 위도
+    - currentLongitude: 현재 경도
+    - radiusMeters: 환승역 반경 (기본값: 500m)
+
+    Response:
+    {
+        "data": {
+            "action": "TRANSFER_REMINDER" | "NO_ACTION",
+            "stationName": "온수",
+            "line": "7호선",
+            "arrivalMinutes": 3,
+            "isRealtime": true,
+            "message": "다음 역인 [온수]에서 [7호선]으로 환승하셔야 합니다. 약 3분 후 도착 예정입니다.",
+            "timestamp": "..."
+        }
+    }
+    """
+    try:
+        # 1️⃣ 사용자 출근 설정 조회
+        commute_settings = MockUserDB.get_commute_settings(user_id)
+        if not commute_settings:
+            logger.error(f"❌ 사용자 없음: {user_id}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"User {user_id} not found",
+            )
+
+        # 2️⃣ ODSAY 경로 데이터 조회
+        routes_data = await _get_routes_data_for_commute(commute_settings)
+        if not routes_data or not routes_data.get("paths"):
+            logger.warning("⚠️ 환승 리마인더를 위한 경로 데이터 없음")
+            return {
+                "data": {
+                    "action": "NO_ACTION",
+                    "stationName": None,
+                    "line": None,
+                    "arrivalMinutes": None,
+                    "isRealtime": False,
+                    "message": "경로 데이터를 찾을 수 없습니다.",
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            }
+
+        # 3️⃣ 가장 빠른 경로 선택 (첫 번째 path)
+        fastest_path = routes_data["paths"][0]
+
+        # 4️⃣ 환승 지점 추출
+        transfer_points = _build_transfer_points_from_path(fastest_path)
+        if not transfer_points:
+            logger.info("ℹ️ 환승 지점 없음 - 리마인더 생략")
+            return {
+                "data": {
+                    "action": "NO_ACTION",
+                    "stationName": None,
+                    "line": None,
+                    "arrivalMinutes": None,
+                    "isRealtime": False,
+                    "message": "환승 지점이 없는 경로입니다.",
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            }
+
+        # 5️⃣ 환승 리마인더 계산 (Logic 2.4)
+        result = service.get_transfer_reminder(
+            current_latitude=current_latitude,
+            current_longitude=current_longitude,
+            transfer_points=transfer_points,
+            current_time=datetime.now(),
+            radius_meters=radius_meters,
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 환승 리마인더 조회 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -719,5 +1151,3 @@ async def test_odsay_route_search(
                 "message": str(e)
             }
         }
-
-

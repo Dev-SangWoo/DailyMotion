@@ -28,7 +28,8 @@ from app.db.database import Base
 from app.modules.path_optimize.models.db_models import (
     CommuteSettingsDB,
     OptimizationHistoryDB,
-    AverageDurationDB
+    AverageDurationDB,
+    LastBusScheduleDB,
 )
 
 target_metadata = Base.metadata

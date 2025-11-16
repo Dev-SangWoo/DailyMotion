@@ -133,6 +133,8 @@ class OdsayAPIClient:
         search_type: int = 0,
         departure_time: Optional[datetime] = None
     ) -> Dict[str, Any]:
+
+
         """
         대중교통 경로 검색
 

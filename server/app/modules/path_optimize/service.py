@@ -40,6 +40,9 @@ from app.services.polling_scheduler import (
     TransitState,
     AlertState,
 )
+from app.modules.path_optimize.last_bus_schedule_repository import (
+    get_minutes_until_last_bus,
+)
 from app.modules.path_optimize.models import (
     UserContextData,
     SystemMode,
@@ -789,6 +792,192 @@ class PathOptimizeService:
             logger.warning(f"⚠️ ODSAY 데이터 파싱 오류: {str(e)}")
             return None
 
+    # ========================================
+    # Logic 2.4: 환승 리마인더 & 실시간 환승 열차 안내
+    # ========================================
+
+    def get_transfer_reminder(
+        self,
+        current_latitude: float,
+        current_longitude: float,
+        transfer_points: List[Dict[str, Any]],
+        current_time: datetime,
+        radius_meters: float = 500.0,
+    ) -> Dict[str, Any]:
+        """
+        Logic 2.4 - 환승 리마인더 & 실시간 환승 열차 안내
+
+        Args:
+            current_latitude: 사용자 현재 위도
+            current_longitude: 사용자 현재 경도
+            transfer_points: 환승 지점 목록
+                [
+                    {
+                        "stationName": "온수",
+                        "latitude": 37.4923,
+                        "longitude": 126.8234,
+                        "transportType": "SUBWAY" | "BUS",
+                        "subwayLine": "7호선",
+                        "direction": "상행"  # 선택
+                    },
+                    ...
+                ]
+            current_time: 현재 시각
+            radius_meters: 환승역 반경 (기본값: 500m)
+
+        Returns:
+            {
+                "data": {
+                    "action": "TRANSFER_REMINDER" | "NO_ACTION",
+                    "stationName": str | None,
+                    "line": str | None,
+                    "arrivalMinutes": int | None,
+                    "isRealtime": bool,
+                    "message": str,
+                    "timestamp": "ISO 8601"
+                }
+            }
+        """
+        try:
+            if not transfer_points:
+                logger.info("ℹ️ 환승 지점 정보 없음")
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "stationName": None,
+                        "line": None,
+                        "arrivalMinutes": None,
+                        "isRealtime": False,
+                        "message": "환승 지점 정보가 없습니다.",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                }
+
+            # 1️⃣ 현재 위치와 가장 가까운 환승 지점 탐색 (반경 내)
+            nearest_point = None
+            nearest_distance = float("inf")
+
+            for point in transfer_points:
+                lat = point.get("latitude")
+                lon = point.get("longitude")
+                if lat is None or lon is None:
+                    continue
+
+                distance = context_detector.calculate_distance(
+                    current_latitude,
+                    current_longitude,
+                    lat,
+                    lon,
+                )
+
+                if distance < nearest_distance:
+                    nearest_distance = distance
+                    nearest_point = point
+
+            if nearest_point is None or nearest_distance > radius_meters:
+                logger.info(
+                    f"ℹ️ 환승 지점 반경 밖: 최소 거리 {nearest_distance:.0f}m (임계값: {radius_meters}m)"
+                )
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "stationName": None,
+                        "line": None,
+                        "arrivalMinutes": None,
+                        "isRealtime": False,
+                        "message": "근처 환승역이 없습니다.",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                }
+
+            station_name = nearest_point.get("stationName", "")
+            transport_type = nearest_point.get("transportType", "SUBWAY")
+            line = None
+            arrival_minutes = None
+            is_realtime = False
+
+            # 2️⃣ 실시간 도착 정보 조회 (지하철/버스)
+            if transport_type == "SUBWAY":
+                subway_line = nearest_point.get("subwayLine", "")
+                direction = nearest_point.get("direction", "상행")
+                line = subway_line
+
+                try:
+                    realtime_info = self.subway_client.get_arrival_info(
+                        station_name=station_name,
+                        subway_line=subway_line,
+                        direction=direction,
+                    )
+                    if realtime_info:
+                        arrival_minutes = realtime_info.get("arrivalMinutes")
+                        is_realtime = True
+                except Exception as e:
+                    logger.warning(f"⚠️ 지하철 실시간 정보 조회 실패 (Logic 2.4): {str(e)}")
+
+            elif transport_type == "BUS":
+                bus_number = nearest_point.get("busNumber")
+                bus_route_id = nearest_point.get("busRouteId")
+                line = bus_number
+
+                try:
+                    if bus_route_id:
+                        realtime_info_bus = self.bus_client.get_arrival_info(
+                            bus_route_id=str(bus_route_id)
+                        )
+                        if realtime_info_bus:
+                            arrival_minutes = realtime_info_bus.get("arrivalMinutes")
+                            is_realtime = True
+                except Exception as e:
+                    logger.warning(f"⚠️ 버스 실시간 정보 조회 실패 (Logic 2.4): {str(e)}")
+
+            # 3️⃣ 메시지 생성
+            if transport_type == "SUBWAY":
+                line_label = line or "지하철"
+            elif transport_type == "BUS":
+                line_label = f"{line}번 버스" if line else "버스"
+            else:
+                line_label = "대중교통"
+
+            if arrival_minutes is not None:
+                arrival_text = f"약 {arrival_minutes}분 후 도착 예정입니다."
+            else:
+                arrival_text = "곧 도착 예정입니다."
+
+            message = (
+                f"다음 역인 [{station_name}]에서 [{line_label}]으로 환승하셔야 합니다. "
+                f"{arrival_text}"
+            )
+
+            logger.info(
+                f"✅ 환승 리마인더 생성: {station_name} ({nearest_distance:.0f}m, {line_label})"
+            )
+
+            return {
+                "data": {
+                    "action": "TRANSFER_REMINDER",
+                    "stationName": station_name,
+                    "line": line,
+                    "arrivalMinutes": arrival_minutes,
+                    "isRealtime": is_realtime,
+                    "message": message,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"❌ 환승 리마인더 계산 실패: {str(e)}")
+            return {
+                "data": {
+                    "action": "NO_ACTION",
+                    "stationName": None,
+                    "line": None,
+                    "arrivalMinutes": None,
+                    "isRealtime": False,
+                    "message": f"환승 정보를 계산할 수 없습니다: {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            }
+
     def optimize_path(
         self,
         start_point: Dict[str, Any],
@@ -1012,11 +1201,21 @@ class PathOptimizeService:
             if 0 <= slack_minutes < COMFORTABLE_BUFFER_MINUTES:
                 if recommended_transport:
                     last_bus_number = recommended_transport["name"]
+                    transport_type = recommended_transport.get("type", "BUS")
                 else:
                     last_bus_number = "마지막 교통수단"
+                    transport_type = "BUS"
+
+                # 교통수단 타입에 따라 문구 분기
+                if transport_type == "SUBWAY":
+                    last_transport_label = "마지막 지하철"
+                elif transport_type == "BUS":
+                    last_transport_label = "마지막 버스"
+                else:
+                    last_transport_label = "마지막 교통수단"
 
                 message = (
-                    f"⚠️지각 주의! {target_time_str} 도착을 위한 마지막 버스[{last_bus_number}]가 "
+                    f"⚠️지각 주의! {target_time_str} 도착을 위한 {last_transport_label}[{last_bus_number}]가 "
                     f"{departure_in_minutes}분 뒤 도착합니다. 지금 출발하세요! (여유: {slack_minutes}분)"
                 )
 
@@ -1103,16 +1302,34 @@ class PathOptimizeService:
                 }
             }
         """
-        # 사용자 선택 경로별 막차 시간 (실제로는 API에서 조회되어야 함)
-        # 현재는 v3.0 명세서 예시에 따른 하드코딩
-        last_bus_times = {
-            "A": 10,    # A. 가장 빠르게: 막차 10분 뒤
-            "B": 30,    # B. 편안하게: 막차 30분 뒤
-            "C": 25,    # C. 평소 경로: 막차 25분 뒤
-        }
-
+        # 사용자 선택 경로
         user_selected_route = retreat_settings.get("userSelectedRoute", "C")
-        minutes_until_last_bus = last_bus_times.get(user_selected_route, 25)
+
+        # 1️⃣ DB에서 막차 시간 조회 시도
+        try:
+            # current_day_of_week: Python weekday()는 월=0, 일=6이므로,
+            # 기존 day_of_week(0=월, 6=일) 규칙과 동일하게 사용 가능
+            current_day_of_week = current_time.weekday()
+            minutes_until_last_bus = get_minutes_until_last_bus(
+                route_choice=user_selected_route,
+                current_time=current_time,
+                current_day_of_week=current_day_of_week,
+            )
+        except Exception as e:
+            logger.warning(
+                f"⚠️ 막차 시간 DB 조회 실패, 하드코딩 값 사용: {str(e)}"
+            )
+            minutes_until_last_bus = None
+
+        # 2️⃣ DB에 데이터가 없거나 조회 실패 시 하드코딩 값 사용
+        if minutes_until_last_bus is None:
+            # v3.0 명세서 예시에 따른 기본값
+            last_bus_times = {
+                "A": 10,    # A. 가장 빠르게: 막차 10분 뒤
+                "B": 30,    # B. 편안하게: 막차 30분 뒤
+                "C": 25,    # C. 평소 경로: 막차 25분 뒤
+            }
+            minutes_until_last_bus = last_bus_times.get(user_selected_route, 25)
 
         # 경로별 한글 이름
         route_names = {

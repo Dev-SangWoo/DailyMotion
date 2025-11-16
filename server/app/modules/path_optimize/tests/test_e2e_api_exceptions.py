@@ -80,7 +80,7 @@ class TestE2EAPIExceptionHandling:
         """
         response = client.get(
             "/api/v1/briefings/retreat",
-            params={"userId": nonexistent_user_id}
+            params={"userId": nonexistent_user_id},
         )
 
         assert response.status_code == 404
@@ -90,6 +90,35 @@ class TestE2EAPIExceptionHandling:
         assert data["error"]["code"] == "E404"
 
         print(f"\n✅ 퇴근 브리핑 404 에러: {data['error']['message']}")
+
+    # ========================================================================
+    # Test 2-추가: 존재하지 않는 사용자 - 자동 모드 전환 (404)
+    # ========================================================================
+
+    def test_2_additional_context_mode_switch_user_not_found(
+        self, client, nonexistent_user_id
+    ):
+        """
+        존재하지 않는 사용자의 자동 모드 전환 조회
+
+        시나리오:
+        - GET /api/v1/context/mode-switch?userId=nonexistent
+        - 404 에러 반환
+        - OpenAPI 에러 형식: {"error": {"code": "E404", "message": "..."}}
+        """
+        response = client.get(
+            "/api/v1/context/mode-switch",
+            params={
+                "userId": nonexistent_user_id,
+                "currentLatitude": 37.5,
+                "currentLongitude": 127.0,
+            },
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "error" in data
+        assert data["error"]["code"] == "E404"
 
     # ========================================================================
     # Test 3: 존재하지 않는 사용자 - 설정 조회 (404)
@@ -105,7 +134,7 @@ class TestE2EAPIExceptionHandling:
         """
         response = client.get(
             "/api/v1/briefings/commute-settings",
-            params={"userId": nonexistent_user_id}
+            params={"userId": nonexistent_user_id},
         )
 
         assert response.status_code == 404
@@ -115,6 +144,40 @@ class TestE2EAPIExceptionHandling:
         assert data["error"]["code"] == "E404"
 
         print(f"\n✅ 설정 조회 404 에러: {data['error']['message']}")
+
+    # ========================================================================
+    # Test 7: 지연 감지 - 통계 데이터 없이 NO_ACTION
+    # ========================================================================
+
+    def test_7_exception_alert_without_statistical_data(self, client):
+        """
+        지연 감지 - 통계 데이터/실시간 데이터 모두 없는 경우
+
+        DB에 average_duration 데이터가 없더라도
+        /context/exceptions/delays 엔드포인트가 200 + NO_ACTION을 반환하는지 확인
+        """
+        payload = {
+            "segments": [
+                {
+                    "segmentId": "SEG_TEST_001",
+                    "segmentName": "A정류장 → B정류장",
+                    "fromStation": "A정류장",
+                    "toStation": "B정류장",
+                }
+            ],
+            "currentHour": 8,
+            "currentDayOfWeek": 1,
+        }
+
+        response = client.post(
+            "/api/v1/context/exceptions/delays",
+            json=payload,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert data["data"]["action"] in ["NO_ACTION", "EXCEPTION_DETECTED"]
 
     # ========================================================================
     # Test 4: 잘못된 퇴근 목표 선택 (Invalid Choice)

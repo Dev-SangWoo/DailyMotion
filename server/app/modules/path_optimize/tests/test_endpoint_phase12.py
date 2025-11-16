@@ -1,13 +1,14 @@
 """
-Phase 12: API Endpoint 테스트
+Phase 12 & Logic 2.1: API Endpoint 테스트
 
-6개의 API 엔드포인트 테스트
+엔드포인트 테스트:
 - GET /api/v1/briefings/commute - 출근 브리핑 조회
 - GET /api/v1/briefings/retreat - 퇴근 막차 알림 조회
 - POST /api/v1/briefings/commute-settings - 설정 저장
 - GET /api/v1/briefings/commute-settings - 설정 조회
 - POST /api/v1/briefings/retreat-choice - 퇴근 목표 저장
 - GET /api/v1/briefings/retreat-choice - 퇴근 목표 조회
+- GET /api/v1/context/mode-switch - 자동 모드 전환 (Logic 2.1)
 """
 
 import pytest
@@ -27,7 +28,7 @@ def test_get_commute_briefing_default_user():
     Test: GET /api/v1/briefings/commute
     기본 사용자 (user_001)의 출근 브리핑 조회
     """
-    response = client.get("/api/v1/briefings/commute?user_id=user_001")
+    response = client.get("/api/v1/briefings/commute?userId=user_001")
     assert response.status_code == 200
 
     data = response.json()
@@ -57,7 +58,7 @@ def test_get_commute_briefing_user_not_found():
     Test: GET /api/v1/briefings/commute
     존재하지 않는 사용자 조회 → 404 에러
     """
-    response = client.get("/api/v1/briefings/commute?user_id=user_nonexistent")
+    response = client.get("/api/v1/briefings/commute?userId=user_nonexistent")
     assert response.status_code == 404
 
     data = response.json()
@@ -78,14 +79,14 @@ def test_save_commute_settings():
     response = client.post(
         "/api/v1/briefings/commute-settings",
         params={
-            "user_id": "user_test_003",
-            "home_address": "서울 강북구",
-            "work_address": "서울 용산구",
-            "target_arrival_hour": 9,
-            "target_arrival_minute": 15,
-            "first_mile_duration": 7,
-            "last_mile_duration": 5,
-        }
+            "userId": "user_test_003",
+            "homeAddress": "서울 강북구",
+            "workAddress": "서울 용산구",
+            "targetArrivalHour": 9,
+            "targetArrivalMinute": 15,
+            "firstMileDuration": 7,
+            "lastMileDuration": 5,
+        },
     )
     assert response.status_code == 200
 
@@ -107,7 +108,7 @@ def test_get_commute_settings():
     Test: GET /api/v1/briefings/commute-settings
     사용자 설정 조회
     """
-    response = client.get("/api/v1/briefings/commute-settings?user_id=user_001")
+    response = client.get("/api/v1/briefings/commute-settings?userId=user_001")
     assert response.status_code == 200
 
     data = response.json()
@@ -132,7 +133,7 @@ def test_save_retreat_choice():
     response = client.post(
         "/api/v1/briefings/retreat-choice",
         params={
-            "user_id": "user_001",
+            "userId": "user_001",
             "choice": "B",
         }
     )
@@ -159,11 +160,11 @@ def test_get_retreat_choice():
     # 먼저 선택지 저장
     client.post(
         "/api/v1/briefings/retreat-choice",
-        params={"user_id": "user_002", "choice": "A"}
+        params={"userId": "user_002", "choice": "A"},
     )
 
     # 조회
-    response = client.get("/api/v1/briefings/retreat-choice?user_id=user_002")
+    response = client.get("/api/v1/briefings/retreat-choice?userId=user_002")
     assert response.status_code == 200
 
     data = response.json()
@@ -183,7 +184,7 @@ def test_get_retreat_mode_last_bus_alert():
     Test: GET /api/v1/briefings/retreat
     퇴근 모드 막차 알림 조회
     """
-    response = client.get("/api/v1/briefings/retreat?user_id=user_001")
+    response = client.get("/api/v1/briefings/retreat?userId=user_001")
     assert response.status_code == 200
 
     data = response.json()
@@ -195,6 +196,101 @@ def test_get_retreat_mode_last_bus_alert():
     assert "막차" in data["data"]["message"] or "분 뒤" in data["data"]["message"]
 
     print(f"✅ Test 7 통과: 퇴근 막차 알림 조회")
+
+
+# =====================================================
+# Test 9: 자동 모드 전환 (Logic 2.1)
+# =====================================================
+
+def test_get_auto_mode_switch_action_basic():
+    """
+    Test: GET /api/v1/context/mode-switch
+    기본 사용자(user_001)의 자동 모드 전환 결과 조회
+    """
+    response = client.get(
+        "/api/v1/context/mode-switch",
+        params={
+            "userId": "user_001",
+            "currentLatitude": 37.4979,
+            "currentLongitude": 127.0276,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert "data" in data
+    assert "action" in data["data"]
+
+    # 액션은 AUTO_SWITCH_TO_ETA 또는 NO_ACTION 중 하나여야 함
+    assert data["data"]["action"] in ["AUTO_SWITCH_TO_ETA", "NO_ACTION"]
+
+    print(f"✅ Test 9 통과: 자동 모드 전환 - action={data['data']['action']}")
+
+
+# =====================================================
+# Test 10: 대안 경로 제안 (Logic 2.2)
+# =====================================================
+
+def test_post_alternative_route_suggestion():
+    """
+    Test: POST /api/v1/context/routes/alternative
+    기본 입력에 대해 200 응답 및 suggestAlternativeRoute 필드 확인
+    """
+    payload = {
+        "currentRouteTime": 35,
+        "alternativeRouteTime": 27,
+        "mode": "COMMUTE",
+        "currentBusArrivalMinutes": 3,
+        "currentBusDurationMinutes": 2,
+        "transferBusArrivalMinutes": 8,
+        "transferBusCongestion": 60,
+        "transferLocation": "가산디지털단지",
+        "transferLine": "7호선 급행",
+    }
+
+    response = client.post("/api/v1/context/routes/alternative", json=payload)
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert "data" in data
+    assert "suggestAlternativeRoute" in data["data"]
+
+    print(
+        f"✅ Test 10 통과: 대안 경로 제안 - suggestAlternativeRoute={data['data']['suggestAlternativeRoute']}"
+    )
+
+
+# =====================================================
+# Test 11: 스마트 폴링 빈도 (Logic 4.3)
+# =====================================================
+
+def test_get_smart_polling_frequency():
+    """
+    Test: GET /api/v1/context/polling/frequency
+    기본 입력에 대해 200 응답 및 frequency 필드 확인
+    """
+    response = client.get(
+        "/api/v1/context/polling/frequency",
+        params={
+            "userLatitude": 37.4979,
+            "userLongitude": 127.0276,
+            "userSpeed": 3.6,
+            "transitMode": "WALKING",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert "data" in data
+    assert "frequency" in data["data"]
+    assert data["data"]["frequency"] in ["HIGH", "MEDIUM", "LOW"]
+
+    print(
+        f"✅ Test 11 통과: 스마트 폴링 빈도 - "
+        f"frequency={data['data']['frequency']}, interval={data['data']['intervalSeconds']}s"
+    )
 
 
 # =====================================================

@@ -6,7 +6,17 @@ PostGIS를 활용한 지리공간 데이터 지원.
 """
 
 from datetime import datetime, time
-from sqlalchemy import Column, String, Float, Integer, DateTime, Time, JSON, Enum, CheckConstraint
+from sqlalchemy import (
+    Column,
+    String,
+    Float,
+    Integer,
+    DateTime,
+    Time,
+    JSON,
+    Enum,
+    CheckConstraint,
+)
 from app.db.database import Base
 import enum
 
@@ -225,6 +235,50 @@ class AverageDurationDB(Base):
             f"avg={self.avg_duration_seconds}s, "
             f"samples={self.sample_count}"
             f")>"
+        )
+
+
+class LastBusScheduleDB(Base):
+    """
+    막차 시간표 테이블
+
+    퇴근 모드(Logic 1.2)에서 경로별 막차 시간을 조회하는 용도로 사용합니다.
+    실제 서비스에서는 노선/역/요일별로 데이터를 채워넣습니다.
+    """
+
+    __tablename__ = "last_bus_schedule"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    """막차 레코드 ID"""
+
+    route_choice = Column(String(1), nullable=False, index=True)
+    """퇴근 모드 경로 선택 (A/B/C 등)"""
+
+    route_name = Column(String(50), nullable=True)
+    """경로 이름 (예: 'A. 가장 빠르게')"""
+
+    transport_type = Column(String(20), nullable=False, default="BUS")
+    """교통수단 타입 (BUS/SUBWAY 등)"""
+
+    transport_name = Column(String(50), nullable=True)
+    """막차 교통수단 이름 (예: '146번')"""
+
+    last_bus_time = Column(Time, nullable=False)
+    """막차 출발 시각 (HH:MM[:SS])"""
+
+    day_of_week = Column(Integer, nullable=True)
+    """요일 (0=월요일, 6=일요일, None=공통)"""
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    """생성 시간"""
+
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    """수정 시간"""
+
+    def __repr__(self):
+        return (
+            f"<LastBusSchedule(route_choice='{self.route_choice}', "
+            f"time='{self.last_bus_time}', dow={self.day_of_week})>"
         )
 
 

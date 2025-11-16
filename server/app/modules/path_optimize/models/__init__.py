@@ -40,6 +40,7 @@ from .db_models import (
     CommuteSettingsDB,
     OptimizationHistoryDB,
     AverageDurationDB,
+    LastBusScheduleDB,
     TransportType as DBTransportType,
     SystemMode as DBSystemMode,
 )
@@ -66,6 +67,7 @@ __all__ = [
     "CommuteSettingsDB",
     "OptimizationHistoryDB",
     "AverageDurationDB",
+    "LastBusScheduleDB",
     "DBTransportType",
     "DBSystemMode",
 ]

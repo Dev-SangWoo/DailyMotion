@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # ODSAY API 설정
     ODSAY_API_KEY: Optional[str] = None
 
+    # Path Optimize / Commute Settings 동작 모드
+    # - False (기본): DB 우선 + MockUserDB 메모리 fallback 허용 (로컬/테스트 편의)
+    # - True : 출퇴근 설정은 항상 DB 기반으로만 사용 (운영/스테이징 등)
+    PATH_OPTIMIZE_COMMUTE_DB_ONLY: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
@@ -48,4 +53,3 @@ class Settings(BaseSettings):
 
 # 전역 설정 인스턴스
 settings = Settings()
-

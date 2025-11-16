@@ -86,7 +86,7 @@ class RecommendedTransport(BaseModel):
     """추천 교통수단"""
     type: TransportType = Field(..., description="교통 수단 타입")
     name: str = Field(..., description="교통수단 이름 (예: 123번 버스, 2호선)")
-    departureInMinutes: int = Field(..., description="출발까지 남은 시간 (분)")
+    departureInMinutes: Optional[int] = Field(..., description="출발까지 남은 시간 (분)")
     lineNumber: Optional[str] = Field(None, description="노선 번호")
     destination: Optional[str] = Field(None, description="목적지")
 
