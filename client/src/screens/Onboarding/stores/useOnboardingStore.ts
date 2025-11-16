@@ -46,6 +46,7 @@ export interface OnboardingState {
   // 진행 상태
   currentStep: number; // 1-9
   isCompleted: boolean;
+  isOnboarded: boolean; // RootNavigator에서 사용
 
   // Actions (명시적으로 정의된 메서드들)
   actions: {
@@ -106,6 +107,7 @@ const initialState = {
   },
   currentStep: 1,
   isCompleted: false,
+  isOnboarded: false,
 };
 
 /**
@@ -238,6 +240,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         completeOnboarding: () => {
           set({
             isCompleted: true,
+            isOnboarded: true,
             currentStep: 9,
           });
         },
@@ -258,6 +261,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         permissions: state.permissions,
         currentStep: state.currentStep,
         isCompleted: state.isCompleted,
+        isOnboarded: state.isOnboarded,
         // actions는 저장하지 않음
       }),
     }

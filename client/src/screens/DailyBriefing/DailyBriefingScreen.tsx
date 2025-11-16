@@ -11,8 +11,8 @@
  * - Phase 8.1-8.2: IntelligentDashboard 디자인 적용
  * - OpenAPI 스펙 GET /v1/briefings/commute
  */
-import React, { useState } from 'react';
-import { ScrollView, TouchableOpacity, View, TextInput, Dimensions, Image } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { ScrollView, TouchableOpacity, View, TextInput, Dimensions, Image, Animated } from 'react-native';
 import styled from 'styled-components/native';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
@@ -264,40 +264,50 @@ const DepartureInfoContainer = styled.View`
   padding-left: 0;
 `;
 
-const StationName = styled.Text`
+// 박스 스타일
+const InfoBox = styled.View`
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: ${theme.borderRadius.md}px;
+  padding: 2px ${theme.spacing.md}px;
+  align-self: flex-start;
+  margin-left: -${theme.spacing.md}px;
+`;
+
+const StationBusInfo = styled.Text`
   color: white;
-  font-size: ${theme.fonts.sizes.md}px;
+  font-size: ${theme.fonts.sizes.md + 3}px;
   font-weight: 600;
   text-align: left;
 `;
 
-const BusName = styled.Text`
+const ArrivalInfo = styled.Text`
   color: white;
-  font-size: ${theme.fonts.sizes.sm}px;
+  font-size: ${(theme.fonts.sizes.xxl || 32) + 3}px;
+  font-weight: 800;
+  line-height: ${((theme.fonts.sizes.xxl || 32) + 3) * 1.15}px;
+  text-align: left;
+`;
+
+const NextBusInfo = styled.Text`
+  color: rgba(255, 255, 255, 0.8);
+  font-size: ${theme.fonts.sizes.sm + 3}px;
   font-weight: 500;
   text-align: left;
+  margin-top: 2px;
 `;
 
-const ArrivalTime = styled.Text`
-  color: white;
-  font-size: ${theme.fonts.sizes.xxl || 32}px;
-  font-weight: 800;
-  line-height: ${(theme.fonts.sizes.xxl || 32) * 1.2}px;
-  text-align: left;
-`;
-
-const NextBusTime = styled.Text`
-  color: rgba(255, 255, 255, 0.7);
-  font-size: ${theme.fonts.sizes.xs}px;
-  font-weight: 400;
-  text-align: left;
+const DepartureAlertBox = styled.View`
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: ${theme.borderRadius.md}px;
+  padding: ${theme.spacing.sm}px ${theme.spacing.md}px;
+  align-self: flex-start;
+  margin-top: ${theme.spacing.xs}px;
 `;
 
 const DepartureAlert = styled.Text`
   color: white;
-  font-size: ${theme.fonts.sizes.sm}px;
-  font-weight: 600;
-  margin-top: ${theme.spacing.sm}px;
+  font-size: ${theme.fonts.sizes.sm + 3}px;
+  font-weight: 700;
   text-align: left;
 `;
 
@@ -442,6 +452,37 @@ const DailyBriefingScreen: React.FC = () => {
   const [isSearchBarExpanded, setIsSearchBarExpanded] = useState(false);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+
+  // Bus 애니메이션 (화면 밖에서 현재 위치까지)
+  const busTranslateX = useRef(new Animated.Value(200)).current; // 화면 밖 오른쪽에서 시작
+  const busTranslateY = useRef(new Animated.Value(-100)).current; // 화면 밖 위에서 시작
+
+  useEffect(() => {
+    // 무한 반복 애니메이션
+    const animateBus = () => {
+      // 초기 위치로 리셋 (화면 밖)
+      busTranslateX.setValue(200);
+      busTranslateY.setValue(-100);
+
+      Animated.parallel([
+        Animated.timing(busTranslateX, {
+          toValue: 0, // 현재 위치로 이동
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(busTranslateY, {
+          toValue: 0, // 현재 위치로 이동
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // 애니메이션 완료 후 즉시 다시 시작
+        animateBus();
+      });
+    };
+
+    animateBus();
+  }, []);
 
   // 즐겨찾기 목록
   const favorites = [
@@ -772,22 +813,65 @@ const DailyBriefingScreen: React.FC = () => {
                     <View style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', paddingRight: theme.spacing.lg, marginLeft: -theme.spacing.md, paddingLeft: theme.spacing.md }}>
                       {/* 왼쪽: 정보 영역 (70%) */}
                       <DepartureInfoContainer>
-                        <StationName>역삼역 3번 출구</StationName>
-                        <BusName>146번 버스</BusName>
-                        <ArrivalTime>5분 후 도착</ArrivalTime>
-                        <NextBusTime>다음 버스: 15분 후</NextBusTime>
-                        <DepartureAlert>
-                          지금 출발해야합니다!{'\n'}(가는 시간 5분)
-                        </DepartureAlert>
+                        {/* 역삼역 3번 출구 (박스 없음) */}
+                        <StationBusInfo>역삼역 3번 출구</StationBusInfo>
+
+                        {/* 박스: 146번 버스, 5분 후 도착, 다음 버스 15분 후 */}
+                        <InfoBox>
+                          <StationBusInfo>146번 버스</StationBusInfo>
+                          <ArrivalInfo>5분 후 도착</ArrivalInfo>
+                          <NextBusInfo>다음 버스 15분 후</NextBusInfo>
+                        </InfoBox>
+
+                        {/* 지금 출발해야합니다 (박스 없음) */}
+                        <DepartureAlert>지금 출발해야합니다</DepartureAlert>
                       </DepartureInfoContainer>
                       
-                      {/* 오른쪽: Bus Icon (30%) */}
-                      <View style={{ width: '30%', alignItems: 'flex-end' }}>
-                        <Image 
-                          source={require('../../assets/BusIcon.png')} 
-                          style={{ width: 120, height: 120, opacity: 0.6, transform: [{ scaleX: -1 }] }}
-                          resizeMode="contain"
-                        />
+                      {/* 오른쪽: Bus Icon + 배경 (30%) */}
+                      <View style={{ width: '30%', height: '100%', alignItems: 'flex-end', justifyContent: 'center', position: 'relative', paddingRight: theme.spacing.sm }}>
+                        {/* 배경: Road (버스 밑) - 길이 연장 */}
+                        
+                        <View style={{ position: 'absolute', top:29, right: -120, width: 420, height: 180, zIndex: 2 }}>
+                          <Image 
+                            source={require('../../assets/Road.png')} 
+                            style={{ width: '100%', height: '100%' }}
+                            resizeMode="contain"
+                          />
+                        </View>
+                        <View style={{ position: 'absolute', bottom: 25, right: -200, width: 420, height: 180, zIndex: 1 }}>
+                          <Image 
+                            source={require('../../assets/Road.png')} 
+                            style={{ width: '100%', height: '100%' }}
+                            resizeMode="contain"
+                          />
+                        </View>
+                        
+                        {/* 배경: BusStop (첫 번째 도로 위) */}
+                        <View style={{ position: 'absolute', top: -50, right: -20, width: 250, height: 250, zIndex: 2 }}>
+                          <Image 
+                            source={require('../../assets/BusStop.png')} 
+                            style={{ width: '100%', height: '100%', transform: [{ scaleX: -1 }] }}
+                            resizeMode="contain"
+                          />
+                        </View>
+                        
+                        {/* Bus Icon (앞쪽) - 애니메이션 */}
+                        <Animated.View 
+                          style={{ 
+                            zIndex: 3,
+                            transform: [
+                              { translateX: busTranslateX },
+                              { translateY: busTranslateY },
+                              { scaleX: -1 }
+                            ]
+                          }}
+                        >
+                          <Image 
+                            source={require('../../assets/BusIcon.png')} 
+                            style={{ left: 15, bottom: -5, width: 120, height: 120 }}
+                            resizeMode="contain"
+                          />
+                        </Animated.View>
                       </View>
                     </View>
                   ) : (

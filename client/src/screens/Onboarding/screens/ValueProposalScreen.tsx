@@ -186,7 +186,7 @@ export const ValueProposalScreen: React.FC<ValueProposalScreenProps> = ({
    * 현재 페이지 인덱스 업데이트
    */
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffsetX } = event.nativeEvent;
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
     const page = Math.round(contentOffsetX / screenWidth);
     setCurrentPage(page);
   };

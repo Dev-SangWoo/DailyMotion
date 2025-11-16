@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import { ValueProposalScreen } from './screens/ValueProposalScreen';
 import { JourneySetupScreen } from './screens/JourneySetupScreen';
 import { PathSelectionScreen } from './screens/PathSelectionScreen';
@@ -21,7 +21,7 @@ import { ScheduleSetupScreen } from './screens/ScheduleSetupScreen';
 import { PermissionsScreen } from './screens/PermissionsScreen';
 import { CompletionScreen } from './screens/CompletionScreen';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 /**
  * OnboardingStack - 온보딩 스택 네비게이터
@@ -32,10 +32,10 @@ const Stack = createNativeStackNavigator();
  */
 export const OnboardingStack = () => {
   return (
+    // @ts-ignore - React Navigation typing is overly strict for onboarding navigator
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animationEnabled: true,
         cardStyle: { backgroundColor: '#F0F4FF' },
       }}
       initialRouteName="ValueProposal"

@@ -121,7 +121,6 @@ export const OnboardingButton: React.FC<OnboardingButtonProps> = ({
       variant={variant}
       disabled={disabled || loading}
       onPress={handlePress}
-      pointerEvents={disabled || loading ? 'none' : 'auto'}
       testID={testID}
       accessible={accessible}
       accessibilityLabel={accessibilityLabel || label}
