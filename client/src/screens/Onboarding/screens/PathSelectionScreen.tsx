@@ -58,6 +58,103 @@ const HeadlineText = styled.Text`
   text-align: center;
 `;
 
+/**
+ * WeekdaySection - 요일 선택 섹션
+ */
+const WeekdaySection = styled.View`
+  background-color: white;
+  border-radius: 12px;
+  padding: ${theme.spacing.md}px;
+  margin-bottom: ${theme.spacing.lg}px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  elevation: 1;
+`;
+
+const WeekdayLabel = styled.Text`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${theme.colors.text};
+  margin-bottom: ${theme.spacing.sm}px;
+`;
+
+/**
+ * WeekdayContainer - 요일 버튼들의 컨테이너
+ */
+const WeekdayContainer = styled.View`
+  flex-direction: row;
+  gap: ${theme.spacing.sm}px;
+  margin-bottom: ${theme.spacing.md}px;
+  justify-content: space-between;
+`;
+
+/**
+ * WeekdayButton - 개별 요일 버튼
+ */
+const WeekdayButton = styled.TouchableOpacity<{ isSelected: boolean; isSaved: boolean }>`
+  flex: 1;
+  padding: ${theme.spacing.sm}px;
+  border-radius: 8px;
+  background-color: ${(props) => {
+    if (props.isSaved) return '#E8F5E9'; // 저장됨 - 연한 초록색
+    if (props.isSelected) return theme.colors.primary; // 선택됨 - 파란색
+    return '#F5F5F5'; // 미선택 - 회색
+  }};
+  border-width: 2px;
+  border-color: ${(props) => {
+    if (props.isSaved) return '#4CAF50'; // 저장됨 - 초록색
+    if (props.isSelected) return theme.colors.primary;
+    return 'transparent';
+  }};
+  align-items: center;
+  justify-content: center;
+`;
+
+const WeekdayText = styled.Text<{ isSelected: boolean; isSaved: boolean }>`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${(props) => {
+    if (props.isSaved) return '#2E7D32'; // 초록색
+    if (props.isSelected) return 'white';
+    return '#333333'; // 기본 텍스트 색
+  }};
+`;
+
+const SaveCheckmark = styled.Text`
+  font-size: 16px;
+  color: #4CAF50;
+  margin-left: 4px;
+`;
+
+/**
+ * SaveButtonContainer - 저장 버튼 컨테이너
+ */
+const SaveButtonContainer = styled.View`
+  gap: ${theme.spacing.sm}px;
+  margin-bottom: ${theme.spacing.lg}px;
+`;
+
+const SaveButtonText = styled.Text`
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+/**
+ * StatusText - 저장 상태 메시지
+ */
+const StatusText = styled.Text`
+  font-size: 13px;
+  color: #4CAF50;
+  text-align: center;
+  font-weight: 500;
+`;
+
+const SavedDaysText = styled.Text`
+  font-size: 12px;
+  color: ${theme.colors.textSecondary};
+  text-align: center;
+`;
+
 const JourneyCard = styled.View`
   background-color: white;
   border-radius: 12px;
@@ -71,6 +168,33 @@ const JourneyCard = styled.View`
 
 const JourneyGroup = styled.View`
   margin-bottom: ${theme.spacing.md}px;
+  position: relative;
+  border-width: 1px;
+  border-color: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: ${theme.spacing.xs}px;
+  background-color: rgba(255, 255, 255, 0.5);
+`;
+
+const JourneyGroupCards = styled.View`
+  gap: ${theme.spacing.xs}px;
+`;
+
+const ArrowOverlay = styled.View`
+  position: absolute;
+  align-self: center;
+  top: 50%;
+  margin-top: -12px;
+  z-index: 10;
+  pointer-events: none;
+`;
+
+const ArrowIcon = styled.Text`
+  font-size: 24px;
+  color: ${theme.colors.primary};
+  background-color: rgba(240, 244, 255, 0.9);
+  padding: 4px;
+  border-radius: 12px;
 `;
 
 const Divider = styled.View`
@@ -278,6 +402,13 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
 
+  // 요일 선택 관련 state
+  const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
+  const [selectedDay, setSelectedDay] = useState(0); // 기본: 월요일
+  const [journeysByDay, setJourneysByDay] = useState<Record<number, JourneySegment[]>>({});
+  const [savedDays, setSavedDays] = useState<Set<number>>(new Set());
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
   // 사용 가능한 장소 목록 (집 제외, 이미 추가된 장소 제외)
   const availablePlaces = useMemo(() => {
     const homeAddress = places.homeAddress;
@@ -338,6 +469,36 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     setShowTimePicker(false);
     setEditingSegmentId(null);
   }, [editingSegmentId]);
+
+  // 요일 선택 핸들러
+  const handleSelectDay = useCallback((dayIndex: number) => {
+    setSelectedDay(dayIndex);
+
+    // 선택한 요일의 여정이 이미 저장되어 있으면 로드, 없으면 현재 세그먼트 유지
+    if (journeysByDay[dayIndex]) {
+      setSegments(journeysByDay[dayIndex]);
+    }
+    // saveStatus 초기화
+    setSaveStatus(null);
+  }, [journeysByDay]);
+
+  // 요일 여정 저장 핸들러
+  const handleSaveJourney = useCallback(() => {
+    // 현재 요일의 여정 저장
+    setJourneysByDay((prev) => ({
+      ...prev,
+      [selectedDay]: [...segments],
+    }));
+
+    // 저장된 요일에 추가
+    setSavedDays((prev) => new Set(prev).add(selectedDay));
+
+    // 저장 완료 메시지 표시
+    setSaveStatus(`${WEEKDAYS[selectedDay]}요일 여정이 저장되었습니다 ✓`);
+
+    // 2초 후 메시지 사라지기
+    setTimeout(() => setSaveStatus(null), 2000);
+  }, [selectedDay, segments, WEEKDAYS]);
 
   // 장소 추가 버튼 클릭
   const handleAddPlace = useCallback(() => {
@@ -455,47 +616,89 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
         <ContentContainer>
           <HeadlineText>보통 이 경로로{'\n'}다니시나요?</HeadlineText>
 
+          {/* 요일 선택 섹션 */}
+          <WeekdaySection>
+            <WeekdayLabel>요일 선택</WeekdayLabel>
+            <WeekdayContainer>
+              {WEEKDAYS.map((day, index) => (
+                <WeekdayButton
+                  key={index}
+                  isSelected={selectedDay === index}
+                  isSaved={savedDays.has(index)}
+                  onPress={() => handleSelectDay(index)}
+                >
+                  <WeekdayText isSelected={selectedDay === index} isSaved={savedDays.has(index)}>
+                    {day}
+                  </WeekdayText>
+                  {savedDays.has(index) && <SaveCheckmark>✓</SaveCheckmark>}
+                </WeekdayButton>
+              ))}
+            </WeekdayContainer>
+
+            {/* 저장 버튼과 상태 메시지 */}
+            <SaveButtonContainer>
+              <OnboardingButton
+                label={`${WEEKDAYS[selectedDay]}요일 여정 저장`}
+                onPress={handleSaveJourney}
+                variant="primary"
+              />
+              {saveStatus && <StatusText>{saveStatus}</StatusText>}
+              {savedDays.size > 0 && (
+                <SavedDaysText>
+                  저장됨: {Array.from(savedDays).map(i => WEEKDAYS[i]).join(', ')}
+                </SavedDaysText>
+              )}
+            </SaveButtonContainer>
+          </WeekdaySection>
+
           {/* 여정 그룹 리스트 */}
           {journeyGroups.map((group, groupIndex) => (
             <React.Fragment key={`group-${groupIndex}`}>
               <JourneyGroup>
-                {/* 출발 카드 */}
-                <JourneyCard>
-                  <CardHeader>
-                    <LeftSection>
-                      <PlaceIcon>{group.depart.placeIcon}</PlaceIcon>
-                      <PlaceInfo>
-                        <PlaceName>{group.depart.placeName}</PlaceName>
-                        <SegmentType>출발</SegmentType>
-                      </PlaceInfo>
-                    </LeftSection>
-                    <TimeSection>
-                      <TimeInputContainer onPress={() => handleTimePress(group.depart.id)}>
-                        <TimeDisplay>{group.depart.time}</TimeDisplay>
-                        <TimeLabel>클릭하여 수정</TimeLabel>
-                      </TimeInputContainer>
-                    </TimeSection>
-                  </CardHeader>
-                </JourneyCard>
+                <JourneyGroupCards>
+                  {/* 출발 카드 */}
+                  <JourneyCard>
+                    <CardHeader>
+                      <LeftSection>
+                        <PlaceIcon>{group.depart.placeIcon}</PlaceIcon>
+                        <PlaceInfo>
+                          <PlaceName>{group.depart.placeName}</PlaceName>
+                          <SegmentType>출발</SegmentType>
+                        </PlaceInfo>
+                      </LeftSection>
+                      <TimeSection>
+                        <TimeInputContainer onPress={() => handleTimePress(group.depart.id)}>
+                          <TimeDisplay>{group.depart.time}</TimeDisplay>
+                          <TimeLabel>클릭하여 수정</TimeLabel>
+                        </TimeInputContainer>
+                      </TimeSection>
+                    </CardHeader>
+                  </JourneyCard>
 
-                {/* 도착 카드 */}
-                <JourneyCard>
-                  <CardHeader>
-                    <LeftSection>
-                      <PlaceIcon>{group.arrive.placeIcon}</PlaceIcon>
-                      <PlaceInfo>
-                        <PlaceName>{group.arrive.placeName}</PlaceName>
-                        <SegmentType>도착</SegmentType>
-                      </PlaceInfo>
-                    </LeftSection>
-                    <TimeSection>
-                      <TimeInputContainer onPress={() => handleTimePress(group.arrive.id)}>
-                        <TimeDisplay>{group.arrive.time}</TimeDisplay>
-                        <TimeLabel>클릭하여 수정</TimeLabel>
-                      </TimeInputContainer>
-                    </TimeSection>
-                  </CardHeader>
-                </JourneyCard>
+                  {/* 도착 카드 */}
+                  <JourneyCard>
+                    <CardHeader>
+                      <LeftSection>
+                        <PlaceIcon>{group.arrive.placeIcon}</PlaceIcon>
+                        <PlaceInfo>
+                          <PlaceName>{group.arrive.placeName}</PlaceName>
+                          <SegmentType>도착</SegmentType>
+                        </PlaceInfo>
+                      </LeftSection>
+                      <TimeSection>
+                        <TimeInputContainer onPress={() => handleTimePress(group.arrive.id)}>
+                          <TimeDisplay>{group.arrive.time}</TimeDisplay>
+                          <TimeLabel>클릭하여 수정</TimeLabel>
+                        </TimeInputContainer>
+                      </TimeSection>
+                    </CardHeader>
+                  </JourneyCard>
+                </JourneyGroupCards>
+
+                {/* 화살표 오버레이 (두 카드 사이에 겹치게) */}
+                <ArrowOverlay>
+                  <ArrowIcon>↓</ArrowIcon>
+                </ArrowOverlay>
               </JourneyGroup>
 
               {/* 그룹 간 구분선 (마지막 그룹이 아닐 때만) */}
