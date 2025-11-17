@@ -57,6 +57,9 @@ from app.modules.path_optimize.clients.risk_manage_client import (
     RiskManageService,
     MockRiskManageService
 )
+from app.modules.path_optimize.seoul_subway_congestion_repository import (
+    get_subway_congestion,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -728,6 +731,28 @@ class PathOptimizeService:
                     line_number = f"{subway_code}호선" if subway_code else name
                     destination = _map_direction(way_code)  # "상행" or "하행"
 
+                    # 혼잡도(서울교통공사 평균) 조회 시도 - Phase C-1.2
+                    congestion_info = None
+                    try:
+                        start_station_id = segment.get("startID") or segment.get("startStationID")
+                        if start_station_id is not None and subway_code:
+                            congestion_info = get_subway_congestion(
+                                odsay_station_id=int(start_station_id),
+                                subway_code=int(subway_code),
+                                way_code=int(way_code),
+                                now=current_time,
+                            )
+                            if congestion_info:
+                                logger.info(
+                                    "🚇 평균 혼잡도 조회: "
+                                    f"{congestion_info.station_name} "
+                                    f"{congestion_info.line_name} "
+                                    f"{congestion_info.congestion_value:.1f}% "
+                                    f"({congestion_info.congestion_level})"
+                                )
+                    except Exception as e:
+                        logger.warning(f"⚠️ 지하철 혼잡도 조회 실패: {str(e)}")
+
                     # 실시간 데이터 조회 시도
                     realtime_info = None
                     try:
@@ -756,7 +781,7 @@ class PathOptimizeService:
                             "destination": destination,
                             "departureInMinutes": realtime_info["arrivalMinutes"],
                             "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
-                            "isRealtime": True
+                            "isRealtime": True,
                         }
 
                     # 통계 데이터 확인
@@ -772,7 +797,7 @@ class PathOptimizeService:
                                 "destination": destination,
                                 "departureInMinutes": stat_data.get("avgDepartureInterval", 5),
                                 "transitTimeMinutes": stat_data.get("avgTransitTime", 30),
-                                "isRealtime": False
+                                "isRealtime": False,
                             }
 
                     # ✅ BUG FIX 1: departureInMinutes Null 방지 - Fallback 기본값 사용
@@ -785,7 +810,7 @@ class PathOptimizeService:
                         "destination": destination,
                         "departureInMinutes": departure_in_minutes_odsay or DEFAULT_FIRST_MILE_DURATION,
                         "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
-                        "isRealtime": False
+                        "isRealtime": False,
                     }
 
                 # ========================================
