@@ -3,9 +3,8 @@
  *
  * 10개 스크린을 StackNavigator로 관리합니다.
  * - 스크린 1-3: ValueProposalScreen
- * - 스크린 4: OriginScreen (출발지)
- * - 스크린 5: DestinationScreen (도착지)
- * - 스크린 6: PathSelectionScreen
+ * - 스크린 4: PlacesSetupScreen (집 주소 + 자주 가는 장소들)
+ * - 스크린 5: PathSelectionScreen
  * - 스크린 7: GoalTimeScreen
  * - 스크린 8: ScheduleSetupScreen
  * - 스크린 9: PermissionsScreen
@@ -15,8 +14,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ValueProposalScreen } from './screens/ValueProposalScreen';
-import { OriginScreen } from './screens/OriginScreen';
-import { DestinationScreen } from './screens/DestinationScreen';
+import { PlacesSetupScreen } from './screens/PlacesSetupScreen';
 import { PathSelectionScreen } from './screens/PathSelectionScreen';
 import { GoalTimeScreen } from './screens/GoalTimeScreen';
 import { ScheduleSetupScreen } from './screens/ScheduleSetupScreen';
@@ -39,6 +37,8 @@ export const OnboardingStack = () => {
       screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: '#F0F4FF' },
+        animationEnabled: true,
+        presentation: 'card',
       }}
       initialRouteName="ValueProposal"
     >
@@ -51,25 +51,16 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 4: 출발지 설정 */}
+      {/* 스크린 4: 장소 설정 (집 주소 + 자주 가는 장소) */}
       <Stack.Screen
-        name="Origin"
-        component={OriginScreen}
+        name="PlacesSetup"
+        component={PlacesSetupScreen}
         options={{
           gestureEnabled: true,
         }}
       />
 
-      {/* 스크린 5: 도착지 설정 */}
-      <Stack.Screen
-        name="Destination"
-        component={DestinationScreen}
-        options={{
-          gestureEnabled: true,
-        }}
-      />
-
-      {/* 스크린 6: 경로 선택 */}
+      {/* 스크린 5: 경로 선택 */}
       <Stack.Screen
         name="PathSelection"
         component={PathSelectionScreen}

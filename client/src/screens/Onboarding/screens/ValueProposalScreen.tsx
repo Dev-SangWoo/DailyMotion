@@ -195,7 +195,7 @@ export const ValueProposalScreen: React.FC<ValueProposalScreenProps> = ({
    * CTA 버튼 탭 핸들러
    */
   const handleCTAPress = () => {
-    navigation.navigate('Origin');
+    navigation.navigate('PlacesSetup');
   };
 
   return (

@@ -6,14 +6,10 @@
  * - InputField: 출발지 (📍)
  * - InputField: 도착지 (🏢)
  * - Button: 다음
- *
- * desgin.md v3.2 준수:
- * - 대화형 설정 (한 번에 하나씩)
- * - 입력 필드는 Flat 스타일
- * - CTA는 3D 버튼
  */
 
 import React, { useState, useCallback } from 'react';
+import { View, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import styled from 'styled-components/native';
 import { theme } from '../../../styles/theme';
 import { onboardingTheme } from '../styles/onboardingTheme';
@@ -27,132 +23,74 @@ interface JourneySetupScreenProps {
   };
 }
 
-/**
- * OuterContainer - 전체 컨테이너
- */
-const OuterContainer = styled.SafeAreaView`
+const Container = styled(SafeAreaView)`
   flex: 1;
   background-color: #F0F4FF;
 `;
 
-/**
- * ScrollContainer - 스크롤 가능 컨테이너
- */
-const ScrollContainer = styled.ScrollView`
+const Content = styled.View`
   flex: 1;
-`;
-
-/**
- * ContentContainer - 컨텐츠 영역
- */
-const ContentContainer = styled.View`
   padding: ${theme.spacing.lg}px;
-  gap: ${theme.spacing.lg}px;
-  flex-grow: 1;
   justify-content: center;
 `;
 
-/**
- * HeadlineText - 제목 (Headline-M: 22px, Semi-Bold)
- */
-const HeadlineText = styled.Text`
+const Title = styled.Text`
   font-size: ${onboardingTheme.typography.headlineM.fontSize}px;
   font-weight: ${onboardingTheme.typography.headlineM.fontWeight};
   color: ${theme.colors.text};
-  margin-bottom: ${theme.spacing.md}px;
+  margin-bottom: ${theme.spacing.xl}px;
   line-height: ${onboardingTheme.typography.headlineM.lineHeight}px;
 `;
 
-/**
- * InputsContainer - 입력 필드 그룹
- */
-const InputsContainer = styled.View`
+const InputsWrapper = styled.View`
   gap: ${theme.spacing.lg}px;
 `;
 
-/**
- * ButtonContainer - 버튼 영역
- */
-const ButtonContainer = styled.View`
-  gap: ${theme.spacing.md}px;
-  margin-top: ${theme.spacing.lg}px;
+const ButtonWrapper = styled.View`
+  margin-top: ${theme.spacing.xl}px;
 `;
 
-/**
- * JourneySetupScreen 컴포넌트
- *
- * 사용자가 가장 중요한 여정(예: 회사)의 출발지와 도착지를 입력
- */
-export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({
-  navigation,
-}) => {
+export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({ navigation }) => {
   const actions = useOnboardingActions();
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
 
-  // onChange 핸들러를 useCallback으로 메모이제이션하여 불필요한 리렌더링 방지
-  const handleOriginChange = useCallback((text: string) => {
-    setOrigin(text);
-  }, []);
-
-  const handleDestinationChange = useCallback((text: string) => {
-    setDestination(text);
-  }, []);
-
-  /**
-   * 다음 버튼 탭 핸들러
-   * - 출발지/도착지 상태 저장
-   * - 다음 스크린으로 이동
-   */
   const handleNext = useCallback(() => {
-    // 상태 저장 (Zustand)
     actions.updateOrigin(origin);
     actions.updateDestination(destination);
     actions.nextStep();
-
-    // 네비게이션
     navigation.navigate('PathSelection');
   }, [origin, destination, actions, navigation]);
 
-  /**
-   * 다음 버튼 활성화 여부
-   * - 출발지와 도착지 모두 입력되어야 함
-   */
   const isNextEnabled = origin.trim() !== '' && destination.trim() !== '';
 
   return (
-    <OuterContainer>
-      <ScrollContainer
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="interactive"
-      >
-        <ContentContainer>
-          {/* 제목 */}
-          <HeadlineText>
-            가장 중요한 여정을{'\n'}알려주세요.
-          </HeadlineText>
-
-          {/* 입력 필드 */}
-          <InputsContainer>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <Container>
+        <Content>
+          <Title>가장 중요한 여정을{'\n'}알려주세요.</Title>
+          
+          <InputsWrapper>
             <InputField
               placeholder="출발지 (예: 집)"
               value={origin}
-              onChange={handleOriginChange}
+              onChange={setOrigin}
               icon="📍"
               testID="origin-input"
             />
             <InputField
               placeholder="도착지 (예: 회사)"
               value={destination}
-              onChange={handleDestinationChange}
+              onChange={setDestination}
               icon="🏢"
               testID="destination-input"
             />
-          </InputsContainer>
+          </InputsWrapper>
 
-          {/* 버튼 */}
-          <ButtonContainer>
+          <ButtonWrapper>
             <OnboardingButton
               label="다음"
               onPress={handleNext}
@@ -160,11 +98,12 @@ export const JourneySetupScreen: React.FC<JourneySetupScreenProps> = ({
               variant="primary"
               testID="next-button"
             />
-          </ButtonContainer>
-        </ContentContainer>
-      </ScrollContainer>
-    </OuterContainer>
+          </ButtonWrapper>
+        </Content>
+      </Container>
+    </KeyboardAvoidingView>
   );
 };
 
 export default JourneySetupScreen;
+

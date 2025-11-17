@@ -239,7 +239,8 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
       bubbleAnimations[homeKey] = new Animated.Value(0);
       const newHome = { name: trimmed, icon: '🏠', address };
       setHomeAddress(newHome);
-      actions.updateHomeAddress(newHome);  // ← 객체 전체 저장
+      // Store에 객체로 저장
+      actions.updateHomeAddress(newHome);
       setCurrentHomeName('');
       setIsHomeModalVisible(false);
       

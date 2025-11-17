@@ -13,10 +13,10 @@ import { persist } from 'zustand/middleware';
  * 온보딩 상태 인터페이스
  */
 export interface OnboardingState {
-  // 여정 설정 (스크린 4)
-  journeySetup: {
-    origin: string;
-    destination: string;
+  // 장소 설정 (스크린 4-5)
+  places: {
+    homeAddress: string | { name: string; icon: string; address?: string } | null;
+    favoritePlaces: Array<{ name: string; icon: string; address?: string }>;
   };
 
   // 경로 선택 (스크린 5)
@@ -50,10 +50,10 @@ export interface OnboardingState {
 
   // Actions (명시적으로 정의된 메서드들)
   actions: {
-    // 여정 설정
-    updateOrigin: (origin: string) => void;
-    updateDestination: (destination: string) => void;
-    resetJourneySetup: () => void;
+    // 장소 설정
+    updateHomeAddress: (address: string | { name: string; icon: string; address?: string }) => void;
+    updateFavoritePlaces: (places: Array<{ name: string; icon: string; address?: string }>) => void;
+    resetPlaces: () => void;
 
     // 경로 선택
     selectPath: (pathIndex: number) => void;
@@ -85,9 +85,9 @@ export interface OnboardingState {
  * 온보딩 초기 상태
  */
 const initialState = {
-  journeySetup: {
-    origin: '',
-    destination: '',
+  places: {
+    homeAddress: '',
+    favoritePlaces: [],
   },
   pathSelection: {
     selectedPathIndex: 0,
@@ -120,28 +120,28 @@ export const useOnboardingStore = create<OnboardingState>()(
       ...initialState,
 
       actions: {
-        // 여정 설정
-        updateOrigin: (origin: string) => {
+        // 장소 설정
+        updateHomeAddress: (address: string) => {
           set((state) => ({
-            journeySetup: {
-              ...state.journeySetup,
-              origin,
+            places: {
+              ...state.places,
+              homeAddress: address,
             },
           }));
         },
 
-        updateDestination: (destination: string) => {
+        updateFavoritePlaces: (favoritePlaces: Array<{ name: string; icon: string; address?: string }>) => {
           set((state) => ({
-            journeySetup: {
-              ...state.journeySetup,
-              destination,
+            places: {
+              ...state.places,
+              favoritePlaces,
             },
           }));
         },
 
-        resetJourneySetup: () => {
+        resetPlaces: () => {
           set((state) => ({
-            journeySetup: initialState.journeySetup,
+            places: initialState.places,
           }));
         },
 
@@ -254,7 +254,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     {
       name: 'onboarding-storage', // AsyncStorage 키
       partialize: (state) => ({
-        journeySetup: state.journeySetup,
+        places: state.places,
         pathSelection: state.pathSelection,
         goalTime: state.goalTime,
         schedule: state.schedule,
@@ -284,7 +284,7 @@ export const useOnboardingActions = () => {
 export const useOnboardingData = () => {
   const state = useOnboardingStore();
   return {
-    journeySetup: state.journeySetup,
+    places: state.places,
     pathSelection: state.pathSelection,
     goalTime: state.goalTime,
     schedule: state.schedule,

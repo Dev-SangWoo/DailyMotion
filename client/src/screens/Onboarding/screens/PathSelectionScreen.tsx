@@ -348,41 +348,11 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     setShowPlaceModal(true);
   }, [availablePlaces.length]);
 
-  // 실제 렌더링할 세그먼트 (집 도착 시간 자동 업데이트)
+  // 실제 렌더링할 세그먼트
+  // (집 도착 시간은 사용자가 명시적으로 변경할 때만 업데이트, 자동 변경 없음)
   const displaySegments = useMemo(() => {
-    if (!homeInfo) return segments;
-    
-    // 집 출발과 집 도착이 모두 있는지 확인
-    const hasHomeDepart = segments.some((seg) => seg.id === 'home-depart');
-    const hasHomeArrival = segments.some((seg) => seg.id === 'home-arrive');
-    
-    // 집 출발과 집 도착이 모두 있어야 함
-    if (!hasHomeDepart || !hasHomeArrival) {
-      return segments;
-    }
-    
-    // 집 도착 시간을 마지막 세그먼트(집 도착 제외) 기준으로 자동 업데이트
-    const segmentsWithoutHomeArrival = segments.filter((seg) => seg.id !== 'home-arrive');
-    const lastSegment = segmentsWithoutHomeArrival[segmentsWithoutHomeArrival.length - 1];
-    
-    if (lastSegment && lastSegment.id !== 'home-depart') {
-      // 마지막 세그먼트 시간 기준으로 +1시간
-      const [lastHours, lastMinutes] = lastSegment.time.split(':').map(Number);
-      const arrivalMinutes = lastMinutes + 60;
-      const arrivalHours = lastHours + Math.floor(arrivalMinutes / 60);
-      const finalArrivalMinutes = arrivalMinutes % 60;
-      const homeArrivalTime = `${String(arrivalHours % 24).padStart(2, '0')}:${String(finalArrivalMinutes).padStart(2, '0')}`;
-      
-      // 집 도착 시간 업데이트
-      return segments.map((seg) =>
-        seg.id === 'home-arrive'
-          ? { ...seg, time: homeArrivalTime }
-          : seg
-      );
-    }
-    
     return segments;
-  }, [segments, homeInfo]);
+  }, [segments]);
 
   // 장소 선택 확인
   const handlePlaceSelect = useCallback((place: { name: string; icon: string; address?: string }) => {

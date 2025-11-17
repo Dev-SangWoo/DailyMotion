@@ -876,25 +876,25 @@ const DailyBriefingScreen: React.FC = () => {
                     </View>
                   ) : (
                     <>
-                      <CardHeader>
-                        <CardIconBox>
-                          <CardTitle style={{ fontSize: 28 }}>{card.icon}</CardTitle>
-                        </CardIconBox>
-                        <View style={{ flex: 1 }}>
-                          <CardTitle>{card.title}</CardTitle>
-                        </View>
-                      </CardHeader>
+                  <CardHeader>
+                    <CardIconBox>
+                      <CardTitle style={{ fontSize: 28 }}>{card.icon}</CardTitle>
+                    </CardIconBox>
+                    <View style={{ flex: 1 }}>
+                      <CardTitle>{card.title}</CardTitle>
+                    </View>
+                  </CardHeader>
 
-                      <CardContent>
-                        <CardText>{card.content}</CardText>
-                        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                          {card.badges.map((badge, idx) => (
-                            <CardBadge key={idx}>
-                              <CardBadgeText>{badge}</CardBadgeText>
-                            </CardBadge>
-                          ))}
-                        </View>
-                      </CardContent>
+                  <CardContent>
+                    <CardText>{card.content}</CardText>
+                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                      {card.badges.map((badge, idx) => (
+                        <CardBadge key={idx}>
+                          <CardBadgeText>{badge}</CardBadgeText>
+                        </CardBadge>
+                      ))}
+                    </View>
+                  </CardContent>
                     </>
                   )}
 
@@ -941,29 +941,29 @@ const DailyBriefingScreen: React.FC = () => {
               bounces={true}
             >
               <JourneyStepsContent>
-                {[
-                  { icon: '🏠', title: '집', description: '서울시 강남구 역삼동', duration: 0 },
-                  { icon: '👣', title: '도보 이동', description: '역삼역 3번 출구까지', duration: 5 },
-                  { icon: '🚇', title: '2호선 탑승', description: '시청역 방면 · 3-2칸 추천', duration: 30 },
-                  { icon: '👣', title: '도보 이동', description: '시청역 2번 출구에서', duration: 5 },
-                  { icon: '🏢', title: '회사', description: '서울시 중구 시청역', duration: 0 },
-                ].map((step, index) => (
+              {[
+                { icon: '🏠', title: '집', description: '서울시 강남구 역삼동', duration: 0 },
+                { icon: '👣', title: '도보 이동', description: '역삼역 3번 출구까지', duration: 5 },
+                { icon: '🚇', title: '2호선 탑승', description: '시청역 방면 · 3-2칸 추천', duration: 30 },
+                { icon: '👣', title: '도보 이동', description: '시청역 2번 출구에서', duration: 5 },
+                { icon: '🏢', title: '회사', description: '서울시 중구 시청역', duration: 0 },
+              ].map((step, index) => (
                   <StepItem key={index}>
                     <StepIconContainer>
                       <CardTitle style={{ fontSize: 22, color: '#666' }}>{step.icon}</CardTitle>
-                    </StepIconContainer>
-                    <StepContentBox>
-                      <StepTitle>{step.title}</StepTitle>
-                      <StepDescription>{step.description}</StepDescription>
-                    </StepContentBox>
-                    {step.duration > 0 && (
-                      <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
-                        <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>{step.duration}</CardTitle>
-                        <StepDescription>분</StepDescription>
-                      </View>
-                    )}
-                  </StepItem>
-                ))}
+                  </StepIconContainer>
+                  <StepContentBox>
+                    <StepTitle>{step.title}</StepTitle>
+                    <StepDescription>{step.description}</StepDescription>
+                  </StepContentBox>
+                  {step.duration > 0 && (
+                    <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
+                      <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>{step.duration}</CardTitle>
+                      <StepDescription>분</StepDescription>
+                    </View>
+                  )}
+                </StepItem>
+              ))}
               </JourneyStepsContent>
             </ScrollView>
           </JourneyDetailsCard>
