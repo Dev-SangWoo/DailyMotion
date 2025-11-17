@@ -396,31 +396,18 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     };
 
     setSegments((prev) => {
+      // 기존 집 도착 시간 저장 (유지하기 위함)
+      const homeArrivalSegment = prev.find((seg) => seg.id === 'home-arrive');
+
       // 집 도착을 제외한 세그먼트들에 새 장소 추가
       const withoutHomeArrival = prev.filter((seg) => seg.id !== 'home-arrive');
       const withNewPlace = [...withoutHomeArrival, arriveSegment, departSegment];
-      
-      // 집 도착 시간 재계산 (마지막 출발 시간 + 1시간)
-      if (homeInfo) {
-        const [departHours, departMins] = departTime.split(':').map(Number);
-        const arrivalMinutes = departMins + 60;
-        const arrivalHours = departHours + Math.floor(arrivalMinutes / 60);
-        const finalArrivalMinutes = arrivalMinutes % 60;
-        const homeArrivalTime = `${String(arrivalHours % 24).padStart(2, '0')}:${String(finalArrivalMinutes).padStart(2, '0')}`;
-        
-        return [
-          ...withNewPlace,
-          {
-            id: 'home-arrive',
-            placeId: 'home',
-            placeName: homeInfo.name,
-            placeIcon: homeInfo.icon,
-            type: 'arrive',
-            time: homeArrivalTime,
-          },
-        ];
+
+      // 집 도착 시간 유지 (기존 시간으로 복원)
+      if (homeArrivalSegment) {
+        return [...withNewPlace, homeArrivalSegment];
       }
-      
+
       return withNewPlace;
     });
     setShowPlaceModal(false);
