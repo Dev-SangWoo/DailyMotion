@@ -231,12 +231,17 @@ class BriefingResponse(BaseModel):
         "data": {
             "alertType": "GO_NOW" | "LAST_CHANCE" | "NO_ACTION" | "TAXI_REQUIRED",
             "message": "사용자 메시지",
+            "totalDurationMinutes": 42,
             "recommendedTransport": { ... }
         }
     }
     """
     alertType: AlertType = Field(..., description="알림 타입")
     message: str = Field(..., description="사용자에게 표시할 메시지")
+    totalDurationMinutes: Optional[int] = Field(
+        None,
+        description="출발지(집)에서 도착지(회사)까지 예상 총 소요시간 (분, Door-to-Door)"
+    )
     recommendedTransport: Optional[RecommendedTransport] = Field(
         None,
         description="추천 교통수단"
@@ -247,6 +252,7 @@ class BriefingResponse(BaseModel):
             "example": {
                 "alertType": "GO_NOW",
                 "message": "8:50 도착을 위해, 지금 집에서 출발하셔서 5분 뒤 오는 [123번 버스]를 타세요.",
+                "totalDurationMinutes": 42,
                 "recommendedTransport": {
                     "type": "BUS",
                     "name": "123번",

@@ -49,4 +49,4 @@ htmlcov/
 # Build outputs
 *.pyc
 *.pyo
-
+.claude

@@ -50,15 +50,24 @@
 
 - [ ] 출퇴근 설정 API 정리  
   - [x] 스펙: `PUT /users/me/settings/commute` 구현 (Users 도메인 기준 저장 API)  
+        ↳ `user_router.py`에서 `CommuteSettings` Pydantic 모델 + Envelope 응답(`CommuteSettingsSaveResult`)로 정리,  
+          좌표 필드(home/work lat/lng)까지 함께 저장하도록 구현.
   - [ ] `/briefings/commute-settings` → 점진적 deprecate: 저장은 Users API 사용, 조회/Phase 12 테스트는 유지 (DB 전환 시 통합)
 
 - [ ] 쿼리 파라미터 이름 정합성  
   - [x] 스펙/라우터/테스트를 모두 camelCase 쿼리 파라미터(`userId`, `homeAddress`, ...)로 통일  
-  - [ ] 나머지 모듈(ai_pattern, risk_manage 등)에 대해서도 동일 원칙 적용 여부 검토
+  - [ ] 나머지 모듈(ai_pattern, risk_manage 등)에 대해서도 동일 원칙 적용 여부 검토  
+        ↳ `risk_manage_router.py`에 대해는 camelCase(`riskType`, `reporterId`, `minLat` 등)로 맞춰 둔 상태.  
+          ai_pattern 모듈은 아직 비활성화 가능성이 있어 보류.
 
 - [ ] `ai_pattern`, `risk_manage`, `users` 라우터  
   - [ ] 스펙에 노출할 API 목록 정의  
-  - [ ] service 레이어(`ai_pattern.service`, `risk_manage.service`)와 실제로 연결  
+        ↳ Users: `/users/me/settings/commute`를 외부 공개 API로 채택, 나머지 `/users` 관련 엔드포인트는 mock/내부용.  
+        ↳ RiskManage: `/risk-manage/report`, `/risk-manage/reports`, `/risk-manage/risk-zones`를 외부 공개 API 후보로 정리 (스펙 반영은 추후).  
+  - [x] service 레이어(`risk_manage.service`, Users 측 MockUserDB)와 실제로 연결  
+        ↳ `risk_manage_router.py`에서 `RiskManageService`의 `create_report/get_reports/get_risk_zones` 호출,  
+          `user_router.py`에서 `MockUserDB.save_commute_settings`를 통해 CommuteSettingsDB와 연동.  
+          ai_pattern 라우터는 모듈 미개발 가능성 때문에 아직 보류.  
   - [ ] 필요 없거나 내부용인 엔드포인트는 스펙에서 제외 or `/internal` 네임스페이스로 분리
 
 ---

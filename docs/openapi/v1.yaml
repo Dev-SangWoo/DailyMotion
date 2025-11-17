@@ -917,6 +917,10 @@ components:
               type: string
               description: 사용자에게 표시할 메시지
               example: "8:50 도착을 위해, 지금 집에서 출발하셔서 5분 뒤 오는 [123번 버스]를 타세요."
+            totalDurationMinutes:
+              type: integer
+              description: 출발지(집)에서 도착지(회사)까지 예상 총 소요시간 (분, Door-to-Door)
+              example: 42
             recommendedTransport:
               $ref: '#/components/schemas/RecommendedTransport'
           required:

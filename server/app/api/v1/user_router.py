@@ -1,31 +1,36 @@
 """
 사용자 관련 API 라우터
+
+Design-First 규칙:
+- Users 도메인 외부에 노출할 API는 최소한으로 유지
+- 출퇴근 설정 저장은 /users/me/settings/commute 하나에 집중
 """
 from datetime import datetime
+from typing import Dict, Any
 
 from fastapi import APIRouter, Body, HTTPException
+from pydantic import BaseModel, Field
 
+from app.common.response import Envelope
 from app.modules.path_optimize.models import CommuteSettings
 from app.modules.path_optimize.mock_user_db import MockUserDB
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("/")
-async def get_users():
-    """사용자 목록 조회 (Mock)"""
-    # TODO: 실제 User 서비스/DB 연동
-    return {"message": "사용자 목록 조회 (mock)"}
+class CommuteSettingsSaveResult(BaseModel):
+    """출퇴근 설정 저장 결과 응답 모델"""
+    status: str = Field(..., description="저장 상태 (예: SETTINGS_SAVED)")
+    userId: str = Field(..., description="사용자 ID")
+    savedAt: str = Field(..., description="UTC 기준 저장 시각 ISO 문자열")
 
 
-@router.get("/{user_id}")
-async def get_user(user_id: int):
-    """사용자 상세 조회 (Mock)"""
-    # TODO: 실제 User 서비스/DB 연동
-    return {"message": f"사용자 {user_id} 조회 (mock)"}
-
-
-@router.put("/me/settings/commute")
+@router.put(
+    "/me/settings/commute",
+    response_model=Envelope[CommuteSettingsSaveResult],
+    summary="출퇴근 설정 저장",
+    description="집/회사/목표 도착 시간 및 출퇴근 관련 설정을 저장합니다.",
+)
 async def update_commute_settings(
     settings: CommuteSettings = Body(..., description="사용자 출퇴근 설정"),
 ):
@@ -39,7 +44,7 @@ async def update_commute_settings(
     user_id = "user_001"
 
     # CommuteSettings(Pydantic)를 MockUserDB 내부 dict 포맷으로 변환
-    settings_dict = {
+    settings_dict: Dict[str, Any] = {
         "homeAddress": settings.homeAddress,
         "workAddress": settings.workAddress,
         "targetArrivalTime": settings.targetArrivalTime,
@@ -56,10 +61,10 @@ async def update_commute_settings(
     if not success:
         raise HTTPException(status_code=400, detail="설정 저장 실패")
 
-    return {
-        "data": {
-            "status": "SETTINGS_SAVED",
-            "userId": user_id,
-            "savedAt": datetime.utcnow().isoformat(),
-        }
-    }
+    result = CommuteSettingsSaveResult(
+        status="SETTINGS_SAVED",
+        userId=user_id,
+        savedAt=datetime.utcnow().isoformat(),
+    )
+
+    return {"data": result}

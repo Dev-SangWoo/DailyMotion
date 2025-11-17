@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # ODSAY API 설정
     ODSAY_API_KEY: Optional[str] = None
 
+    # 서울시 실시간 대중교통 API 키
+    SEOUL_SUBWAY_API_KEY: Optional[str] = None
+    SEOUL_BUS_API_KEY: Optional[str] = None
+
     # Path Optimize / Commute Settings 동작 모드
     # - False (기본): DB 우선 + MockUserDB 메모리 fallback 허용 (로컬/테스트 편의)
     # - True : 출퇴근 설정은 항상 DB 기반으로만 사용 (운영/스테이징 등)

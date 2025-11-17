@@ -57,6 +57,7 @@ context_router = APIRouter(
 service = PathOptimizeService()
 
 
+
 async def _get_routes_data_for_commute(commute_settings: dict) -> Optional[Dict[str, Any]]:
     """
     사용자 출퇴근 설정을 기반으로 ODSAY 경로 데이터를 조회합니다.

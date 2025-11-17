@@ -26,6 +26,7 @@ import requests
 import xml.etree.ElementTree as ET
 import os
 
+from app.core.config import settings
 from app.services.context_detector import context_detector
 from app.services.gate_validator import gate_validator
 from app.services.seating_optimizer import seating_optimizer
@@ -84,11 +85,13 @@ ERROR_INTERNAL_SERVER_ERROR = "E500"
 # =====================================================
 
 # 서울시 지하철 실시간 도착 정보 API
-SEOUL_SUBWAY_API_KEY = os.getenv("SEOUL_SUBWAY_API_KEY", "sample_key")
-SEOUL_SUBWAY_API_URL = f"http://swopenapi.seoul.go.kr/api/subway/{SEOUL_SUBWAY_API_KEY}/xml/realtimeStationArrival"
+SEOUL_SUBWAY_API_KEY = settings.SEOUL_SUBWAY_API_KEY or os.getenv("SEOUL_SUBWAY_API_KEY", "sample")
+SEOUL_SUBWAY_API_URL = (
+    f"http://swopenapi.seoul.go.kr/api/subway/{SEOUL_SUBWAY_API_KEY}/xml/realtimeStationArrival"
+)
 
 # 서울 버스 실시간 도착 정보 API
-SEOUL_BUS_API_KEY = os.getenv("SEOUL_BUS_API_KEY", "sample_key")
+SEOUL_BUS_API_KEY = settings.SEOUL_BUS_API_KEY or os.getenv("SEOUL_BUS_API_KEY", "sample")
 SEOUL_BUS_API_URL = "http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRoute"
 
 # API 타임아웃
@@ -247,6 +250,8 @@ class SeoulBusRealtimeClient:
     def __init__(self, api_key: str = SEOUL_BUS_API_KEY, api_url: str = SEOUL_BUS_API_URL):
         self.api_key = api_key
         self.api_url = api_url
+        # busNo → busRouteId 매핑 캐시 (메모리 캐싱)
+        self._route_id_cache: Dict[str, Optional[str]] = {}
 
     def get_arrival_info(
         self,
@@ -333,6 +338,71 @@ class SeoulBusRealtimeClient:
             return None
         except Exception as e:
             logger.warning(f"⚠️ 버스 실시간 정보 조회 실패: {str(e)}")
+            return None
+
+    def search_bus_route_id(self, bus_no: str) -> Optional[str]:
+        """
+        버스 노선 번호로 서울 API의 busRouteId 조회 (캐싱 적용)
+
+        Args:
+            bus_no: 버스 노선 번호 (예: "5615")
+
+        Returns:
+            서울 API busRouteId (예: "100100272") 또는 None
+        """
+        # 1️⃣ 캐시 확인
+        if bus_no in self._route_id_cache:
+            cached_id = self._route_id_cache[bus_no]
+            if cached_id:
+                logger.info(f"🔍 버스 노선 ID 캐시 히트: {bus_no} → {cached_id}")
+            return cached_id
+
+        # 2️⃣ API 호출
+        try:
+            route_list_url = "http://ws.bus.go.kr/api/rest/busRouteInfo/getBusRouteList"
+            params = {
+                "serviceKey": self.api_key,
+                "strSrch": bus_no,
+            }
+
+            logger.info(f"🔍 버스 노선 ID 검색: {bus_no}")
+
+            response = requests.get(route_list_url, params=params, timeout=API_TIMEOUT_SECONDS)
+            response.raise_for_status()
+
+            # 3️⃣ XML 파싱
+            root = ET.fromstring(response.content)
+            items = root.findall(".//itemList")
+
+            if not items:
+                logger.warning(f"⚠️ 버스 노선 검색 결과 없음: {bus_no}")
+                self._route_id_cache[bus_no] = None
+                return None
+
+            # 4️⃣ 첫 번째 매칭 결과 사용
+            first_item = items[0]
+            bus_route_id = first_item.findtext("busRouteId", "").strip()
+            bus_route_nm = first_item.findtext("busRouteNm", "").strip()
+
+            if not bus_route_id:
+                logger.warning(f"⚠️ busRouteId 없음: {bus_no}")
+                self._route_id_cache[bus_no] = None
+                return None
+
+            # 5️⃣ 캐싱 후 반환
+            self._route_id_cache[bus_no] = bus_route_id
+            logger.info(f"✅ 버스 노선 ID 발견: {bus_no} ({bus_route_nm}) → {bus_route_id}")
+
+            return bus_route_id
+
+        except requests.RequestException as e:
+            logger.warning(f"⚠️ 버스 노선 검색 API 호출 실패: {str(e)}")
+            return None
+        except ET.ParseError as e:
+            logger.warning(f"⚠️ 버스 노선 검색 XML 파싱 실패: {str(e)}")
+            return None
+        except Exception as e:
+            logger.warning(f"⚠️ 버스 노선 검색 실패: {str(e)}")
             return None
 
 
@@ -729,6 +799,9 @@ class PathOptimizeService:
                         or "버스"
                     )
 
+                    # 디버깅용: ODSAY 버스 lane 원본 데이터 전체 로깅
+                    logger.info(f"🚌 ODSAY 버스 lane raw: {lane}")
+
                     # ✅ BUG FIX 2: lineNumber & destination 추출
                     bus_no = lane.get("busNo") or name
                     line_number = f"{bus_no}번" if bus_no and not bus_no.endswith("번") else bus_no
@@ -740,13 +813,29 @@ class PathOptimizeService:
                     # 실시간 데이터 조회 시도
                     realtime_info = None
                     try:
-                        bus_route_id = lane.get("busID")  # "100100578"
+                        # ✅ FIX: 버스 번호로 먼저 busRouteId 검색 후 실시간 정보 조회
+                        # ODSAY의 busLocalBlID는 서울 API busRouteId와 매핑이 안 되므로
+                        # busNo (예: "5615")로 먼저 검색해서 올바른 busRouteId를 찾는다.
+                        bus_no = lane.get("busNo", "").strip()
 
-                        if bus_route_id:
-                            logger.info(f"🚌 버스 실시간 조회 시도: {bus_route_id}")
-                            realtime_info = self.bus_client.get_arrival_info(
-                                bus_route_id=bus_route_id
+                        if bus_no:
+                            logger.info(
+                                f"🚌 버스 실시간 조회 시도: "
+                                f"busNo={bus_no}, "
+                                f"ODSAY_busLocalBlID={lane.get('busLocalBlID')}, "
+                                f"ODSAY_busID={lane.get('busID')}"
                             )
+
+                            # 1단계: 버스 번호로 busRouteId 검색 (캐싱 적용)
+                            bus_route_id = self.bus_client.search_bus_route_id(bus_no)
+
+                            # 2단계: 찾은 busRouteId로 실시간 도착 정보 조회
+                            if bus_route_id:
+                                realtime_info = self.bus_client.get_arrival_info(
+                                    bus_route_id=bus_route_id
+                                )
+                            else:
+                                logger.warning(f"⚠️ 버스 노선 ID를 찾을 수 없음: {bus_no}")
                     except Exception as e:
                         logger.warning(f"⚠️ 버스 실시간 API 호출 예외: {str(e)}")
 
@@ -1142,31 +1231,48 @@ class PathOptimizeService:
 
             # (A) 실질 출발 가능 시간 & 소요 시간 결정
             if recommended_transport:
-                departure_in_minutes = recommended_transport.get("departureInMinutes") or first_mile_duration
+                # recommendedTransport.departureInMinutes (내부)는
+                # "정류장/역 기준 차량 도착까지 남은 시간"으로 사용한다.
+                wait_until_vehicle_minutes = (
+                    recommended_transport.get("departureInMinutes")
+                    or DEFAULT_FIRST_MILE_DURATION
+                )
                 effective_transit_time = recommended_transport.get("transitTimeMinutes", 30)
             else:
-                departure_in_minutes = first_mile_duration
+                # 추천 교통수단이 없으면 보수적으로 대기시간을 First Mile 기본값으로 가정
+                wait_until_vehicle_minutes = DEFAULT_FIRST_MILE_DURATION
                 effective_transit_time = 30  # 기본값
 
             # ✅ BUG FIX 3: Door-to-Door 완전 계산
             # (B) 슬랙(Slack) 계산 - First Mile + 대중교통 대기 + Transit + Last Mile
             expected_arrival = current_time + timedelta(
-                minutes=first_mile_duration + departure_in_minutes + effective_transit_time + last_mile_duration
+                minutes=first_mile_duration
+                + wait_until_vehicle_minutes
+                + effective_transit_time
+                + last_mile_duration
             )
             slack_delta = target_arrival - expected_arrival
             slack_minutes = int(slack_delta.total_seconds() / 60)
 
             logger.info(
                 f"🚪 Door-to-Door 계산: First Mile({first_mile_duration}분) + "
-                f"대중교통 대기({departure_in_minutes}분) + "
+                f"대중교통 대기({wait_until_vehicle_minutes}분) + "
                 f"Transit({effective_transit_time}분) + "
-                f"Last Mile({last_mile_duration}분) = 총 {first_mile_duration + departure_in_minutes + effective_transit_time + last_mile_duration}분"
+                f"Last Mile({last_mile_duration}분) = 총 {first_mile_duration + wait_until_vehicle_minutes + effective_transit_time + last_mile_duration}분"
             )
 
             logger.info(
                 f"📊 슬랙 계산: 목표={target_arrival.strftime('%H:%M')}, "
                 f"예상={expected_arrival.strftime('%H:%M')}, "
                 f"슬랙={slack_minutes}분"
+            )
+
+            # Door-to-Door 총 예상 소요시간 (분)
+            total_duration_minutes = (
+                first_mile_duration
+                + wait_until_vehicle_minutes
+                + effective_transit_time
+                + last_mile_duration
             )
 
             # (C) 판정 규칙
@@ -1185,12 +1291,15 @@ class PathOptimizeService:
 
             # ✅ 충분한 여유 있음 → GO_NOW
             if slack_minutes >= COMFORTABLE_BUFFER_MINUTES:
+                # 집 기준으로 차량을 타기까지 남은 시간 = 걷기 + 정류장 대기
+                departure_total_minutes = first_mile_duration + wait_until_vehicle_minutes
+
                 if recommended_transport:
                     transport_name = recommended_transport["name"]
                     realtime_tag = " (실시간)" if recommended_transport.get("isRealtime") else ""
                     message = (
                         f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
-                        f"{departure_in_minutes}분 후 도착하는 [{transport_name}]를 타세요.{realtime_tag}"
+                        f"{departure_total_minutes}분 후 도착하는 [{transport_name}]를 타세요.{realtime_tag}"
                     )
                 else:
                     transport_name = "지금 출발 가능한 교통수단"
@@ -1204,18 +1313,29 @@ class PathOptimizeService:
                     "data": {
                         "alertType": "GO_NOW",
                         "message": message,
-                        "recommendedTransport": recommended_transport or {
-                            "type": "BUS",
-                            "name": transport_name,
-                            "departureInMinutes": departure_in_minutes,
-                            "transitTimeMinutes": effective_transit_time,
-                            "isRealtime": False
-                        }
+                        "totalDurationMinutes": total_duration_minutes,
+                        "recommendedTransport": (
+                            {
+                                **recommended_transport,
+                                "departureInMinutes": departure_total_minutes,
+                            }
+                            if recommended_transport
+                            else {
+                                "type": "BUS",
+                                "name": transport_name,
+                                "departureInMinutes": departure_total_minutes,
+                                "transitTimeMinutes": effective_transit_time,
+                                "isRealtime": False,
+                            }
+                        ),
                     }
                 }
 
             # ⚠️ 마지노선 → LAST_CHANCE
             if 0 <= slack_minutes < COMFORTABLE_BUFFER_MINUTES:
+                # 집 기준으로 차량을 타기까지 남은 시간 = 걷기 + 정류장 대기
+                departure_total_minutes = first_mile_duration + wait_until_vehicle_minutes
+
                 if recommended_transport:
                     last_bus_number = recommended_transport["name"]
                     transport_type = recommended_transport.get("type", "BUS")
@@ -1233,7 +1353,7 @@ class PathOptimizeService:
 
                 message = (
                     f"⚠️지각 주의! {target_time_str} 도착을 위한 {last_transport_label}[{last_bus_number}]가 "
-                    f"{departure_in_minutes}분 뒤 도착합니다. 지금 출발하세요! (여유: {slack_minutes}분)"
+                    f"{departure_total_minutes}분 뒤 도착합니다. 지금 출발하세요! (여유: {slack_minutes}분)"
                 )
 
                 logger.warning(f"⚠️ Logic 1.2 LAST_CHANCE 경고: 슬랙 {slack_minutes}분")
@@ -1241,13 +1361,21 @@ class PathOptimizeService:
                     "data": {
                         "alertType": "LAST_CHANCE",
                         "message": message,
-                        "recommendedTransport": recommended_transport or {
-                            "type": "BUS",
-                            "name": last_bus_number,
-                            "departureInMinutes": departure_in_minutes,
-                            "transitTimeMinutes": effective_transit_time,
-                            "isRealtime": False
-                        }
+                        "totalDurationMinutes": total_duration_minutes,
+                        "recommendedTransport": (
+                            {
+                                **recommended_transport,
+                                "departureInMinutes": departure_total_minutes,
+                            }
+                            if recommended_transport
+                            else {
+                                "type": "BUS",
+                                "name": last_bus_number,
+                                "departureInMinutes": departure_total_minutes,
+                                "transitTimeMinutes": effective_transit_time,
+                                "isRealtime": False,
+                            }
+                        ),
                     }
                 }
 
@@ -1257,7 +1385,8 @@ class PathOptimizeService:
                 "data": {
                     "alertType": "NO_ACTION",
                     "message": f"{target_time_str} 도착을 위해 계획을 재조정하세요.",
-                    "recommendedTransport": None
+                    "totalDurationMinutes": total_duration_minutes,
+                    "recommendedTransport": None,
                 }
             }
 
