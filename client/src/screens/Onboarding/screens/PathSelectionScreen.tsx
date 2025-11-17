@@ -404,7 +404,8 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
 
   // 요일 선택 관련 state
   const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
-  const [selectedDay, setSelectedDay] = useState(0); // 기본: 월요일
+  // 기본값: 월~금 평일 선택
+  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4]));
   const [journeysByDay, setJourneysByDay] = useState<Record<number, JourneySegment[]>>({});
   const [savedDays, setSavedDays] = useState<Set<number>>(new Set());
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -470,35 +471,48 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     setEditingSegmentId(null);
   }, [editingSegmentId]);
 
-  // 요일 선택 핸들러
+  // 요일 선택 핸들러 (토글)
   const handleSelectDay = useCallback((dayIndex: number) => {
-    setSelectedDay(dayIndex);
-
-    // 선택한 요일의 여정이 이미 저장되어 있으면 로드, 없으면 현재 세그먼트 유지
-    if (journeysByDay[dayIndex]) {
-      setSegments(journeysByDay[dayIndex]);
-    }
+    setSelectedDays((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(dayIndex)) {
+        newSet.delete(dayIndex); // 이미 선택되면 해제
+      } else {
+        newSet.add(dayIndex); // 선택되지 않으면 추가
+      }
+      return newSet;
+    });
     // saveStatus 초기화
     setSaveStatus(null);
-  }, [journeysByDay]);
+  }, []);
 
-  // 요일 여정 저장 핸들러
+  // 요일 여정 저장 핸들러 (선택된 모든 요일에 저장)
   const handleSaveJourney = useCallback(() => {
-    // 현재 요일의 여정 저장
-    setJourneysByDay((prev) => ({
-      ...prev,
-      [selectedDay]: [...segments],
-    }));
+    // 선택된 모든 요일에 현재 여정 저장
+    setJourneysByDay((prev) => {
+      const updated = { ...prev };
+      selectedDays.forEach((dayIndex) => {
+        updated[dayIndex] = [...segments];
+      });
+      return updated;
+    });
 
     // 저장된 요일에 추가
-    setSavedDays((prev) => new Set(prev).add(selectedDay));
+    setSavedDays((prev) => {
+      const newSet = new Set(prev);
+      selectedDays.forEach((dayIndex) => {
+        newSet.add(dayIndex);
+      });
+      return newSet;
+    });
 
     // 저장 완료 메시지 표시
-    setSaveStatus(`${WEEKDAYS[selectedDay]}요일 여정이 저장되었습니다 ✓`);
+    const selectedDayNames = Array.from(selectedDays).map(i => WEEKDAYS[i]).join(', ');
+    setSaveStatus(`${selectedDayNames} 여정이 저장되었습니다 ✓`);
 
     // 2초 후 메시지 사라지기
     setTimeout(() => setSaveStatus(null), 2000);
-  }, [selectedDay, segments, WEEKDAYS]);
+  }, [selectedDays, segments, WEEKDAYS]);
 
   // 장소 추가 버튼 클릭
   const handleAddPlace = useCallback(() => {
@@ -623,11 +637,11 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
               {WEEKDAYS.map((day, index) => (
                 <WeekdayButton
                   key={index}
-                  isSelected={selectedDay === index}
+                  isSelected={selectedDays.has(index)}
                   isSaved={savedDays.has(index)}
                   onPress={() => handleSelectDay(index)}
                 >
-                  <WeekdayText isSelected={selectedDay === index} isSaved={savedDays.has(index)}>
+                  <WeekdayText isSelected={selectedDays.has(index)} isSaved={savedDays.has(index)}>
                     {day}
                   </WeekdayText>
                   {savedDays.has(index) && <SaveCheckmark>✓</SaveCheckmark>}
@@ -638,7 +652,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
             {/* 저장 버튼과 상태 메시지 */}
             <SaveButtonContainer>
               <OnboardingButton
-                label={`${WEEKDAYS[selectedDay]}요일 여정 저장`}
+                label={`${Array.from(selectedDays).map(i => WEEKDAYS[i]).join(', ')} 여정 저장`}
                 onPress={handleSaveJourney}
                 variant="primary"
               />
