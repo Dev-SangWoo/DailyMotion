@@ -89,6 +89,14 @@ class RecommendedTransport(BaseModel):
     departureInMinutes: Optional[int] = Field(..., description="출발까지 남은 시간 (분)")
     lineNumber: Optional[str] = Field(None, description="노선 번호")
     destination: Optional[str] = Field(None, description="목적지")
+    congestionLevel: Optional[str] = Field(
+        None,
+        description="혼잡도 등급 (LOW/MEDIUM/HIGH/VERY_HIGH)"
+    )
+    congestionValue: Optional[float] = Field(
+        None,
+        description="혼잡도 값 (% 단위)"
+    )
 
     class Config:
         schema_extra = {
@@ -97,7 +105,9 @@ class RecommendedTransport(BaseModel):
                 "name": "123번",
                 "departureInMinutes": 5,
                 "lineNumber": "123",
-                "destination": "강남역"
+                "destination": "강남역",
+                "congestionLevel": "MEDIUM",
+                "congestionValue": 55.0
             }
         }
 

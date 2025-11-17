@@ -2,30 +2,36 @@
   {
     "odsayStationID": 340,
     "odsaySubwayCode": 3,
-    "seoulStationID": "329",
+    "seoulStationID": "340",
     "seoulLineNum": "3호선",
     "debugName": "고속터미널 (3호선)"
-  },
-  {
-    "odsayStationID": 341,
-    "odsaySubwayCode": 3,
-    "seoulStationID": "330",
-    "seoulLineNum": "3호선",
-    "debugName": "교대 (3호선)"
   },
   {
     "odsayStationID": 915,
     "odsaySubwayCode": 9,
     "seoulStationID": null,
     "seoulLineNum": null,
-    "debugName": "여의도 (9호선 - 서울교통공사 데이터에 없음)"
+    "debugName": "여의도 (9호선 - 데이터 없음)"
   },
   {
     "odsayStationID": 923,
     "odsaySubwayCode": 9,
     "seoulStationID": null,
     "seoulLineNum": null,
-    "debugName": "고속터미널 (9호선 - 서울교통공사 데이터에 없음)"
+    "debugName": "고속터미널 (9호선 - 데이터 없음)"
+  },
+  {
+    "odsayStationID": 222,
+    "odsaySubwayCode": 2,
+    "seoulStationID": "222",
+    "seoulLineNum": "2호선",
+    "debugName": "강남 (2호선 - 테스트용)"
+  },
+  {
+    "odsayStationID": 220,
+    "odsaySubwayCode": 2,
+    "seoulStationID": "220",
+    "seoulLineNum": "2호선",
+    "debugName": "잠실 (2호선 - 테스트용)"
   }
 ]
-

@@ -182,3 +182,56 @@ class TestPathOptimizeService:
         # 또는 recommendedTransport의 departureInMinutes가 First Mile과 유사해야 함
         transport = data["recommendedTransport"]
         assert transport["departureInMinutes"] >= 10, "출발 시간이 First Mile 이상이어야 함"
+
+
+class TestPathOptimizeServiceCongestion:
+    """
+    혼잡도 데이터가 추천 교통수단에 포함된 경우
+    GO_NOW/LAST_CHANCE 메시지에 혼잡도 텍스트가 붙는지 검증
+    """
+
+    class _DummyServiceWithCongestion(PathOptimizeService):
+        def _extract_recommended_transport(  # type: ignore[override]
+            self,
+            routes_data,
+            current_time,
+            commute_settings=None,
+            statistical_data_map=None,
+        ):
+            return {
+                "type": "SUBWAY",
+                "name": "3호선",
+                "lineNumber": "3호선",
+                "destination": "상행",
+                "departureInMinutes": 5,
+                "transitTimeMinutes": 20,
+                "isRealtime": False,
+                "congestionValue": 85.0,
+                "congestionLevel": "HIGH",
+            }
+
+    def test_go_now_message_includes_congestion_suffix(self):
+        """
+        [Logic 1.1] GO_NOW 메시지에 혼잡도 정보가 포함되는지 확인
+        """
+        service = self._DummyServiceWithCongestion()
+
+        commute_settings = {
+            "homeAddress": "서울 강남구",
+            "workAddress": "서울 중구",
+            "targetArrivalTime": time(8, 50, 0),
+            "firstMileDefaultDuration": 5,
+            "lastMileDefaultDuration": 7,
+        }
+        current_time = datetime(2025, 1, 15, 8, 20, 0)
+
+        result = service.get_commute_briefing(
+            commute_settings=commute_settings,
+            current_time=current_time,
+        )
+
+        data = result["data"]
+        assert data["alertType"] == "GO_NOW"
+        # 혼잡도 텍스트가 메시지에 포함되어야 함
+        assert "혼잡도" in data["message"]
+        assert "85%" in data["message"]

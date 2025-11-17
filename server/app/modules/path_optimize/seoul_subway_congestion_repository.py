@@ -334,4 +334,3 @@ def get_subway_congestion(
     congestion_value=value,
     congestion_level=level,
   )
-

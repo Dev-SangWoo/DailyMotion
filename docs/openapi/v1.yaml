@@ -946,6 +946,25 @@ components:
           type: integer
           description: 출발까지 남은 시간 (분)
           example: 5
+        lineNumber:
+          type: string
+          nullable: true
+          description: 노선 번호 (예: "2호선", "146번")
+        destination:
+          type: string
+          nullable: true
+          description: 행선지/방향 (예: "상행", "강남행")
+        congestionLevel:
+          type: string
+          nullable: true
+          description: 혼잡도 등급 (LOW/MEDIUM/HIGH/VERY_HIGH)
+          example: "HIGH"
+        congestionValue:
+          type: number
+          format: float
+          nullable: true
+          description: 혼잡도 값 (% 단위)
+          example: 85.0
       required:
         - type
         - name

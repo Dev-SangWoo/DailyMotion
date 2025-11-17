@@ -120,6 +120,37 @@ DIRECTION_MAP = {
 }
 
 
+def _build_congestion_suffix(transport: Optional[Dict[str, Any]]) -> str:
+    """
+    추천 교통수단에 포함된 혼잡도 정보를
+    사용자 메시지에 붙일 텍스트로 변환합니다.
+    """
+    if not transport:
+        return ""
+
+    congestion_value = transport.get("congestionValue")
+    congestion_level = transport.get("congestionLevel")
+
+    if congestion_value is None or not congestion_level:
+        return ""
+
+    label_map = {
+        "LOW": "여유",
+        "MEDIUM": "보통",
+        "HIGH": "혼잡",
+        "VERY_HIGH": "매우 혼잡",
+    }
+
+    label = label_map.get(str(congestion_level), str(congestion_level))
+
+    try:
+        value_int = int(round(float(congestion_value)))
+    except (TypeError, ValueError):
+        return ""
+
+    return f" (현재 열차 혼잡도: {label} ({value_int}%))"
+
+
 # =====================================================
 # 실시간 데이터 클라이언트 클래스 (Phase 14+)
 # =====================================================
@@ -771,6 +802,14 @@ class PathOptimizeService:
                     except Exception as e:
                         logger.warning(f"⚠️ 지하철 실시간 API 호출 예외: {str(e)}")
 
+                    # 혼잡도 페이로드 (있으면 추천 교통수단에 함께 포함)
+                    congestion_payload: Dict[str, Any] = {}
+                    if congestion_info:
+                        congestion_payload = {
+                            "congestionValue": congestion_info.congestion_value,
+                            "congestionLevel": congestion_info.congestion_level,
+                        }
+
                     # 실시간 성공 시
                     if realtime_info:
                         logger.info(f"✅ 지하철 실시간 데이터 사용: {name} - {realtime_info['arrivalMinutes']}분 후")
@@ -782,6 +821,7 @@ class PathOptimizeService:
                             "departureInMinutes": realtime_info["arrivalMinutes"],
                             "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
                             "isRealtime": True,
+                            **congestion_payload,
                         }
 
                     # 통계 데이터 확인
@@ -798,6 +838,7 @@ class PathOptimizeService:
                                 "departureInMinutes": stat_data.get("avgDepartureInterval", 5),
                                 "transitTimeMinutes": stat_data.get("avgTransitTime", 30),
                                 "isRealtime": False,
+                                **congestion_payload,
                             }
 
                     # ✅ BUG FIX 1: departureInMinutes Null 방지 - Fallback 기본값 사용
@@ -811,6 +852,7 @@ class PathOptimizeService:
                         "departureInMinutes": departure_in_minutes_odsay or DEFAULT_FIRST_MILE_DURATION,
                         "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
                         "isRealtime": False,
+                        **congestion_payload,
                     }
 
                 # ========================================
@@ -1326,6 +1368,8 @@ class PathOptimizeService:
                         f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
                         f"{departure_total_minutes}분 후 도착하는 [{transport_name}]를 타세요.{realtime_tag}"
                     )
+                    # 혼잡도 정보가 있으면 메시지에 붙인다.
+                    message += _build_congestion_suffix(recommended_transport)
                 else:
                     transport_name = "지금 출발 가능한 교통수단"
                     message = (
@@ -1380,6 +1424,9 @@ class PathOptimizeService:
                     f"⚠️지각 주의! {target_time_str} 도착을 위한 {last_transport_label}[{last_bus_number}]가 "
                     f"{departure_total_minutes}분 뒤 도착합니다. 지금 출발하세요! (여유: {slack_minutes}분)"
                 )
+                # 혼잡도 정보가 있으면 메시지에 붙인다.
+                if recommended_transport:
+                    message += _build_congestion_suffix(recommended_transport)
 
                 logger.warning(f"⚠️ Logic 1.2 LAST_CHANCE 경고: 슬랙 {slack_minutes}분")
                 return {
