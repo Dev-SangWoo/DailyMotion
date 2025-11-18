@@ -16,6 +16,7 @@ from .path_optimize_router import (
 )
 from .risk_manage_router import router as risk_manage_router
 from .health_router import router as health_router
+from .transport_router import router as transport_router
 
 # 라우터 등록
 api_router.include_router(user_router)
@@ -24,3 +25,4 @@ api_router.include_router(path_optimize_router)
 api_router.include_router(path_optimize_context_router)
 api_router.include_router(risk_manage_router)
 api_router.include_router(health_router)
+api_router.include_router(transport_router)

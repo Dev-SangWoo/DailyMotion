@@ -28,6 +28,7 @@ interface JourneySegment {
   placeId: string;
   placeName: string;
   placeIcon: string;
+  placeAddress: string;      // 🆕 실제 도로명 주소 (ODSAY API 검색용)
   type: 'depart' | 'arrive'; // 출발 또는 도착
   time: string; // HH:MM 형식
 }
@@ -373,7 +374,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     const homeAddress = places.homeAddress;
     console.log('PathSelectionScreen - homeAddress from store:', homeAddress);
     console.log('PathSelectionScreen - homeAddress type:', typeof homeAddress);
-    
+
     if (homeAddress && typeof homeAddress === 'object' && homeAddress !== null) {
       const homeObj = homeAddress as { name?: string; icon?: string; address?: string };
       console.log('PathSelectionScreen - homeObj:', homeObj);
@@ -381,6 +382,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
         return {
           name: homeObj.name,
           icon: homeObj.icon || '🏠',
+          address: homeObj.address,  // 🆕 address 포함
         };
       }
     }
@@ -396,7 +398,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
   useEffect(() => {
     console.log('PathSelectionScreen - useEffect - homeInfo:', homeInfo);
     console.log('PathSelectionScreen - useEffect - isInitialized:', isInitialized);
-    
+
     if (homeInfo && !isInitialized) {
       console.log('PathSelectionScreen - Initializing segments with home info');
       setSegments([
@@ -405,6 +407,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
           placeId: 'home',
           placeName: homeInfo.name,
           placeIcon: homeInfo.icon,
+          placeAddress: homeInfo.address || homeInfo.name,  // 🆕 address 추가
           type: 'depart',
           time: '07:00', // 기본값
         },
@@ -413,6 +416,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
           placeId: 'home',
           placeName: homeInfo.name,
           placeIcon: homeInfo.icon,
+          placeAddress: homeInfo.address || homeInfo.name,  // 🆕 address 추가
           type: 'arrive',
           time: '22:00', // 기본값
         },
@@ -583,6 +587,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
       placeId,
       placeName: place.name,
       placeIcon: place.icon,
+      placeAddress: place.address || place.name,  // 🆕 주소 추가 (없으면 name 사용)
       type: 'arrive',
       time: arriveTime,
     };
@@ -592,6 +597,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
       placeId,
       placeName: place.name,
       placeIcon: place.icon,
+      placeAddress: place.address || place.name,  // 🆕 주소 추가 (없으면 name 사용)
       type: 'depart',
       time: departTime,
     };

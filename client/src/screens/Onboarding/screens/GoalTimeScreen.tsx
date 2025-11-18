@@ -14,7 +14,7 @@ import { theme } from '../../../styles/theme';
 import { onboardingTheme } from '../styles/onboardingTheme';
 import { useOnboardingData, useOnboardingActions } from '../stores/useOnboardingStore';
 import { OnboardingButton } from '../components/OnboardingButton';
-import searchRoutes from '../../../services/routeSearchService';
+import searchRoutes, { searchRoutesForOnboarding } from '../../../services/routeSearchService';
 import { RecommendedRoute } from '../../../services/routeSearchService';
 
 interface GoalTimeScreenProps {
@@ -29,9 +29,11 @@ interface GoalTimeScreenProps {
 interface JourneyGroup {
   id: string;
   originIcon: string;
-  originName: string;
+  originName: string;           // 표시용: "집"
+  originAddress: string;        // 🆕 API용: 실제 주소
   destIcon: string;
-  destName: string;
+  destName: string;             // 표시용: "회사"
+  destAddress: string;          // 🆕 API용: 실제 주소
   departTime: string;
   arriveTime: string;
 }
@@ -317,8 +319,10 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
           id: `${depart.id}-${arrive.id}`,
           originIcon: depart.placeIcon,
           originName: depart.placeName,
+          originAddress: depart.placeAddress,      // 🆕 실제 주소 추가
           destIcon: arrive.placeIcon,
           destName: arrive.placeName,
+          destAddress: arrive.placeAddress,        // 🆕 실제 주소 추가
           departTime: depart.time,
           arriveTime: arrive.time,
         });
@@ -335,6 +339,15 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
     async (journeyId: string) => {
       // 캐시에 있으면 로드
       if (routesCache[journeyId]) {
+        console.log(`[GoalTimeScreen] 경로 캐시 사용: ${journeyId}`);
+        return;
+      }
+
+      // 여정 정보 찾기
+      const journey = journeys.find((j) => j.id === journeyId);
+      if (!journey) {
+        console.error(`[GoalTimeScreen] 여정을 찾을 수 없음: ${journeyId}`);
+        setRouteError('여정 정보를 찾을 수 없습니다');
         return;
       }
 
@@ -342,8 +355,24 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         setRouteLoadingState('loading');
         setRouteError(null);
 
-        // 백엔드 API 호출 (ODSAY 경로 검색)
-        const routes = await searchRoutes('user_001');
+        console.log('[GoalTimeScreen] ===== 경로 검색 시작 =====');
+        console.log(`[GoalTimeScreen] 여정 ID: ${journeyId}`);
+        console.log(`[GoalTimeScreen] 출발지: ${journey.originName} → ${journey.originAddress} (${journey.originIcon})`);
+        console.log(`[GoalTimeScreen] 목적지: ${journey.destName} → ${journey.destAddress} (${journey.destIcon})`);
+        console.log(`[GoalTimeScreen] 출발 시간: ${journey.departTime}`);
+        console.log(`[GoalTimeScreen] 도착 시간: ${journey.arriveTime}`);
+        console.log(`[GoalTimeScreen] 사용자 ID: user_001`);
+
+        // 백엔드 API 호출 (ODSAY 경로 검색) - 온보딩용 직접 입력 API 사용
+        const routes = await searchRoutesForOnboarding(
+          journey.originAddress,  // 🔧 출발지 실제 주소 (ODSAY API용)
+          journey.destAddress,     // 🔧 목적지 실제 주소 (ODSAY API용)
+          journey.departTime,      // 출발 시간 (HH:MM 형식)
+        );
+
+        console.log(`[GoalTimeScreen] 경로 검색 완료: ${routes.length}개 경로 발견`);
+        console.log('[GoalTimeScreen] 경로 상세:', JSON.stringify(routes, null, 2));
+        console.log('[GoalTimeScreen] ===== 경로 검색 종료 =====');
 
         // 캐시에 저장
         setRoutesCache((prev) => ({
@@ -353,14 +382,24 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
 
         setRouteLoadingState('success');
       } catch (error) {
-        console.error('[GoalTimeScreen] Route search failed:', error);
+        console.error('[GoalTimeScreen] ===== 경로 검색 실패 =====');
+        console.error(`[GoalTimeScreen] 여정 ID: ${journeyId}`);
+        console.error(`[GoalTimeScreen] 출발지: ${journey.originName} → ${journey.originAddress}`);
+        console.error(`[GoalTimeScreen] 목적지: ${journey.destName} → ${journey.destAddress}`);
+        console.error('[GoalTimeScreen] 에러 상세:', error);
+        if (error instanceof Error) {
+          console.error('[GoalTimeScreen] 에러 메시지:', error.message);
+          console.error('[GoalTimeScreen] 에러 스택:', error.stack);
+        }
+        console.error('[GoalTimeScreen] ===== 경로 검색 실패 종료 =====');
+        
         setRouteLoadingState('error');
         setRouteError(
           error instanceof Error ? error.message : '경로를 찾을 수 없습니다'
         );
       }
     },
-    [routesCache]
+    [routesCache, journeys]
   );
 
   /**

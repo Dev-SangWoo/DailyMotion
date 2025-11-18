@@ -32,8 +32,9 @@ export interface OnboardingState {
     journeys?: Array<{
       id: string;
       placeId: string;
-      placeName: string;
+      placeName: string;        // "집", "회사" 등 표시용 이름
       placeIcon: string;
+      placeAddress: string;     // 🆕 실제 도로명 주소 (ODSAY API 검색용)
       type: 'depart' | 'arrive';
       time: string;
     }>;
@@ -77,6 +78,7 @@ export interface OnboardingState {
       placeId: string;
       placeName: string;
       placeIcon: string;
+      placeAddress: string;     // 🆕 실제 주소
       type: 'depart' | 'arrive';
       time: string;
     }>) => void;
@@ -191,6 +193,7 @@ export const useOnboardingStore = create<OnboardingState>()(
           placeId: string;
           placeName: string;
           placeIcon: string;
+          placeAddress: string;      // 🆕 실제 주소 추가
           type: 'depart' | 'arrive';
           time: string;
         }>) => {

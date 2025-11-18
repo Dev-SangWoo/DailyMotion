@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # ODSAY API 설정
     ODSAY_API_KEY: Optional[str] = None
+    ODSAY_BASE_URL: str = "https://api.odsay.com/v1/api"
 
     # 서울시 실시간 대중교통 API 키
     SEOUL_SUBWAY_API_KEY: Optional[str] = None

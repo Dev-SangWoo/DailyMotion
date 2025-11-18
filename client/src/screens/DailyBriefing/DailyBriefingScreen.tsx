@@ -773,28 +773,28 @@ const DailyBriefingScreen: React.FC = () => {
                   <JourneyTabsContainer>
                     {journeyTabs.length > 0 ? (
                       journeyTabs.map((tab, index) => (
-                        <TouchableOpacity
+                    <TouchableOpacity
                           key={tab.id}
                           onPress={() => handleTabSelect(tab.id as any)}
-                          style={{ flex: 1 }}
-                        >
+                      style={{ flex: 1 }}
+                    >
                           <JourneyTab isActive={index === 0}>
                             <JourneyTabText isActive={index === 0}>
                               {tab.label}
                             </JourneyTabText>
-                          </JourneyTab>
-                        </TouchableOpacity>
+                      </JourneyTab>
+                    </TouchableOpacity>
                       ))
                     ) : (
                       // 여정이 없을 때 기본 탭 표시
-                      <TouchableOpacity
+                    <TouchableOpacity
                         onPress={() => handleTabSelect('commute')}
-                        style={{ flex: 1 }}
-                      >
+                      style={{ flex: 1 }}
+                    >
                         <JourneyTab isActive={true}>
                           <JourneyTabText isActive={true}>여정 없음</JourneyTabText>
-                        </JourneyTab>
-                      </TouchableOpacity>
+                      </JourneyTab>
+                    </TouchableOpacity>
                     )}
                   </JourneyTabsContainer>
                 </CollapsedSearchBar>

@@ -11,8 +11,11 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { mockResponseGoNow, mockScenarios, getRandomMockResponse } from './mockData';
 
-// TODO: 환경 변수에서 가져오도록 변경
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// 환경 변수 기반 API Base URL (없으면 localhost 사용)
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  process.env.REACT_APP_API_BASE_URL ||
+  'http://localhost:8000/api/v1';
 
 // 목업 데이터 사용 여부 결정
 // - REACT_APP_USE_MOCK_API='true': 항상 목업 사용
@@ -45,6 +48,8 @@ const provideMockData = async (endpoint: string) => {
 };
 
 // axios 인스턴스 생성
+console.log('[API] BASE_URL =', API_BASE_URL);
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -56,6 +61,13 @@ const apiClient: AxiosInstance = axios.create({
 // 요청 인터셉터: 인증 토큰 추가 & 목업 데이터 처리
 apiClient.interceptors.request.use(
   async (config) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API] Request:', {
+        baseURL: config.baseURL,
+        url: config.url,
+        method: config.method,
+      });
+    }
     // TODO: Zustand store에서 토큰 가져오기
     // const token = useAuthStore.getState().token;
     // if (token) {

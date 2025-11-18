@@ -1185,3 +1185,240 @@ async def test_odsay_route_search(
                 "message": str(e)
             }
         }
+
+
+# =====================================================
+# 경로 검색 전용 엔드포인트 (온보딩용)
+# =====================================================
+
+@router.get("/routes/search", response_model=Envelope[Dict[str, Any]])
+async def search_routes_for_onboarding(
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID"),
+):
+    """
+    온보딩에서 경로를 검색하는 엔드포인트 (사용자 설정 기반)
+
+    출발지와 목적지를 사용자 설정에서 자동으로 가져오고,
+    ODSAY API를 호출하여 경로를 반환합니다.
+
+    Response:
+    {
+        "data": {
+            "paths": [
+                {
+                    "pathId": "path_0",
+                    "totalTime": 2700,
+                    "totalDistance": 9494,
+                    "transferCount": 1,
+                    "segments": [...]
+                }
+            ]
+        }
+    }
+    """
+    try:
+        # 1️⃣ Mock DB에서 사용자 설정 조회
+        commute_settings = MockUserDB.get_commute_settings(user_id)
+        if not commute_settings:
+            logger.error(f"❌ 사용자 없음: {user_id}")
+            raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+        logger.info(f"📋 사용자 설정 조회: {user_id}")
+        logger.info(f"   집: {commute_settings['homeAddress']}")
+        logger.info(f"   회사: {commute_settings['workAddress']}")
+
+        # 2️⃣ ODSAY 경로 데이터 조회
+        routes_data = await _get_routes_data_for_commute(commute_settings)
+
+        # 3️⃣ 경로 데이터 반환
+        if not routes_data:
+            logger.warning("⚠️ 경로 데이터 없음")
+            return {
+                "data": {
+                    "paths": []
+                }
+            }
+
+        logger.info(f"✅ 경로 검색 성공: {len(routes_data.get('paths', []))}개 경로")
+        return {
+            "data": routes_data
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"❌ 경로 검색 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/routes/search/onboarding", response_model=Envelope[Dict[str, Any]])
+async def search_routes_for_onboarding_direct(
+    origin_address: str = Query(..., alias="originAddress", description="출발지 주소"),
+    destination_address: str = Query(..., alias="destinationAddress", description="목적지 주소"),
+    departure_time: str = Query(..., alias="departureTime", description="출발 시간 (ISO 8601 또는 HH:MM 형식)"),
+    origin_latitude: Optional[float] = Query(None, alias="originLatitude", description="출발지 위도"),
+    origin_longitude: Optional[float] = Query(None, alias="originLongitude", description="출발지 경도"),
+    destination_latitude: Optional[float] = Query(None, alias="destinationLatitude", description="목적지 위도"),
+    destination_longitude: Optional[float] = Query(None, alias="destinationLongitude", description="목적지 경도"),
+):
+    """
+    온보딩에서 경로를 검색하는 엔드포인트 (직접 입력)
+
+    출발지, 목적지, 출발 시간을 직접 입력받아
+    ODSAY API를 호출하여 경로를 반환합니다.
+
+    Args:
+        origin_address: 출발지 주소
+        destination_address: 목적지 주소
+        departure_time: 출발 시간 (ISO 8601 또는 HH:MM 형식)
+        origin_latitude: 출발지 위도 (선택, 주소 대신 좌표 사용 시)
+        origin_longitude: 출발지 경도 (선택, 주소 대신 좌표 사용 시)
+        destination_latitude: 목적지 위도 (선택, 주소 대신 좌표 사용 시)
+        destination_longitude: 목적지 경도 (선택, 주소 대신 좌표 사용 시)
+
+    Response:
+    {
+        "data": {
+            "paths": [
+                {
+                    "id": "path_0",
+                    "totalTime": 2700,
+                    "totalDistance": 9494,
+                    "transferCount": 1,
+                    "subPath": [...]
+                }
+            ]
+        }
+    }
+    """
+    try:
+        logger.info("📋 온보딩 경로 검색 (직접 입력)")
+        logger.info(f"   출발지: {origin_address}")
+        logger.info(f"   목적지: {destination_address}")
+        logger.info(f"   출발 시간: {departure_time}")
+
+        # ODSAY API 클라이언트 초기화
+        api_key = os.getenv("ODSAY_API_KEY")
+        if not api_key:
+            logger.error("❌ ODSAY_API_KEY 환경변수가 설정되지 않았습니다")
+            raise HTTPException(
+                status_code=500,
+                detail="ODSAY_API_KEY 환경변수가 설정되지 않았습니다"
+            )
+
+        odsay_client = OdsayAPIClient(api_key=api_key)
+
+        # 좌표가 제공된 경우 직접 사용, 없으면 주소로 검색
+        start_x, start_y = origin_longitude, origin_latitude
+        end_x, end_y = destination_longitude, destination_latitude
+
+        # 출발지 좌표가 없으면 주소로 검색
+        if start_x is None or start_y is None:
+            logger.info(f"🔍 출발지 정류장 검색: {origin_address}")
+            origin_station_response = await odsay_client.search_station(
+                station_name=origin_address
+            )
+
+            if "error" in origin_station_response or "result" not in origin_station_response:
+                logger.warning(f"⚠️ 출발지 정류장 검색 실패: {origin_address}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"출발지 '{origin_address}' 검색 실패"
+                )
+
+            origin_stations = origin_station_response.get("result", {}).get("station", [])
+            if not origin_stations:
+                logger.warning(f"⚠️ 출발지 정류장 결과 없음: {origin_address}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"출발지 '{origin_address}' 검색 결과 없음"
+                )
+
+            origin_station_data = origin_stations[0]
+            start_x = float(origin_station_data["x"])
+            start_y = float(origin_station_data["y"])
+            logger.info(f"✅ 출발지 정류장 발견: {origin_station_data['stationName']} ({start_x}, {start_y})")
+
+        # 목적지 좌표가 없으면 주소로 검색
+        if end_x is None or end_y is None:
+            logger.info(f"🔍 목적지 정류장 검색: {destination_address}")
+            destination_station_response = await odsay_client.search_station(
+                station_name=destination_address
+            )
+
+            if "error" in destination_station_response or "result" not in destination_station_response:
+                logger.warning(f"⚠️ 목적지 정류장 검색 실패: {destination_address}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"목적지 '{destination_address}' 검색 실패"
+                )
+
+            destination_stations = destination_station_response.get("result", {}).get("station", [])
+            if not destination_stations:
+                logger.warning(f"⚠️ 목적지 정류장 결과 없음: {destination_address}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"목적지 '{destination_address}' 검색 결과 없음"
+                )
+
+            destination_station_data = destination_stations[0]
+            end_x = float(destination_station_data["x"])
+            end_y = float(destination_station_data["y"])
+            logger.info(f"✅ 목적지 정류장 발견: {destination_station_data['stationName']} ({end_x}, {end_y})")
+
+        # 출발 시간 파싱 (ISO 8601 또는 HH:MM 형식)
+        try:
+            if "T" in departure_time or len(departure_time) > 5:
+                # ISO 8601 형식
+                from datetime import datetime
+                departure_datetime = datetime.fromisoformat(departure_time.replace("Z", "+00:00"))
+            else:
+                # HH:MM 형식 (오늘 날짜 + 시간)
+                from datetime import datetime, date
+                hour, minute = map(int, departure_time.split(":"))
+                departure_datetime = datetime.combine(date.today(), time(hour, minute))
+        except Exception as e:
+            logger.warning(f"⚠️ 출발 시간 파싱 실패: {departure_time}, 오류: {str(e)}")
+            # 기본값: 현재 시간
+            departure_datetime = datetime.now()
+
+        # 경로 검색
+        logger.info(f"🔍 경로 검색: ({start_x},{start_y}) → ({end_x},{end_y})")
+        route_response = await odsay_client.search_route(
+            start_x=start_x,
+            start_y=start_y,
+            end_x=end_x,
+            end_y=end_y,
+            search_type=0,  # 모든 교통수단
+            departure_time=departure_datetime,
+        )
+
+        if "error" in route_response:
+            logger.warning(f"⚠️ 경로 검색 실패: {route_response.get('error')}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"경로 검색 실패: {route_response.get('error', {}).get('message', 'Unknown error')}"
+            )
+
+        # ODSAY 응답 파싱
+        routes_data = odsay_client.parse_route_info(route_response)
+        path_count = len(routes_data.get("paths", []))
+        logger.info(f"✅ 경로 검색 성공: {path_count}개 경로")
+
+        if path_count == 0:
+            logger.warning("⚠️ 경로 데이터 없음")
+            return {
+                "data": {
+                    "paths": []
+                }
+            }
+
+        return {
+            "data": routes_data
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"❌ 온보딩 경로 검색 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

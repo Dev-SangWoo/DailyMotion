@@ -525,7 +525,7 @@ paths:
 
   /briefings/routes/search:
     get:
-      summary: 온보딩 경로 검색
+      summary: 온보딩 경로 검색 (사용자 설정 기반)
       description: |
         사용자의 저장된 출발지(집)와 목적지(회사)를 기반으로
         ODSAY API를 통해 실시간 경로 정보를 검색합니다.
@@ -550,6 +550,83 @@ paths:
                 $ref: '#/components/schemas/RouteSearchResponse'
         '404':
           description: 사용자를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/routes/search/onboarding:
+    get:
+      summary: 온보딩 경로 검색 (직접 입력)
+      description: |
+        출발지, 목적지, 출발 시간을 직접 입력받아
+        ODSAY API를 통해 실시간 경로 정보를 검색합니다.
+        온보딩 화면에서 사용자가 선택한 여정의 경로를 검색하는 데 사용됩니다.
+      operationId: searchRoutesForOnboarding
+      tags:
+        - Briefings
+      parameters:
+        - name: originAddress
+          in: query
+          description: 출발지 주소 (예: "서울시 강남구 테헤란로 123")
+          required: true
+          schema:
+            type: string
+        - name: destinationAddress
+          in: query
+          description: 목적지 주소 (예: "서울시 종로구 세종대로 209")
+          required: true
+          schema:
+            type: string
+        - name: departureTime
+          in: query
+          description: 출발 시간 (ISO 8601 형식, 예: "2025-11-18T08:30:00" 또는 "08:30")
+          required: true
+          schema:
+            type: string
+        - name: originLatitude
+          in: query
+          description: 출발지 위도 (주소 대신 좌표 사용 시)
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: originLongitude
+          in: query
+          description: 출발지 경도 (주소 대신 좌표 사용 시)
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: destinationLatitude
+          in: query
+          description: 목적지 위도 (주소 대신 좌표 사용 시)
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: destinationLongitude
+          in: query
+          description: 목적지 경도 (주소 대신 좌표 사용 시)
+          required: false
+          schema:
+            type: number
+            format: double
+      responses:
+        '200':
+          description: 경로 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteSearchResponse'
+        '400':
+          description: 잘못된 요청 (필수 파라미터 누락 등)
           content:
             application/json:
               schema:
