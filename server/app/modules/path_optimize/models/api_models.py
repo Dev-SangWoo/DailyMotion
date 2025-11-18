@@ -1,5 +1,5 @@
 """
-Phase 1.1: 경로 최적화 모듈의 데이터 모델
+Phase 1.1: 경로 최적화 모듈의 Pydantic API 모델
 
 헌법 준수:
 - AGENTS.md 상호 규약 [제2장] 데이터 교환 (JSON camelCase)
@@ -16,9 +16,9 @@ Phase 1.1: 경로 최적화 모듈의 데이터 모델
 """
 
 from pydantic import BaseModel, Field, validator
-from datetime import time
+from datetime import time, datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class SystemMode(str, Enum):
@@ -86,9 +86,17 @@ class RecommendedTransport(BaseModel):
     """추천 교통수단"""
     type: TransportType = Field(..., description="교통 수단 타입")
     name: str = Field(..., description="교통수단 이름 (예: 123번 버스, 2호선)")
-    departureInMinutes: int = Field(..., description="출발까지 남은 시간 (분)")
+    departureInMinutes: Optional[int] = Field(..., description="출발까지 남은 시간 (분)")
     lineNumber: Optional[str] = Field(None, description="노선 번호")
     destination: Optional[str] = Field(None, description="목적지")
+    congestionLevel: Optional[str] = Field(
+        None,
+        description="혼잡도 등급 (LOW/MEDIUM/HIGH/VERY_HIGH)"
+    )
+    congestionValue: Optional[float] = Field(
+        None,
+        description="혼잡도 값 (% 단위)"
+    )
 
     class Config:
         schema_extra = {
@@ -97,7 +105,9 @@ class RecommendedTransport(BaseModel):
                 "name": "123번",
                 "departureInMinutes": 5,
                 "lineNumber": "123",
-                "destination": "강남역"
+                "destination": "강남역",
+                "congestionLevel": "MEDIUM",
+                "congestionValue": 55.0
             }
         }
 
@@ -161,6 +171,34 @@ class CommuteSettings(BaseModel):
         description="회사 경도"
     )
 
+    @validator("targetArrivalTime", "alertStartTime", pre=True)
+    def validate_time_field(cls, v):
+        """
+        시간 필드 Validator: "HH:MM" 또는 "HH:MM:SS" 문자열을 time 객체로 파싱
+
+        Swagger 호환성을 위해 문자열 입력 허용:
+        - "09:00" → time(9, 0)
+        - "09:00:00" → time(9, 0, 0)
+        - time 객체는 그대로 통과
+        """
+        if v is None:
+            return v
+        if isinstance(v, time):
+            return v
+        if isinstance(v, str):
+            # "HH:MM" 또는 "HH:MM:SS" 파싱
+            try:
+                parts = v.split(":")
+                if len(parts) == 2:  # "HH:MM"
+                    return time(int(parts[0]), int(parts[1]))
+                elif len(parts) == 3:  # "HH:MM:SS"
+                    return time(int(parts[0]), int(parts[1]), int(parts[2]))
+                else:
+                    raise ValueError(f"시간 형식이 잘못되었습니다: {v} (HH:MM 또는 HH:MM:SS 형식)")
+            except (ValueError, IndexError) as e:
+                raise ValueError(f"시간 파싱 실패: {v} - {str(e)}")
+        raise ValueError(f"지원하지 않는 타입: {type(v)} (time 객체 또는 문자열만 가능)")
+
     @validator("firstMileDefaultDuration", "lastMileDefaultDuration")
     def validate_duration_positive(cls, v):
         """도보 시간은 양수여야 함"""
@@ -180,6 +218,7 @@ class CommuteSettings(BaseModel):
         return v
 
     class Config:
+        populate_by_name = True  # camelCase/snake_case 혼용 허용
         schema_extra = {
             "example": {
                 "homeAddress": "서울 강남구 역삼동 123-45",
@@ -202,12 +241,17 @@ class BriefingResponse(BaseModel):
         "data": {
             "alertType": "GO_NOW" | "LAST_CHANCE" | "NO_ACTION" | "TAXI_REQUIRED",
             "message": "사용자 메시지",
+            "totalDurationMinutes": 42,
             "recommendedTransport": { ... }
         }
     }
     """
     alertType: AlertType = Field(..., description="알림 타입")
     message: str = Field(..., description="사용자에게 표시할 메시지")
+    totalDurationMinutes: Optional[int] = Field(
+        None,
+        description="출발지(집)에서 도착지(회사)까지 예상 총 소요시간 (분, Door-to-Door)"
+    )
     recommendedTransport: Optional[RecommendedTransport] = Field(
         None,
         description="추천 교통수단"
@@ -218,6 +262,7 @@ class BriefingResponse(BaseModel):
             "example": {
                 "alertType": "GO_NOW",
                 "message": "8:50 도착을 위해, 지금 집에서 출발하셔서 5분 뒤 오는 [123번 버스]를 타세요.",
+                "totalDurationMinutes": 42,
                 "recommendedTransport": {
                     "type": "BUS",
                     "name": "123번",

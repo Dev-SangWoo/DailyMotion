@@ -193,7 +193,7 @@
 
 ---
 
-## 디렉토리 구조
+## 전체 디렉토리 구조
 
 ```
 데일리모션_프로젝트/
@@ -214,3 +214,50 @@
         └── generated/    # (설계도로 '자동 생성'된 파일들)
 ```
 
+데일리모션 프로젝트의 FastAPI 백엔드 서버입니다. **모듈형 모놀리식 아키텍처**를 따릅니다.
+
+## 📁 벡엔드 서버 디렉토리 구조
+
+```
+server/
+├── app/                  # 1. FastAPI 애플리케이션 루트
+│   ├── api/              # 2. '국경' (OpenAPI 라우터)
+│   │   ├── v1/
+│   │   │   ├── ai_pattern_router.py
+│   │   │   ├── path_optimize_router.py
+│   │   │   ├── risk_manage_router.py
+│   │   │   ├── user_router.py
+│   │   │   └── __init__.py
+│   │   └── __init__.py
+│   │
+│   ├── core/             # 3. '헌법' 시행 (설정, 인증)
+│   │   ├── config.py     # (NHN Cloud 키 등 환경변수)
+│   │   ├── security.py   # (인증/인가 로직)
+│   │   └── __init__.py
+│   │
+│   ├── db/               # 4. '주춧돌' (PostgreSQL/PostGIS)
+│   │   ├── database.py   # (DB 세션 관리)
+│   │   └── models/       # (DB 테이블 모델, 예: User, Journey)
+│   │       ├── __init__.py
+│   │       ├── user.py
+│   │       ├── journey.py
+│   │       └── report.py
+│   │
+│   ├── modules/          # 5. '가상 MSA' (핵심 비즈니스 로직)
+│   │   ├── ai_pattern/   # (AI 패턴 학습 모듈)
+│   │   │   ├── __init__.py
+│   │   │   └── service.py
+│   │   ├── path_optimize/  # (경로 최적화 모듈)
+│   │   │   ├── __init__.py
+│   │   │   └── service.py
+│   │   ├── risk_manage/  # (위험 관리 & 시민 리포트 모듈)
+│   │   │   ├── __init__.py
+│   │   │   └── service.py
+│   │   └── __init__.py
+│   │
+│   ├── main.py           # (FastAPI 앱 실행)
+│   └── __init__.py
+│
+├── requirements.txt      # (FastAPI, PostGIS 등)
+└── README.md
+```

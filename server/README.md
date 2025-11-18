@@ -108,7 +108,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 # CORS 설정
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8081"]
 ```
-
+source venv_server/bin/activate
 ### 2. 의존성 설치
 
 ```bash
@@ -189,3 +189,18 @@ alembic upgrade head
 - **db/**: 데이터베이스 접근만 담당
 - **core/**: 공통 설정 및 유틸리티
 
+{
+  "homeAddress": "string",
+  "workAddress": "string",
+  "targetArrivalTime": "19:56:49",
+  "firstMileDefaultDuration": 5,
+  "lastMileDefaultDuration": 7,
+  "preferenceRoutes": [
+    "string"
+  ],
+  "alertStartTime": "07:56:49",
+  "homeLatitude":  37.4876327473647,
+  "homeLongitude": 126.889648173149,
+  "workLatitude": 37.4988400846064,
+  "workLongitude": 126.890309191986
+}

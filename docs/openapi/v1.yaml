@@ -70,6 +70,421 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /context/mode-switch:
+    get:
+      summary: 자동 모드 전환 조회
+      description: |
+        Logic 2.1: GPS 기반 사용자 상태 감지 결과를 조회합니다.
+        사용자의 현재 위치와 저장된 출퇴근 설정을 기반으로
+        화면 전환이 필요한지 여부 및 ETA 정보를 반환합니다.
+      operationId: getAutoModeSwitchAction
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+        - name: currentLatitude
+          in: query
+          description: 현재 위도
+          required: true
+          schema:
+            type: number
+            format: double
+            example: 37.4979
+        - name: currentLongitude
+          in: query
+          description: 현재 경도
+          required: true
+          schema:
+            type: number
+            format: double
+            example: 127.0276
+        - name: currentAccuracy
+          in: query
+          description: GPS 정확도 (미터, 선택)
+          required: false
+          schema:
+            type: number
+            format: double
+            example: 5.0
+        - name: mode
+          in: query
+          description: 현재 시스템 모드 (COMMUTE/RETREAT)
+          required: false
+          schema:
+            type: string
+            default: "COMMUTE"
+      responses:
+        '200':
+          description: 자동 모드 전환 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoModeSwitchResponse'
+        '404':
+          description: 사용자를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /routes/alternative:
+    post:
+      summary: 고신뢰 대안 경로 제안
+      description: |
+        Logic 2.2: 현재 경로 대비 대안 경로의 시간 이득, 환승 확정성, 혼잡도를 검증하여
+        모든 Gate를 통과한 경우에만 대안 경로를 제안합니다.
+      operationId: getAlternativeRouteSuggestion
+      tags:
+        - Briefings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentRouteTime:
+                  type: integer
+                  description: 현재 경로 소요 시간 (분)
+                  example: 35
+                alternativeRouteTime:
+                  type: integer
+                  description: 대안 경로 소요 시간 (분)
+                  example: 27
+                mode:
+                  type: string
+                  description: 시스템 모드 (COMMUTE/RETREAT)
+                  example: "COMMUTE"
+                currentBusArrivalMinutes:
+                  type: integer
+                  description: 현재 버스 도착까지 시간 (분)
+                  example: 3
+                currentBusDurationMinutes:
+                  type: integer
+                  description: 현재 버스 정차 + 하차 시간 (분)
+                  example: 2
+                transferBusArrivalMinutes:
+                  type: integer
+                  description: 환승 버스 도착까지 시간 (분)
+                  example: 8
+                transferBusCongestion:
+                  type: integer
+                  description: 환승 버스 혼잡도 (%)
+                  example: 60
+                transferLocation:
+                  type: string
+                  description: 환승 지점 (예: "가산디지털단지")
+                transferLine:
+                  type: string
+                  description: 환승 노선 (예: "7호선 급행")
+                congestionLevel:
+                  type: integer
+                  nullable: true
+                  description: 혼잡도 (퇴근 모드용, 선택)
+      responses:
+        '200':
+          description: 대안 경로 제안 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlternativeRouteSuggestionResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /seating/optimize:
+    get:
+      summary: 탑승/환승 최적화 가이드 조회
+      description: |
+        Logic 2.3: 환승, 혼잡도, 출구 위치 등을 고려하여 최적 탑승 칸/환승 경로를 안내합니다.
+      operationId: getSeatingOptimization
+      tags:
+        - Briefings
+      parameters:
+        - name: guidanceType
+          in: query
+          description: 안내 유형 (TRANSFER/COMFORTABLE/EXIT/MULTI_TRANSFER)
+          required: true
+          schema:
+            type: string
+        - name: transferStation
+          in: query
+          description: 환승역 이름 (선택)
+          required: false
+          schema:
+            type: string
+        - name: transferLine
+          in: query
+          description: 환승 노선 (선택)
+          required: false
+          schema:
+            type: string
+        - name: exitLocation
+          in: query
+          description: 출구 위치 (FRONT/CENTER/REAR 등, 선택)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 탑승/환승 최적화 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeatingOptimizationResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /exceptions/delays:
+    post:
+      summary: 돌발상황 지연 감지
+      description: |
+        Logic 3.1: 구간별 평균 소요시간과 실시간 데이터를 비교하여
+        지연 구간 및 가장 심각한 구간을 식별합니다.
+      operationId: getExceptionAlert
+      tags:
+        - Briefings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                segments:
+                  type: array
+                  description: 구간 정보 리스트
+                  items:
+                    type: object
+                    properties:
+                      segmentId:
+                        type: string
+                      segmentName:
+                        type: string
+                      fromStation:
+                        type: string
+                      toStation:
+                        type: string
+                currentHour:
+                  type: integer
+                  description: 현재 시간 (0-23)
+                currentDayOfWeek:
+                  type: integer
+                  description: 현재 요일 (0=일, 1=월, ...)
+      responses:
+        '200':
+          description: 지연 감지 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExceptionAlertResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /taxi/suggest:
+    post:
+      summary: 택시 제안
+      description: |
+        Logic 3.2: 출근/퇴근 모드에서 지각 확정 또는 막차 놓침 시
+        택시 이용을 제안할지 여부와 메시지를 반환합니다.
+      operationId: getTaxiSuggestion
+      tags:
+        - Briefings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  description: 시스템 모드 (COMMUTE/RETREAT)
+                  example: "COMMUTE"
+                currentTime:
+                  type: string
+                  format: date-time
+                  description: 현재 시각 (ISO 8601)
+                targetArrivalTime:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: 목표 도착 시간 (COMMUTE 모드)
+                transitArrivalTime:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: 대중교통 예상 도착 시간 (COMMUTE 모드)
+                taxiArrivalTime:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: 택시 예상 도착 시간
+                selectedRouteChoice:
+                  type: string
+                  nullable: true
+                  description: 선택한 경로 (A/B/C, RETREAT 모드)
+                selectedRouteName:
+                  type: string
+                  nullable: true
+                  description: 선택한 경로명 (RETREAT 모드)
+                lastBusTime:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: 막차 시간 (RETREAT 모드)
+      responses:
+        '200':
+          description: 택시 제안 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxiSuggestionResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /routes/by-goal:
+    get:
+      summary: 퇴근 목표별 경로 조회
+      description: |
+        Logic 4.2: 사용자의 퇴근 목표(A/B/C)에 따라 경로 목록을 필터링합니다.
+        (현재는 Mock/클라이언트 제공 경로 리스트 기반)
+      operationId: getRoutesByRetreatGoal
+      tags:
+        - Briefings
+      parameters:
+        - name: goal
+          in: query
+          description: 퇴근 목표 (A/B/C)
+          required: true
+          schema:
+            type: string
+        - name: routesJson
+          in: query
+          description: 경로 목록 JSON (URL-encoded, 임시 구현)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 목표별 경로 제안 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutesByGoalResponse'
+        '400':
+          description: 잘못된 요청 (JSON 파싱 실패 등)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /polling/frequency:
+    get:
+      summary: 스마트 폴링 빈도 조회
+      description: |
+        Logic 4.3: 사용자 상태에 따라 폴링 빈도(HIGH/MEDIUM/LOW)와
+        다음 체크 시각을 계산합니다.
+      operationId: getSmartPollingFrequency
+      tags:
+        - Briefings
+      parameters:
+        - name: userLatitude
+          in: query
+          description: 사용자 위도
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: userLongitude
+          in: query
+          description: 사용자 경도
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: userSpeed
+          in: query
+          description: 사용자 속도 (km/h)
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: transitMode
+          in: query
+          description: 대중교통 모드 (SUBWAY/BUS/TRAIN/WALKING/WAITING)
+          required: true
+          schema:
+            type: string
+        - name: distanceToTransfer
+          in: query
+          description: 환승 지점까지 거리 (미터)
+          required: false
+          schema:
+            type: number
+            format: double
+            default: 999999
+        - name: inCongestionZone
+          in: query
+          description: 정체 구간 여부
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: minutesUntilAlert
+          in: query
+          description: 알림까지 남은 시간 (분)
+          required: false
+          schema:
+            type: integer
+            default: 9999
+      responses:
+        '200':
+          description: 스마트 폴링 빈도 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmartPollingFrequencyResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /briefings/commute:
     get:
       summary: 출근 브리핑 조회
@@ -80,6 +495,14 @@ paths:
       operationId: getCommuteBriefing
       tags:
         - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
       responses:
         '200':
           description: 출근 브리핑 정보
@@ -87,14 +510,317 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommuteBriefingResponse'
-        '400':
-          description: 잘못된 요청 (설정이 없거나 불완전한 경우)
+        '404':
+          description: 사용자를 찾을 수 없음
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: 인증 실패
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/transfer-reminder:
+    get:
+      summary: 환승 리마인더 조회
+      description: |
+        Logic 2.4: 사용자의 현재 위치와 선택된 출근 경로를 기준으로,
+        다가오는 환승역 반경(예: 300~500m) 이내에 진입했을 때
+        환승 알림과 실시간 도착 정보를 제공합니다.
+
+        - 환승 지점 근처일 때:
+          - action: "TRANSFER_REMINDER"
+          - stationName: 환승역 이름 (예: "온수")
+          - line: 환승 노선 (예: "7호선" 또는 "123번")
+          - arrivalMinutes: 실시간 도착까지 남은 시간 (분)
+          - isRealtime: 실시간 데이터 사용 여부
+        - 환승 지점이 없거나 반경 밖일 때:
+          - action: "NO_ACTION"
+      operationId: getTransferReminder
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+        - name: currentLatitude
+          in: query
+          description: 현재 위도
+          required: true
+          schema:
+            type: number
+            format: double
+            example: 37.4928
+        - name: currentLongitude
+          in: query
+          description: 현재 경도
+          required: true
+          schema:
+            type: number
+            format: double
+            example: 126.8239
+        - name: radiusMeters
+          in: query
+          description: 환승역 반경 (미터, 기본값 500)
+          required: false
+          schema:
+            type: number
+            format: double
+            default: 500
+      responses:
+        '200':
+          description: 환승 리마인더 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferReminderResponse'
+        '404':
+          description: 사용자를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/retreat:
+    get:
+      summary: 퇴근 막차 알림 조회
+      description: |
+        Phase 12: 퇴근 모드에서 사용자가 선택한 경로의 막차 시간을 알림합니다.
+        Logic 1.2 (퇴근 모드) 구현
+      operationId: getRetreatModeLastBusAlert
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 퇴근 막차 알림 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetreatBriefingResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/commute-settings:
+    post:
+      summary: 출퇴근 설정 저장
+      description: |
+        Phase 12: 사용자의 출퇴근 설정을 저장합니다.
+        집 주소, 회사 주소, 목표 도착 시간 등을 저장합니다.
+      operationId: saveCommuteSettings
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: true
+          schema:
+            type: string
+        - name: homeAddress
+          in: query
+          description: 집 주소
+          required: true
+          schema:
+            type: string
+        - name: workAddress
+          in: query
+          description: 회사 주소
+          required: true
+          schema:
+            type: string
+        - name: targetArrivalHour
+          in: query
+          description: 도착 목표 시간 (시, 0-23)
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 23
+        - name: targetArrivalMinute
+          in: query
+          description: 도착 목표 분 (분, 0-59)
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 59
+        - name: firstMileDuration
+          in: query
+          description: First Mile 도보 시간 (분, 기본값 5)
+          required: false
+          schema:
+            type: integer
+            default: 5
+            minimum: 0
+            maximum: 30
+        - name: lastMileDuration
+          in: query
+          description: Last Mile 도보 시간 (분, 기본값 5)
+          required: false
+          schema:
+            type: integer
+            default: 5
+            minimum: 0
+            maximum: 30
+      responses:
+        '200':
+          description: 설정이 저장되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommuteSettingsSaveResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: 출퇴근 설정 조회
+      description: |
+        Phase 12: 사용자의 저장된 출퇴근 설정을 조회합니다.
+      operationId: getCommuteSettings
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 출퇴근 설정 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommuteSettingsGetResponse'
+        '404':
+          description: 사용자를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /briefings/retreat-choice:
+    post:
+      summary: 퇴근 목표 선택 저장
+      description: |
+        Phase 12: 퇴근 모드 사용자 목표 선택을 저장합니다.
+        Logic 4.1 구현
+        - A: 가장 빠르게 (최단 시간)
+        - B: 편안하게 (착석 선호)
+        - C: 평소 경로 (습관)
+      operationId: saveRetreatChoice
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: true
+          schema:
+            type: string
+        - name: choice
+          in: query
+          description: 선택지 (A/B/C)
+          required: true
+          schema:
+            type: string
+            enum:
+              - "A"
+              - "B"
+              - "C"
+      responses:
+        '200':
+          description: 선택이 저장되었습니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetreatChoiceSaveResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 유효성 검증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: 퇴근 목표 선택 조회
+      description: |
+        Phase 12: 사용자의 저장된 퇴근 목표 선택을 조회합니다.
+      operationId: getRetreatChoice
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 퇴근 목표 선택 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetreatChoiceGetResponse'
+        '500':
+          description: 서버 오류
           content:
             application/json:
               schema:
@@ -191,6 +917,10 @@ components:
               type: string
               description: 사용자에게 표시할 메시지
               example: "8:50 도착을 위해, 지금 집에서 출발하셔서 5분 뒤 오는 [123번 버스]를 타세요."
+            totalDurationMinutes:
+              type: integer
+              description: 출발지(집)에서 도착지(회사)까지 예상 총 소요시간 (분, Door-to-Door)
+              example: 42
             recommendedTransport:
               $ref: '#/components/schemas/RecommendedTransport'
           required:
@@ -216,10 +946,387 @@ components:
           type: integer
           description: 출발까지 남은 시간 (분)
           example: 5
+        lineNumber:
+          type: string
+          nullable: true
+          description: 노선 번호 (예: "2호선", "146번")
+        destination:
+          type: string
+          nullable: true
+          description: 행선지/방향 (예: "상행", "강남행")
+        congestionLevel:
+          type: string
+          nullable: true
+          description: 혼잡도 등급 (LOW/MEDIUM/HIGH/VERY_HIGH)
+          example: "HIGH"
+        congestionValue:
+          type: number
+          format: float
+          nullable: true
+          description: 혼잡도 값 (% 단위)
+          example: 85.0
       required:
         - type
         - name
         - departureInMinutes
+
+    # Phase 12: 퇴근 모드 관련 응답
+    RetreatBriefingResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              description: 막차 알림 메시지
+              example: "선택하신 [B. 편안하게(착석)]의 막차가 30분 뒤입니다."
+            recommendedTransport:
+              $ref: '#/components/schemas/RecommendedTransport'
+          required:
+            - message
+
+    # Phase 12: 출퇴근 설정 저장 응답
+    CommuteSettingsSaveResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - SETTINGS_SAVED
+              example: "SETTINGS_SAVED"
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            message:
+              type: string
+              description: 성공 메시지
+              example: "설정이 저장되었습니다."
+            settings:
+              type: object
+              properties:
+                homeAddress:
+                  type: string
+                  example: "서울 강남구 역삼동"
+                workAddress:
+                  type: string
+                  example: "서울 중구 을지로"
+                targetArrivalTime:
+                  type: string
+                  format: time
+                  example: "08:50"
+                firstMileDefaultDuration:
+                  type: integer
+                  example: 5
+                lastMileDefaultDuration:
+                  type: integer
+                  example: 7
+          required:
+            - action
+            - userId
+            - message
+
+    # Phase 12: 출퇴근 설정 조회 응답
+    CommuteSettingsGetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            homeAddress:
+              type: string
+              description: 집 주소
+              example: "서울 강남구 역삼동"
+            workAddress:
+              type: string
+              description: 회사 주소
+              example: "서울 중구 을지로"
+            targetArrivalTime:
+              type: string
+              format: time
+              description: 목표 도착 시간 (HH:MM)
+              example: "08:50"
+            firstMileDefaultDuration:
+              type: integer
+              description: First Mile 도보 시간 (분)
+              example: 5
+            lastMileDefaultDuration:
+              type: integer
+              description: Last Mile 도보 시간 (분)
+              example: 7
+          required:
+            - userId
+            - homeAddress
+            - workAddress
+            - targetArrivalTime
+
+    # Phase 12: 퇴근 목표 저장 응답
+    RetreatChoiceSaveResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - CHOICE_SAVED
+              example: "CHOICE_SAVED"
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            selectedChoice:
+              type: string
+              enum:
+                - "A"
+                - "B"
+                - "C"
+              description: 선택한 경로 (A/B/C)
+              example: "B"
+            selectedLabel:
+              type: string
+              description: 선택지 레이블
+              example: "편안하게"
+            message:
+              type: string
+              description: 성공 메시지
+              example: "퇴근 목표 '편안하게'로 저장되었습니다."
+          required:
+            - action
+            - userId
+            - selectedChoice
+            - selectedLabel
+
+    # Phase 12: 퇴근 목표 조회 응답
+    RetreatChoiceGetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            userId:
+              type: string
+              description: 사용자 ID
+              example: "user_001"
+            selectedChoice:
+              type: string
+              enum:
+                - "A"
+                - "B"
+                - "C"
+              description: 선택한 경로 (A/B/C)
+              example: "B"
+            selectedLabel:
+              type: string
+              description: 선택지 레이블
+              example: "편안하게"
+
+    # Phase 14: Logic 2.4 - 환승 리마인더 응답
+    TransferReminderResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+              description: 액션 타입
+              enum:
+                - TRANSFER_REMINDER
+                - NO_ACTION
+              example: TRANSFER_REMINDER
+            stationName:
+              type: string
+              nullable: true
+              description: 환승역 이름
+              example: "온수"
+            line:
+              type: string
+              nullable: true
+              description: 환승 노선 (지하철 호선 또는 버스 번호)
+              example: "7호선"
+            arrivalMinutes:
+              type: integer
+              nullable: true
+              description: 실시간 도착까지 남은 시간 (분, 실시간 정보 없으면 null)
+              example: 3
+            isRealtime:
+              type: boolean
+              description: 실시간 데이터 사용 여부
+              example: true
+            message:
+              type: string
+              description: 사용자에게 표시할 환승 안내 메시지
+              example: "다음 역인 [온수]에서 [7호선]으로 환승하셔야 합니다. 약 3분 후 도착 예정입니다."
+            timestamp:
+              type: string
+              format: date-time
+              description: 응답 생성 시각 (UTC 기준)
+              example: "2025-01-15T08:40:00Z"
+          required:
+            - action
+            - isRealtime
+            - message
+
+    # Logic 2.2: 대안 경로 제안 응답
+    AlternativeRouteSuggestionResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            suggestAlternativeRoute:
+              type: boolean
+              description: 대안 경로 제안 여부
+            message:
+              type: string
+              nullable: true
+              description: 제안 메시지
+            timeBenefit:
+              type: integer
+              nullable: true
+              description: 시간 이득 (분)
+            transferLocation:
+              type: string
+              nullable: true
+            transferLine:
+              type: string
+              nullable: true
+            transferCongestion:
+              type: integer
+              nullable: true
+            transferTime:
+              type: integer
+              nullable: true
+            reasons:
+              type: array
+              nullable: true
+              items:
+                type: string
+            failedGates:
+              type: object
+              nullable: true
+      required:
+        - data
+
+    # Logic 2.3: 탑승/환승 최적화 응답
+    SeatingOptimizationResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    # Logic 3.1: 돌발상황 지연 감지 응답
+    ExceptionAlertResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+            totalSegments:
+              type: integer
+            delayedCount:
+              type: integer
+            delayedSegments:
+              type: array
+              items:
+                type: object
+            mostCritical:
+              type: object
+              nullable: true
+            hasCritical:
+              type: boolean
+
+    # Logic 3.2: 택시 제안 응답
+    TaxiSuggestionResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    # Logic 4.2: 퇴근 목표별 경로 응답
+    RoutesByGoalResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    # Logic 4.3: 스마트 폴링 빈도 응답
+    SmartPollingFrequencyResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            frequency:
+              type: string
+            intervalSeconds:
+              type: integer
+            reason:
+              type: string
+            nextCheckTime:
+              type: string
+              format: date-time
+            metadata:
+              type: object
+            timestamp:
+              type: string
+              format: date-time
+
+    # Logic 2.1: 자동 모드 전환 응답
+    AutoModeSwitchResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+              description: 수행할 액션 (AUTO_SWITCH_TO_ETA 또는 NO_ACTION)
+              example: "AUTO_SWITCH_TO_ETA"
+            state:
+              type: string
+              description: 감지된 사용자 상태 (WAITING/WALKING/ON_TRIP)
+              example: "ON_TRIP"
+            destinationArrivalTime:
+              type: string
+              format: time
+              nullable: true
+              description: 목적지 도착 예정 시간 (화면 전환 시)
+              example: "08:45:00"
+            estimatedMinutes:
+              type: integer
+              nullable: true
+              description: 도착까지 예상 시간 (분)
+              example: 15
+            currentLocation:
+              type: object
+              nullable: true
+              description: 현재 위치 정보
+            destination:
+              type: object
+              nullable: true
+              description: 목적지 정보
+            message:
+              type: string
+              description: 사용자에게 표시할 메시지
+              example: "탑승 감지! 직장 도착까지 약 15분 남았습니다."
+          required:
+            - action
 
 tags:
   - name: Health
@@ -228,4 +1335,3 @@ tags:
     description: 사용자 관련 엔드포인트
   - name: Briefings
     description: 브리핑 관련 엔드포인트
-

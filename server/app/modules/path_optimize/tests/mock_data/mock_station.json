@@ -1,0 +1,47 @@
+{
+  "result": {
+    "station": [
+      {
+        "stationName": "강남역",
+        "stationID": 106186,
+        "x": 127.027621,
+        "y": 37.497928,
+        "arsID": "22010",
+        "stationClass": "2"
+      },
+      {
+        "stationName": "강남역.역삼세무서",
+        "stationID": 106439,
+        "x": 127.028362,
+        "y": 37.498413,
+        "arsID": "22011",
+        "stationClass": "2"
+      },
+      {
+        "stationName": "강남역.신논현",
+        "stationID": 106440,
+        "x": 127.025890,
+        "y": 37.499102,
+        "arsID": "22012",
+        "stationClass": "2"
+      },
+      {
+        "stationName": "강남역(지하철)",
+        "stationID": 106187,
+        "x": 127.027500,
+        "y": 37.497900,
+        "arsID": "22013",
+        "stationClass": "1"
+      },
+      {
+        "stationName": "강남역.교대역",
+        "stationID": 106441,
+        "x": 127.027100,
+        "y": 37.498500,
+        "arsID": "22014",
+        "stationClass": "2"
+      }
+    ],
+    "totalCount": 10
+  }
+}
