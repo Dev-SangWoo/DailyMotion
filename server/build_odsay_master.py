@@ -19,7 +19,7 @@ import csv
 import json
 import logging
 import os
-from collections import OrderedDict
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
@@ -34,6 +34,7 @@ BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config" / "odsay_lines.json"
 DATA_DIR = BASE_DIR / "data"
 MASTER_MAP_PATH = DATA_DIR / "master_station_map.json"
+SEOUL_CONGESTION_CSV_PATH = DATA_DIR / "seoul_subway_congestion.csv"
 
 ODSAY_BASE_URL = "https://api.odsay.com/v1/api"
 CID_DEFAULT = "1000"
@@ -146,37 +147,74 @@ async def get_line_stations_for_segments(
 
             data = await call_subway_path(session, api_key=api_key, sid=sid, eid=eid)
             result = data.get("result") or {}
-            paths = result.get("path") or []
-            if not paths:
-                logger.warning(f"⚠️ subwayPath 응답에 path 없음 (line={line_code}, SID={sid}, EID={eid})")
-                continue
 
-            first_path = paths[0]
-            sub_paths = first_path.get("subPath") or []
+            # 1️⃣ subwayPath (stationSet 기반) 응답 처리
+            station_set = result.get("stationSet", {}) or {}
+            edge_stations = station_set.get("stations") or []
+            if edge_stations:
+                for st in edge_stations:
+                    start_id = st.get("startID")
+                    start_name = st.get("startName")
+                    end_id = st.get("endSID")
+                    end_name = st.get("endName")
 
-            for sp in sub_paths:
-                if sp.get("trafficType") != 1:
-                    continue
+                    if start_id and start_name:
+                        stations.append(
+                            {
+                                "odsayStationID": str(start_id),
+                                "odsaySubwayCode": str(line_code),
+                                "stationName": start_name,
+                            }
+                        )
+                    if end_id and end_name:
+                        stations.append(
+                            {
+                                "odsayStationID": str(end_id),
+                                "odsaySubwayCode": str(line_code),
+                                "stationName": end_name,
+                            }
+                        )
+            else:
+                # 2️⃣ 예전 searchPubTransPathT 스타일(path/subPath/passStopList) 응답 처리 (호환용)
+                paths = result.get("path") or []
+                if paths:
+                    first_path = paths[0]
+                    sub_paths = first_path.get("subPath") or []
 
-                pass_stop_list = sp.get("passStopList") or {}
-                sp_stations = pass_stop_list.get("stations") or []
-                for st in sp_stations:
-                    lane = st.get("lane")
-                    if lane is not None and str(lane) != str(line_code):
-                        continue
+                    for sp in sub_paths:
+                        if sp.get("trafficType") != 1:
+                            continue
 
-                    station_id = st.get("stationID")
-                    station_name = st.get("stationName")
-                    if not station_id or not station_name:
-                        continue
+                        pass_stop_list = sp.get("passStopList") or {}
+                        sp_stations = pass_stop_list.get("stations") or []
+                        for st in sp_stations:
+                            lane = st.get("lane")
+                            if lane is not None and str(lane) != str(line_code):
+                                continue
 
-                    stations.append(
-                        {
-                            "odsayStationID": str(station_id),
-                            "odsaySubwayCode": str(line_code),
-                            "stationName": station_name,
-                        }
+                            station_id = st.get("stationID")
+                            station_name = st.get("stationName")
+                            if not station_id or not station_name:
+                                continue
+
+                            stations.append(
+                                {
+                                    "odsayStationID": str(station_id),
+                                    "odsaySubwayCode": str(line_code),
+                                    "stationName": station_name,
+                                }
+                            )
+                else:
+                    # 디버깅을 위해 ODSAY 원본 응답(JSON) 일부를 함께 로깅
+                    try:
+                        raw_snippet = json.dumps(data, ensure_ascii=False)[:500]
+                    except Exception:
+                        raw_snippet = str(data)[:500]
+                    logger.warning(
+                        f"⚠️ subwayPath 응답에 사용 가능한 역 정보 없음 (line={line_code}, SID={sid}, EID={eid}) "
+                        f"raw={raw_snippet}"
                     )
+                    continue
 
             await asyncio.sleep(0.1)
 
@@ -256,6 +294,115 @@ def merge_into_master_map(
     return master_rows
 
 
+def _normalize_station_name(name: str) -> str:
+    """
+    역 이름 정규화:
+    - 괄호 및 괄호 안 내용 제거 (예: '총신대입구(이수)' → '총신대입구')
+    - '역' 글자 제거
+    - 공백 제거
+    """
+    if not name:
+        return ""
+
+    # 괄호 및 내용 제거
+    normalized = re.sub(r"\(.*?\)", "", name)
+    # '역' 제거
+    normalized = normalized.replace("역", "")
+    # 공백 제거
+    normalized = normalized.replace(" ", "")
+    # 양끝 공백 제거
+    normalized = normalized.strip()
+    return normalized
+
+
+def _load_seoul_congestion_index() -> Dict[Tuple[str, str], Dict[str, str]]:
+    """
+    서울교통공사 혼잡도 CSV에서
+    (호선, 정규화된 출발역 이름) → 행 정보 인덱스 생성
+    """
+    index: Dict[Tuple[str, str], Dict[str, str]] = {}
+
+    if not SEOUL_CONGESTION_CSV_PATH.exists():
+        logger.warning(f"⚠️ 서울교통공사 혼잡도 CSV 없음: {SEOUL_CONGESTION_CSV_PATH}")
+        return index
+
+    try:
+        with SEOUL_CONGESTION_CSV_PATH.open("r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                line_num = row.get("호선")
+                station_name = row.get("출발역")
+                if not line_num or not station_name:
+                    continue
+
+                key = (line_num, _normalize_station_name(station_name))
+                # 동일 키가 여러 번 나와도 역번호/호선은 동일하므로 첫 번째만 사용
+                if key not in index:
+                    index[key] = row
+
+        logger.info(f"✅ 서울 혼잡도 CSV 인덱스 생성: {len(index)}개 키")
+    except Exception as e:
+        logger.warning(f"⚠️ 서울 혼잡도 CSV 인덱스 생성 실패: {str(e)}")
+        return {}
+
+    return index
+
+
+def apply_name_based_matching(master_rows: List[Dict[str, Any]]) -> None:
+    """
+    master_station_map.json 행들에 대해
+    서울교통공사 혼잡도 CSV와 이름 기반 자동 매칭을 수행하여
+    seoulStationID / seoulLineNum을 채운다.
+    """
+    index = _load_seoul_congestion_index()
+    if not index:
+        return
+
+    matched = 0
+    unmatched = 0
+
+    for row in master_rows:
+        # 이미 매핑된 경우 건너뜀
+        if row.get("seoulStationID") or row.get("seoulLineNum"):
+            continue
+
+        odsay_code = str(row.get("odsaySubwayCode", "")).strip()
+        debug_name = row.get("debugName") or ""
+        if not odsay_code or not debug_name:
+            unmatched += 1
+            continue
+
+        # 1~8호선만 대상
+        try:
+            code_int = int(odsay_code)
+        except ValueError:
+            unmatched += 1
+            continue
+
+        if not (1 <= code_int <= 8):
+            unmatched += 1
+            continue
+
+        seoul_line = f"{code_int}호선"
+        key = (seoul_line, _normalize_station_name(debug_name))
+        csv_row = index.get(key)
+        if not csv_row:
+            unmatched += 1
+            continue
+
+        seoul_station_id = csv_row.get("역번호")
+        line_num = csv_row.get("호선")
+        if not seoul_station_id or not line_num:
+            unmatched += 1
+            continue
+
+        row["seoulStationID"] = str(seoul_station_id)
+        row["seoulLineNum"] = str(line_num)
+        matched += 1
+
+    logger.info(f"✅ 이름 기반 자동 매칭 완료: 매칭 성공={matched}, 실패={unmatched}")
+
+
 async def build_master(subway_codes: List[str]) -> None:
     api_key = os.getenv("ODSAY_API_KEY")
     if not api_key:
@@ -292,6 +439,8 @@ async def build_master(subway_codes: List[str]) -> None:
 
     master_rows = load_master_map()
     merged = merge_into_master_map(master_rows, stations_all)
+    # 이름 기반 자동 매칭으로 seoulStationID / seoulLineNum 채우기
+    apply_name_based_matching(merged)
     MASTER_MAP_PATH.parent.mkdir(parents=True, exist_ok=True)
     with MASTER_MAP_PATH.open("w", encoding="utf-8") as f:
         json.dump(merged, f, ensure_ascii=False, indent=2)
@@ -313,4 +462,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

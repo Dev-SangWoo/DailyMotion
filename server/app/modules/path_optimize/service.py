@@ -1370,7 +1370,14 @@ class PathOptimizeService:
 
             # ✅ 충분한 여유 있음 → GO_NOW
             if slack_minutes >= COMFORTABLE_BUFFER_MINUTES:
-                # 집 기준으로 차량을 타기까지 남은 시간 = 걷기 + 정류장 대기
+                # 집 기준으로 차량을 타기까지 남은 시간
+                # - 차량 도착까지 남은 시간(wait_until_vehicle_minutes)에서
+                #   First Mile 도보 시간을 뺀 값이 "집에서 출발까지 남은 시간"
+                leave_in_minutes = max(
+                    wait_until_vehicle_minutes - first_mile_duration,
+                    0,
+                )
+                # "집에서 출발하여 역에 도착할 때까지" 걸리는 시간
                 departure_total_minutes = first_mile_duration + wait_until_vehicle_minutes
 
                 if recommended_transport:
@@ -1398,7 +1405,9 @@ class PathOptimizeService:
                         "recommendedTransport": (
                             {
                                 **recommended_transport,
-                                "departureInMinutes": departure_total_minutes,
+                                # API 응답의 departureInMinutes는
+                                # "집에서 출발까지 남은 시간"으로 정의한다.
+                                "departureInMinutes": leave_in_minutes,
                             }
                             if recommended_transport
                             else {
@@ -1414,7 +1423,11 @@ class PathOptimizeService:
 
             # ⚠️ 마지노선 → LAST_CHANCE
             if 0 <= slack_minutes < COMFORTABLE_BUFFER_MINUTES:
-                # 집 기준으로 차량을 타기까지 남은 시간 = 걷기 + 정류장 대기
+                # 집 기준으로 차량을 타기까지 남은 시간
+                leave_in_minutes = max(
+                    wait_until_vehicle_minutes - first_mile_duration,
+                    0,
+                )
                 departure_total_minutes = first_mile_duration + wait_until_vehicle_minutes
 
                 if recommended_transport:
@@ -1449,7 +1462,7 @@ class PathOptimizeService:
                         "recommendedTransport": (
                             {
                                 **recommended_transport,
-                                "departureInMinutes": departure_total_minutes,
+                                "departureInMinutes": leave_in_minutes,
                             }
                             if recommended_transport
                             else {

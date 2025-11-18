@@ -179,9 +179,9 @@ class TestPathOptimizeService:
         data = result["data"]
         assert "10" in data["message"], "메시지에 First Mile 시간(10분)이 포함되어야 함"
 
-        # 또는 recommendedTransport의 departureInMinutes가 First Mile과 유사해야 함
+        # departureInMinutes는 "집에서 출발까지 남은 시간"이므로 0 이상이어야 함
         transport = data["recommendedTransport"]
-        assert transport["departureInMinutes"] >= 10, "출발 시간이 First Mile 이상이어야 함"
+        assert transport["departureInMinutes"] >= 0, "출발까지 남은 시간은 0분 이상이어야 함"
 
 
 class TestPathOptimizeServiceCongestion:
@@ -235,3 +235,52 @@ class TestPathOptimizeServiceCongestion:
         # 혼잡도 텍스트가 메시지에 포함되어야 함
         assert "혼잡도" in data["message"]
         assert "85%" in data["message"]
+
+
+class TestDepartureInMinutesWithRealtime:
+    """
+    departureInMinutes가 '집에서 출발까지 남은 시간'으로 계산되는지 검증
+    """
+
+    class _DummyServiceForDeparture(PathOptimizeService):
+        def _extract_recommended_transport(  # type: ignore[override]
+            self,
+            routes_data,
+            current_time,
+            commute_settings=None,
+            statistical_data_map=None,
+        ):
+            return {
+                "type": "SUBWAY",
+                "name": "2호선",
+                "lineNumber": "2호선",
+                "destination": "상행",
+                # 정류장/역 기준 차량 도착까지 15분 남음
+                "departureInMinutes": 15,
+                "transitTimeMinutes": 25,
+                "isRealtime": True,
+            }
+
+    def test_departure_in_minutes_respects_first_mile(self):
+        """
+        실시간 ETA(정류장까지 15분)와 First Mile(5분)이 주어졌을 때,
+        departureInMinutes가 (15 - 5) = 10분으로 계산되는지 확인
+        """
+        service = self._DummyServiceForDeparture()
+
+        commute_settings = {
+            "homeAddress": "서울 강남구",
+            "workAddress": "서울 중구",
+            "targetArrivalTime": time(9, 0, 0),
+            "firstMileDefaultDuration": 5,
+            "lastMileDefaultDuration": 7,
+        }
+        current_time = datetime(2025, 1, 15, 8, 30, 0)
+
+        result = service.get_commute_briefing(
+            commute_settings=commute_settings,
+            current_time=current_time,
+        )
+
+        transport = result["data"]["recommendedTransport"]
+        assert transport["departureInMinutes"] == 10

@@ -6,6 +6,9 @@
     { "name": "Gwangmyeong-Branch", "SID": "174", "EID": "1175" }
   ],
   "2": [
-    { "name": "Loop-Line", "SID": "201", "EID": "216" }
+    { "name": "Loop-Top", "SID": "201", "EID": "216" },
+    { "name": "Loop-Bottom", "SID": "216", "EID": "201" },
+    { "name": "Seongsu-Branch", "SID": "211", "EID": "253" },
+    { "name": "Sinjeong-Branch", "SID": "234", "EID": "264" }
   ]
 }
