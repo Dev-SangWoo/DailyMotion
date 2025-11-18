@@ -21,6 +21,7 @@ import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
 import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../stores/useAmbientFeedbackStore';
 import { useAppModeStore, type AppMode } from '../../stores/useAppModeStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
+import { useOnboardingData } from '../Onboarding/stores/useOnboardingStore';
 import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards, OfflineBanner } from './components';
 import { BusIcon } from '../../components/icons/BusIcon';
 
@@ -112,7 +113,7 @@ const JourneyTabText = styled.Text<{ isActive: boolean }>`
 // 확장 버튼
 const ToggleButton = styled.View`
   width: 100%;
-  padding: 0px ${theme.spacing.sm}px ${theme.spacing.xs}px ${theme.spacing.sm}px;
+  padding: ${theme.spacing.xs}px ${theme.spacing.sm}px;
   justify-content: center;
   align-items: center;
 `;
@@ -125,15 +126,15 @@ const ToggleButtonText = styled.Text`
 
 // 확장된 상태
 const ExpandedSearchBar = styled.View`
-  padding: ${theme.spacing.xs}px ${theme.spacing.lg}px ${theme.spacing.lg}px ${theme.spacing.lg}px;
-  gap: ${theme.spacing.md}px;
+  padding: ${theme.spacing.md}px ${theme.spacing.lg}px ${theme.spacing.sm}px ${theme.spacing.lg}px;
+  gap: ${theme.spacing.xs}px;
 `;
 
 const SearchInputContainer = styled.View`
   flex-direction: row;
   gap: ${theme.spacing.md}px;
   align-items: center;
-  margin-bottom: ${theme.spacing.sm}px;
+  margin-bottom: ${theme.spacing.xs}px;
 `;
 
 const SearchInputWrapper = styled.View`
@@ -170,7 +171,7 @@ const ArrowIconText = styled.Text`
 const FavoritesList = styled.View`
   flex-direction: row;
   gap: ${theme.spacing.md}px;
-  margin-top: ${theme.spacing.md}px;
+  margin-top: ${theme.spacing.xs}px;
 `;
 
 const FavoriteItem = styled.View`
@@ -484,13 +485,97 @@ const DailyBriefingScreen: React.FC = () => {
     animateBus();
   }, []);
 
-  // 즐겨찾기 목록
-  const favorites = [
-    { id: '1', name: '집', icon: '🏠' },
-    { id: '2', name: '회사', icon: '🏢' },
-    { id: '3', name: '헬스장', icon: '💪' },
-    { id: '4', name: '추가', icon: '➕' },
-  ];
+  // 온보딩에서 설정한 장소 데이터 가져오기
+  const { places, pathSelection, schedule } = useOnboardingData();
+
+  // 현재 요일 가져오기 (MON, TUE, WED, THU, FRI, SAT, SUN)
+  const getCurrentDayOfWeek = (): string => {
+    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    return days[new Date().getDay()];
+  };
+
+  // 온보딩에서 설정한 여정들을 요일별로 필터링하여 탭으로 변환
+  const journeyTabs = React.useMemo(() => {
+    if (!pathSelection.journeys || pathSelection.journeys.length === 0) {
+      return [];
+    }
+
+    const currentDay = getCurrentDayOfWeek();
+    const scheduledDays = schedule.daysOfWeek || [];
+    
+    // 오늘 요일이 스케줄에 포함되어 있지 않으면 빈 배열 반환
+    if (!scheduledDays.includes(currentDay)) {
+      return [];
+    }
+
+    const tabs: Array<{ id: string; label: string; icon: string }> = [];
+    const segments = pathSelection.journeys;
+
+    // segments를 2개씩 묶어서 (출발 -> 도착) 여정 그룹으로 변환
+    for (let i = 0; i < segments.length; i += 2) {
+      const depart = segments[i];
+      const arrive = segments[i + 1];
+
+      if (depart && arrive && depart.type === 'depart' && arrive.type === 'arrive') {
+        // 출발지와 도착지 이름 가져오기
+        let originName = depart.placeName;
+        let destName = arrive.placeName;
+
+        // 3글자 넘으면 "..." 처리
+        const truncateName = (name: string, maxLength: number = 3): string => {
+          if (name.length <= maxLength) return name;
+          return name.substring(0, maxLength) + '...';
+        };
+
+        originName = truncateName(originName);
+        destName = truncateName(destName);
+
+        // 여정 라벨: "집->회사" 형식
+        const label = `${originName}→${destName}`;
+
+        tabs.push({
+          id: `${depart.id}-${arrive.id}`,
+          label,
+          icon: depart.placeIcon || '📍',
+        });
+      }
+    }
+
+    return tabs;
+  }, [pathSelection.journeys, schedule.daysOfWeek]);
+
+  // 즐겨찾기 목록: 온보딩에서 설정한 장소들 (집 주소 + 자주 가는 장소들)
+  const favorites = React.useMemo(() => {
+    const favoriteList: Array<{ id: string; name: string; icon: string }> = [];
+    
+    // 집 주소 추가
+    if (places.homeAddress) {
+      if (typeof places.homeAddress === 'object' && places.homeAddress.name) {
+        favoriteList.push({
+          id: 'home',
+          name: places.homeAddress.name,
+          icon: places.homeAddress.icon || '🏠',
+        });
+      } else if (typeof places.homeAddress === 'string') {
+        favoriteList.push({
+          id: 'home',
+          name: places.homeAddress,
+          icon: '🏠',
+        });
+      }
+    }
+    
+    // 자주 가는 장소들 추가
+    places.favoritePlaces.forEach((place, index) => {
+      favoriteList.push({
+        id: `favorite-${index}`,
+        name: place.name,
+        icon: place.icon || '📍',
+      });
+    });
+    
+    return favoriteList;
+  }, [places]);
 
   // Zustand Store: UI 상태 관리 (헌법 제2장 준수)
   const { isExpanded, setExpanded, toggleExpanded, setSelectedTab } =
@@ -686,30 +771,31 @@ const DailyBriefingScreen: React.FC = () => {
               <>
                 <CollapsedSearchBar>
                   <JourneyTabsContainer>
-                    <TouchableOpacity
-                      onPress={() => handleTabSelect('commute')}
-                      style={{ flex: 1 }}
-                    >
-                      <JourneyTab isActive={true}>
-                        <JourneyTabText isActive={true}>출근</JourneyTabText>
-                      </JourneyTab>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleTabSelect('gym')}
-                      style={{ flex: 1 }}
-                    >
-                      <JourneyTab isActive={false}>
-                        <JourneyTabText isActive={false}>헬스장</JourneyTabText>
-                      </JourneyTab>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleTabSelect('retreat')}
-                      style={{ flex: 1 }}
-                    >
-                      <JourneyTab isActive={false}>
-                        <JourneyTabText isActive={false}>귀가</JourneyTabText>
-                      </JourneyTab>
-                    </TouchableOpacity>
+                    {journeyTabs.length > 0 ? (
+                      journeyTabs.map((tab, index) => (
+                        <TouchableOpacity
+                          key={tab.id}
+                          onPress={() => handleTabSelect(tab.id as any)}
+                          style={{ flex: 1 }}
+                        >
+                          <JourneyTab isActive={index === 0}>
+                            <JourneyTabText isActive={index === 0}>
+                              {tab.label}
+                            </JourneyTabText>
+                          </JourneyTab>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      // 여정이 없을 때 기본 탭 표시
+                      <TouchableOpacity
+                        onPress={() => handleTabSelect('commute')}
+                        style={{ flex: 1 }}
+                      >
+                        <JourneyTab isActive={true}>
+                          <JourneyTabText isActive={true}>여정 없음</JourneyTabText>
+                        </JourneyTab>
+                      </TouchableOpacity>
+                    )}
                   </JourneyTabsContainer>
                 </CollapsedSearchBar>
 
@@ -724,13 +810,6 @@ const DailyBriefingScreen: React.FC = () => {
               // 확장된 상태
               <>
                 <ExpandedSearchBar>
-                  {/* 축소 버튼 */}
-                  <TouchableOpacity onPress={() => setIsSearchBarExpanded(false)}>
-                    <ToggleButton>
-                      <ToggleButtonText>⌃</ToggleButtonText>
-                    </ToggleButton>
-                  </TouchableOpacity>
-
                   {/* 출발지/목적지 입력 */}
                   <SearchInputContainer>
                     <SearchInputWrapper>
@@ -786,6 +865,13 @@ const DailyBriefingScreen: React.FC = () => {
                     ))}
                   </FavoritesList>
                 </ExpandedSearchBar>
+                
+                {/* 확장 상태일 때 하단에도 축소 버튼 */}
+                <TouchableOpacity onPress={() => setIsSearchBarExpanded(false)}>
+                  <ToggleButton>
+                    <ToggleButtonText>⌃</ToggleButtonText>
+                  </ToggleButton>
+                </TouchableOpacity>
               </>
             )}
           </SearchBarContainer>

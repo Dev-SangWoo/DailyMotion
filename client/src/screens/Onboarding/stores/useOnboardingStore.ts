@@ -15,14 +15,28 @@ import { persist } from 'zustand/middleware';
 export interface OnboardingState {
   // 장소 설정 (스크린 4-5)
   places: {
-    homeAddress: string | { name: string; icon: string; address?: string } | null;
-    favoritePlaces: Array<{ name: string; icon: string; address?: string }>;
+    homeAddress: string | { name: string; icon: string; address?: string; x?: string; y?: string } | null;
+    favoritePlaces: Array<{
+      name: string;
+      icon: string;
+      address?: string; // 도로명 주소
+      x?: string; // 경도 (Kakao Local API)
+      y?: string; // 위도 (Kakao Local API)
+    }>;
   };
 
   // 경로 선택 (스크린 5)
   pathSelection: {
     selectedPathIndex: number;
     customPath?: string;
+    journeys?: Array<{
+      id: string;
+      placeId: string;
+      placeName: string;
+      placeIcon: string;
+      type: 'depart' | 'arrive';
+      time: string;
+    }>;
   };
 
   // 목표 시간 (스크린 6)
@@ -58,6 +72,14 @@ export interface OnboardingState {
     // 경로 선택
     selectPath: (pathIndex: number) => void;
     setCustomPath: (path: string) => void;
+    setJourneys: (journeys: Array<{
+      id: string;
+      placeId: string;
+      placeName: string;
+      placeIcon: string;
+      type: 'depart' | 'arrive';
+      time: string;
+    }>) => void;
 
     // 목표 시간
     updateArrivalTime: (time: string) => void;
@@ -160,6 +182,22 @@ export const useOnboardingStore = create<OnboardingState>()(
             pathSelection: {
               ...state.pathSelection,
               customPath: path,
+            },
+          }));
+        },
+
+        setJourneys: (journeys: Array<{
+          id: string;
+          placeId: string;
+          placeName: string;
+          placeIcon: string;
+          type: 'depart' | 'arrive';
+          time: string;
+        }>) => {
+          set((state) => ({
+            pathSelection: {
+              ...state.pathSelection,
+              journeys,
             },
           }));
         },

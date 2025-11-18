@@ -16,47 +16,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
 // 스크린 & 네비게이터 import
-import CommuteSettingsScreen from '../screens/CommuteSettings/CommuteSettingsScreen';
-import DailyBriefingScreen from '../screens/DailyBriefing/DailyBriefingScreen';
 import OnboardingStack from '../screens/Onboarding/OnboardingScreen';
+import MainTabNavigator from './MainTabNavigator';
 
 // Zustand Store
 import { useOnboardingStore } from '../screens/Onboarding/stores/useOnboardingStore';
 
 const Stack = createStackNavigator();
-
-/**
- * MainStackComponent - 온보딩 완료 후의 메인 앱 스택
- * (DailyBriefing, CommuteSettings, 등)
- */
-function MainStackComponent() {
-  const MainStack = createStackNavigator();
-
-  return (
-    // @ts-ignore - React Navigation typing is overly strict for nested navigators
-    <MainStack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#fff',
-        },
-        headerTintColor: '#000',
-      }}
-    >
-      <MainStack.Screen
-        name="DailyBriefing"
-        component={DailyBriefingScreen}
-        options={{ title: '일일 브리핑', headerShown: false }}
-      />
-      <MainStack.Screen
-        name="CommuteSettings"
-        component={CommuteSettingsScreen}
-        options={{ title: '출퇴근 설정' }}
-      />
-      {/* TODO: 실제 스크린들을 추가 */}
-      {/* <MainStack.Screen name="SafetyGuard" component={SafetyGuardScreen} /> */}
-    </MainStack.Navigator>
-  );
-}
 
 /**
  * RootNavigator - 온보딩 상태에 따라 스택 전환
@@ -109,10 +75,10 @@ export default function RootNavigator() {
             }}
           />
         ) : (
-          // 온보딩 완료: MainStack
+          // 온보딩 완료: MainTabNavigator (하단 탭 네비게이션)
           <Stack.Screen
-            name="MainStack"
-            component={MainStackComponent}
+            name="MainTabs"
+            component={MainTabNavigator}
             options={{
               cardStyle: { backgroundColor: '#fff' },
             }}

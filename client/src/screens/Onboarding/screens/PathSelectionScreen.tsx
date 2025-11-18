@@ -126,6 +126,28 @@ const SaveCheckmark = styled.Text`
 `;
 
 /**
+ * DeleteButton - 카드 삭제 버튼 (오른쪽 위)
+ */
+const DeleteButton = styled.TouchableOpacity`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: rgba(255, 232, 232, 0.8);
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+`;
+
+const DeleteIcon = styled.Text`
+  font-size: 14px;
+  color: #FF6B6B;
+  font-weight: 700;
+`;
+
+/**
  * SaveButtonContainer - 저장 버튼 컨테이너
  */
 const SaveButtonContainer = styled.View`
@@ -164,6 +186,7 @@ const JourneyCard = styled.View`
   shadow-opacity: 0.08;
   shadow-radius: 2px;
   elevation: 2;
+  position: relative;
 `;
 
 const JourneyGroup = styled.View`
@@ -510,6 +533,9 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     const selectedDayNames = Array.from(selectedDays).map(i => WEEKDAYS[i]).join(', ');
     setSaveStatus(`${selectedDayNames} 여정이 저장되었습니다 ✓`);
 
+    // 저장 후 선택된 요일 자동으로 해제
+    setSelectedDays(new Set());
+
     // 2초 후 메시지 사라지기
     setTimeout(() => setSaveStatus(null), 2000);
   }, [selectedDays, segments, WEEKDAYS]);
@@ -595,8 +621,8 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
 
   // 다음 버튼
   const handleNext = useCallback(() => {
-    // 여정 데이터를 스토어에 저장 (추후 백엔드 연동 시 사용)
-    // actions.setJourneys(segments);
+    // 여정 데이터를 스토어에 저장
+    actions.setJourneys(segments);
     actions.nextStep();
     navigation.navigate('GoalTime');
   }, [actions, navigation, segments]);
@@ -672,6 +698,12 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
                 <JourneyGroupCards>
                   {/* 출발 카드 */}
                   <JourneyCard>
+                    {/* 삭제 버튼 (오른쪽 위) - 집이 아닌 경우에만 */}
+                    {group.depart.placeId !== 'home' && (
+                      <DeleteButton onPress={() => handleDeleteSegment(group.depart.placeId)}>
+                        <DeleteIcon>✕</DeleteIcon>
+                      </DeleteButton>
+                    )}
                     <CardHeader>
                       <LeftSection>
                         <PlaceIcon>{group.depart.placeIcon}</PlaceIcon>
@@ -691,6 +723,12 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
 
                   {/* 도착 카드 */}
                   <JourneyCard>
+                    {/* 삭제 버튼 (오른쪽 위) - 집이 아닌 경우에만 */}
+                    {group.arrive.placeId !== 'home' && (
+                      <DeleteButton onPress={() => handleDeleteSegment(group.arrive.placeId)}>
+                        <DeleteIcon>✕</DeleteIcon>
+                      </DeleteButton>
+                    )}
                     <CardHeader>
                       <LeftSection>
                         <PlaceIcon>{group.arrive.placeIcon}</PlaceIcon>

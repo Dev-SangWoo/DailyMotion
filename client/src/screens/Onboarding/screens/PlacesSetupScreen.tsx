@@ -168,14 +168,25 @@ const ButtonWrapper = styled(Animated.View)`
   align-items: center;
 `;
 
+/**
+ * 주소 정보 타입
+ */
+interface AddressInfo {
+  name: string;
+  icon: string;
+  address?: string; // 도로명 주소
+  x?: string; // 경도
+  y?: string; // 위도
+}
+
 export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation }) => {
   const actions = useOnboardingActions();
   const [step, setStep] = useState<'home' | 'places'>('home');
   const [currentHomeName, setCurrentHomeName] = useState('');
-  const [homeAddress, setHomeAddress] = useState<{ name: string; icon: string; address?: string } | null>(null);
+  const [homeAddress, setHomeAddress] = useState<AddressInfo | null>(null);
   const [currentPlace, setCurrentPlace] = useState('');
   const [currentPlaceIcon, setCurrentPlaceIcon] = useState('📍');
-  const [places, setPlaces] = useState<Array<{ name: string; icon: string; address?: string }>>([]);
+  const [places, setPlaces] = useState<AddressInfo[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isHomeModalVisible, setIsHomeModalVisible] = useState(false);
   const [isIconPickerVisible, setIsIconPickerVisible] = useState(false);
@@ -231,30 +242,41 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
     }
   }, [currentHomeName]);
 
-  const handleHomeModalConfirm = useCallback((address: string) => {
-    const trimmed = currentHomeName.trim();
-    if (trimmed) {
-      const homeKey = `${trimmed}-🏠`;
-      // 새로운 구슬 애니메이션 생성
-      bubbleAnimations[homeKey] = new Animated.Value(0);
-      const newHome = { name: trimmed, icon: '🏠', address };
-      setHomeAddress(newHome);
-      // Store에 객체로 저장
-      actions.updateHomeAddress(newHome);
-      setCurrentHomeName('');
-      setIsHomeModalVisible(false);
-      
-      // 애니메이션 시작
-      setTimeout(() => {
-        Animated.spring(bubbleAnimations[homeKey], {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }).start();
-      }, 50);
-    }
-  }, [currentHomeName, actions, bubbleAnimations]);
+  const handleHomeModalConfirm = useCallback(
+    (placeName: string, fullAddress?: string, x?: string, y?: string) => {
+      const trimmed = currentHomeName.trim();
+      if (trimmed && fullAddress) {
+        const homeKey = `${trimmed}-🏠`;
+        // 새로운 구슬 애니메이션 생성
+        bubbleAnimations[homeKey] = new Animated.Value(0);
+
+        // 주소 정보 저장 (fullAddress, 좌표 포함)
+        const newHome = {
+          name: trimmed,
+          icon: '🏠',
+          address: fullAddress,
+          x, // 경도
+          y, // 위도
+        };
+        setHomeAddress(newHome);
+        // Store에 객체로 저장
+        actions.updateHomeAddress(newHome);
+        setCurrentHomeName('');
+        setIsHomeModalVisible(false);
+
+        // 애니메이션 시작
+        setTimeout(() => {
+          Animated.spring(bubbleAnimations[homeKey], {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }).start();
+        }, 50);
+      }
+    },
+    [currentHomeName, actions, bubbleAnimations]
+  );
 
   const handleHomeModalCancel = useCallback(() => {
     setIsHomeModalVisible(false);
@@ -302,28 +324,42 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
     }
   }, [currentPlace, places]);
 
-  const handleModalConfirm = useCallback((address: string) => {
-    const trimmed = currentPlace.trim();
-    if (trimmed) {
-      const placeKey = `${trimmed}-${currentPlaceIcon}`;
-      // 새로운 구슬 애니메이션 생성
-      bubbleAnimations[placeKey] = new Animated.Value(0);
-      setPlaces([...places, { name: trimmed, icon: currentPlaceIcon, address }]);
-      setCurrentPlace('');
-      setCurrentPlaceIcon('📍');
-      setIsModalVisible(false);
-      
-      // 애니메이션 시작
-      setTimeout(() => {
-        Animated.spring(bubbleAnimations[placeKey], {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }).start();
-      }, 50);
-    }
-  }, [currentPlace, currentPlaceIcon, places, bubbleAnimations]);
+  const handleModalConfirm = useCallback(
+    (placeName: string, fullAddress?: string, x?: string, y?: string) => {
+      const trimmed = currentPlace.trim();
+      if (trimmed && fullAddress) {
+        const placeKey = `${trimmed}-${currentPlaceIcon}`;
+        // 새로운 구슬 애니메이션 생성
+        bubbleAnimations[placeKey] = new Animated.Value(0);
+
+        // 주소 정보 저장 (fullAddress, 좌표 포함)
+        setPlaces([
+          ...places,
+          {
+            name: trimmed,
+            icon: currentPlaceIcon,
+            address: fullAddress,
+            x, // 경도
+            y, // 위도
+          },
+        ]);
+        setCurrentPlace('');
+        setCurrentPlaceIcon('📍');
+        setIsModalVisible(false);
+
+        // 애니메이션 시작
+        setTimeout(() => {
+          Animated.spring(bubbleAnimations[placeKey], {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }).start();
+        }, 50);
+      }
+    },
+    [currentPlace, currentPlaceIcon, places, bubbleAnimations]
+  );
 
   const handleModalCancel = useCallback(() => {
     setIsModalVisible(false);

@@ -1,21 +1,31 @@
 /**
  * 장소 상세 정보 입력 모달
- * 
- * - 상세 주소 입력
- * - 지도 표시 (추후 구현)
+ *
+ * - 카카오 맵 API를 통한 주소 검색
+ * - 주소 선택 및 확인
+ *
+ * 헌법 준수:
+ * - AGENTS.md [제2장]: Styled-components 사용
+ * - CLAUDE.md: React Query 또는 직접 API 호출
  */
 
-import React, { useState } from 'react';
-import { Modal, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Modal, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import styled from 'styled-components/native';
 import { theme } from '../../../styles/theme';
 import { OnboardingButton } from './OnboardingButton';
+import { searchAddress, searchPlace, AddressSearchResult, PlaceSearchResult } from '../../../services/kakaoMapService';
+
+/**
+ * 통합 검색 결과 타입 (주소 또는 지명)
+ */
+type SearchResult = (AddressSearchResult & { type: 'address' }) | (PlaceSearchResult & { type: 'place' });
 
 interface PlaceDetailModalProps {
   visible: boolean;
   placeName: string;
   placeIcon: string;
-  onConfirm: (address: string) => void;
+  onConfirm: (address: string, fullAddress?: string, x?: string, y?: string) => void;
   onCancel: () => void;
 }
 
@@ -115,6 +125,74 @@ const ButtonContainer = styled.View`
   gap: ${theme.spacing.md}px;
 `;
 
+/**
+ * 검색 결과 리스트 관련 styled components
+ */
+const SearchResultsContainer = styled.View`
+  max-height: 300px;
+  background-color: #F9F9F9;
+  border-radius: 8px;
+  border-width: 1px;
+  border-color: #E0E0E0;
+  margin-bottom: ${theme.spacing.lg}px;
+  overflow: hidden;
+`;
+
+const SearchResultItem = styled(TouchableOpacity)<{ isSelected: boolean }>`
+  padding: ${theme.spacing.md}px;
+  border-bottom-width: 1px;
+  border-bottom-color: #E0E0E0;
+  background-color: ${(props) => props.isSelected ? '#E3F2FD' : 'white'};
+`;
+
+const SearchResultName = styled.Text<{ isSelected: boolean }>`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${(props) => props.isSelected ? theme.colors.primary : theme.colors.text};
+  margin-bottom: 4px;
+`;
+
+const SearchResultAddress = styled.Text`
+  font-size: 12px;
+  color: ${theme.colors.textSecondary};
+`;
+
+const LoadingContainer = styled.View`
+  padding: ${theme.spacing.md}px;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+`;
+
+const ErrorMessage = styled.Text`
+  font-size: 13px;
+  color: #d32f2f;
+  text-align: center;
+  padding: ${theme.spacing.md}px;
+`;
+
+const SelectedAddressBox = styled.View`
+  background-color: #E8F5E9;
+  border-radius: 8px;
+  padding: ${theme.spacing.md}px;
+  margin-bottom: ${theme.spacing.lg}px;
+  border-width: 1px;
+  border-color: #4CAF50;
+`;
+
+const SelectedAddressLabel = styled.Text`
+  font-size: 12px;
+  font-weight: 600;
+  color: #2E7D32;
+  margin-bottom: 4px;
+`;
+
+const SelectedAddressText = styled.Text`
+  font-size: 14px;
+  color: #1B5E20;
+  font-weight: 500;
+`;
+
 export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   visible,
   placeName,
@@ -122,19 +200,117 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  const [address, setAddress] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirm = () => {
-    if (address.trim()) {
-      onConfirm(address.trim());
-      setAddress('');
+  /**
+   * 주소 + 지명 통합 검색 핸들러
+   * - 주소 API와 지명 API를 동시에 호출
+   * - 결과를 합쳐서 표시
+   */
+  const handleSearchAddress = useCallback(
+    async (query: string) => {
+      setSearchQuery(query);
+      setSelectedResult(null);
+      setError(null);
+
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const trimmedQuery = query.trim();
+
+        // 주소 검색과 지명 검색을 동시에 수행
+        const [addressResults, placeResults] = await Promise.all([
+          searchAddress({
+            query: trimmedQuery,
+            size: 5,
+          }).catch(() => []), // 오류 무시
+          searchPlace({
+            query: trimmedQuery,
+            size: 5,
+          }).catch(() => []), // 오류 무시
+        ]);
+
+        // 결과 합치기
+        const combinedResults: SearchResult[] = [
+          ...addressResults.map((addr) => ({ ...addr, type: 'address' as const })),
+          ...placeResults.map((place) => ({ ...place, type: 'place' as const })),
+        ];
+
+        if (combinedResults.length === 0) {
+          setError('검색 결과가 없습니다.');
+        } else {
+          setSearchResults(combinedResults);
+        }
+      } catch (err: any) {
+        setError(err.message || '검색 중 오류가 발생했습니다.');
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  /**
+   * 검색 결과 선택 핸들러
+   */
+  const handleSelectResult = useCallback((result: SearchResult) => {
+    setSelectedResult(result);
+    setSearchQuery('');
+    setSearchResults([]);
+    setError(null);
+  }, []);
+
+  /**
+   * 확인 버튼 클릭
+   */
+  const handleConfirm = useCallback(() => {
+    if (selectedResult) {
+      let fullAddress: string;
+      let x: string;
+      let y: string;
+
+      // 타입에 따라 주소와 좌표 추출
+      if (selectedResult.type === 'address') {
+        const addr = selectedResult as AddressSearchResult & { type: 'address' };
+        fullAddress = addr.road_address?.address_name || addr.address_name;
+        x = addr.x;
+        y = addr.y;
+      } else {
+        // 지명 결과
+        const place = selectedResult as PlaceSearchResult & { type: 'place' };
+        fullAddress = place.road_address_name || place.address_name;
+        x = place.x;
+        y = place.y;
+      }
+
+      onConfirm(placeName, fullAddress, x, y);
+      // 초기화
+      setSearchQuery('');
+      setSearchResults([]);
+      setSelectedResult(null);
+      setError(null);
     }
-  };
+  }, [selectedResult, placeName, onConfirm]);
 
-  const handleCancel = () => {
-    setAddress('');
+  /**
+   * 취소 버튼 클릭
+   */
+  const handleCancel = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedResult(null);
+    setError(null);
     onCancel();
-  };
+  }, [onCancel]);
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -156,17 +332,95 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
               <PlaceNameText>{placeName}</PlaceNameText>
             </PlaceInfo>
 
-            <AddressLabel>상세 주소</AddressLabel>
+            {/* 선택된 주소 표시 */}
+            {selectedResult && (
+              <SelectedAddressBox>
+                <SelectedAddressLabel>✓ 선택된 주소</SelectedAddressLabel>
+                <SelectedAddressText>
+                  {selectedResult.road_address?.address_name || selectedResult.address_name}
+                </SelectedAddressText>
+              </SelectedAddressBox>
+            )}
+
+            {/* 주소/지명 검색 입력 */}
+            <AddressLabel>주소 또는 지명 검색</AddressLabel>
             <AddressInput
-              placeholder="상세 주소를 입력해주세요 (예: 서울시 강남구 역삼동 123-45)"
-              value={address}
-              onChangeText={setAddress}
+              placeholder="주소나 지명을 검색하세요 (예: 강남역, 서울시청, 강남구)"
+              value={searchQuery}
+              onChangeText={handleSearchAddress}
               multiline={false}
+              editable={!selectedResult}
             />
 
-            <MapContainer>
-              <MapPlaceholder>지도 영역 (추후 구현)</MapPlaceholder>
-            </MapContainer>
+            {/* 에러 메시지 */}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+
+            {/* 로딩 상태 */}
+            {isLoading && (
+              <LoadingContainer>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </LoadingContainer>
+            )}
+
+            {/* 검색 결과 리스트 */}
+            {searchResults.length > 0 && (
+              <SearchResultsContainer>
+                <ScrollView scrollEnabled>
+                  {searchResults.map((result, index) => {
+                    // 각 결과의 고유 키 생성
+                    const resultKey = `${result.type}-${index}`;
+
+                    // 검색 결과가 주소인지 지명인지 확인
+                    const isAddress = result.type === 'address';
+                    const isSelected =
+                      selectedResult?.type === result.type &&
+                      selectedResult?.x === result.x &&
+                      selectedResult?.y === result.y;
+
+                    let displayName: string;
+                    let displayAddress: string | undefined;
+                    let resultType: string;
+
+                    if (isAddress) {
+                      const addr = result as AddressSearchResult & { type: 'address' };
+                      displayName = addr.road_address?.address_name || addr.address_name;
+                      displayAddress = addr.road_address ? addr.address_name : undefined;
+                      resultType = '🏠 주소';
+                    } else {
+                      const place = result as PlaceSearchResult & { type: 'place' };
+                      displayName = place.place_name;
+                      displayAddress = place.road_address_name || place.address_name;
+                      resultType = '📍 지명';
+                    }
+
+                    return (
+                      <SearchResultItem
+                        key={resultKey}
+                        isSelected={isSelected}
+                        onPress={() => handleSelectResult(result)}
+                      >
+                        <SearchResultName isSelected={isSelected}>
+                          {displayName}
+                          <SearchResultAddress style={{ fontSize: 11, marginLeft: 4 }}>
+                            {resultType}
+                          </SearchResultAddress>
+                        </SearchResultName>
+                        {displayAddress && (
+                          <SearchResultAddress>
+                            {displayAddress}
+                          </SearchResultAddress>
+                        )}
+                      </SearchResultItem>
+                    );
+                  })}
+                </ScrollView>
+              </SearchResultsContainer>
+            )}
+
+            {/* 검색 결과 없음 안내 */}
+            {searchQuery && searchResults.length === 0 && !isLoading && !error && (
+              <ErrorMessage>검색 결과가 없습니다.</ErrorMessage>
+            )}
 
             <ButtonContainer>
               <OnboardingButton
@@ -179,7 +433,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                 label="확인"
                 onPress={handleConfirm}
                 variant="primary"
-                disabled={!address.trim()}
+                disabled={!selectedResult}
                 style={{ flex: 1 }}
               />
             </ButtonContainer>
