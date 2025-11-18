@@ -523,6 +523,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /briefings/routes/search:
+    get:
+      summary: 온보딩 경로 검색
+      description: |
+        사용자의 저장된 출발지(집)와 목적지(회사)를 기반으로
+        ODSAY API를 통해 실시간 경로 정보를 검색합니다.
+        온보딩 화면에서 사용자에게 추천 경로를 표시하는 데 사용됩니다.
+      operationId: searchRoutes
+      tags:
+        - Briefings
+      parameters:
+        - name: userId
+          in: query
+          description: 사용자 ID
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+      responses:
+        '200':
+          description: 경로 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteSearchResponse'
+        '404':
+          description: 사용자를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /briefings/transfer-reminder:
     get:
       summary: 환승 리마인더 조회
@@ -970,6 +1008,88 @@ components:
         - name
         - departureInMinutes
 
+    # 온보딩: 경로 검색 응답
+    RouteSearchResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            paths:
+              type: array
+              description: 검색된 경로 목록 (ODSAY API 응답 기반)
+              items:
+                $ref: '#/components/schemas/OdsayPath'
+          required:
+            - paths
+
+    OdsayPath:
+      type: object
+      description: ODSAY API에서 반환한 경로 정보
+      properties:
+        pathId:
+          type: string
+          description: 경로 ID (고유 식별자)
+          example: "path_0"
+        totalTime:
+          type: integer
+          description: 총 소요 시간 (초 단위)
+          example: 2700
+        totalDistance:
+          type: integer
+          description: 총 이동 거리 (미터)
+          example: 9494
+        transferCount:
+          type: integer
+          description: 환승 횟수
+          example: 1
+        fare:
+          type: integer
+          nullable: true
+          description: 요금 (원)
+          example: 2400
+        segments:
+          type: array
+          description: 경로 구간 정보 (버스, 지하철, 도보 등)
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: 구간 타입 (BUS, SUBWAY, WALK, TAXI 등)
+                example: "SUBWAY"
+              line:
+                type: string
+                description: 노선명 또는 버스번호
+                example: "2호선"
+              direction:
+                type: string
+                nullable: true
+                description: 방향
+                example: "강남역 방면"
+              startStation:
+                type: string
+                description: 출발역/출발지
+                example: "강남역"
+              endStation:
+                type: string
+                description: 도착역/도착지
+                example: "을지로입구역"
+              startTime:
+                type: string
+                format: time
+                description: 출발 시간
+                example: "08:15"
+              endTime:
+                type: string
+                format: time
+                description: 도착 시간
+                example: "08:25"
+              duration:
+                type: integer
+                description: 구간 소요 시간 (초)
+                example: 600
+
     # Phase 12: 퇴근 모드 관련 응답
     RetreatBriefingResponse:
       type: object
@@ -1328,6 +1448,120 @@ components:
           required:
             - action
 
+  /transport/realtime:
+    get:
+      summary: 실시간 대중교통 정보 조회
+      description: |
+        정류장/역 이름을 입력받아 실시간 버스/지하철 도착 정보를 조회합니다.
+        
+        동작 흐름:
+        1. 정류장/역 이름으로 검색하여 stationID 획득
+        2. stationID로 실시간 도착 정보 조회
+        3. 버스/지하철 구분하여 정보 반환
+      operationId: getRealtimeTransportInfo
+      tags:
+        - Transport
+      parameters:
+        - name: stationName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 정류장/역 이름 (예: 강남역, 역삼역)
+        - name: transportType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [BUS, SUBWAY, AUTO]
+            default: AUTO
+          description: |
+            교통수단 타입
+            - BUS: 버스만 검색
+            - SUBWAY: 지하철만 검색
+            - AUTO: 자동 감지 (기본값)
+      responses:
+        '200':
+          description: 실시간 대중교통 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      stationName:
+                        type: string
+                        description: 정류장/역 이름
+                        example: "강남역"
+                      stationId:
+                        type: string
+                        description: 정류장/역 ID
+                        example: "208000143"
+                      transportType:
+                        type: string
+                        enum: [BUS, SUBWAY]
+                        description: 교통수단 타입
+                        example: "SUBWAY"
+                      buses:
+                        type: array
+                        description: 버스 도착 정보 (transportType이 BUS인 경우)
+                        items:
+                          type: object
+                          properties:
+                            number:
+                              type: string
+                              description: 버스 번호
+                              example: "146"
+                            arrivalMinutes:
+                              type: integer
+                              description: 도착까지 남은 시간 (분)
+                              example: 5
+                            message:
+                              type: string
+                              description: 도착 메시지
+                              example: "146번 버스가 5분 뒤 도착합니다."
+                      subways:
+                        type: array
+                        description: 지하철 도착 정보 (transportType이 SUBWAY인 경우)
+                        items:
+                          type: object
+                          properties:
+                            line:
+                              type: string
+                              description: 노선명
+                              example: "2호선"
+                            direction:
+                              type: string
+                              description: 방향
+                              example: "강남역 방면"
+                            arrivalMinutes:
+                              type: integer
+                              description: 도착까지 남은 시간 (분)
+                              example: 3
+                            message:
+                              type: string
+                              description: 도착 메시지
+                              example: "2호선 강남역 방면 열차가 3분 뒤 도착합니다."
+                      timestamp:
+                        type: string
+                        format: date-time
+                        description: 조회 시각
+                        example: "2024-01-15T08:30:00Z"
+        '404':
+          description: 정류장/역을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 tags:
   - name: Health
     description: 헬스 체크 관련 엔드포인트
@@ -1335,3 +1569,5 @@ tags:
     description: 사용자 관련 엔드포인트
   - name: Briefings
     description: 브리핑 관련 엔드포인트
+  - name: Transport
+    description: 대중교통 실시간 정보 관련 엔드포인트
