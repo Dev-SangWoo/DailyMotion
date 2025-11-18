@@ -2,10 +2,11 @@
  * 경로 검색 서비스 (ODSAY API 연동)
  *
  * 온보딩 GoalTimeScreen에서 실제 경로 데이터를 조회합니다.
- * 백엔드의 /api/v1/briefings/commute 엔드포인트를 호출하여 ODSAY 경로 데이터를 반환합니다.
+ * 백엔드의 /api/v1/briefings/routes/search 엔드포인트를 호출하여 ODSAY 경로 데이터를 반환합니다.
  *
  * 헌법 준수:
  * - CLAUDE.md: React Query 활용 권장 (현재는 직접 호출)
+ * - AGENTS.md 제2장: OpenAPI 스펙 기반 (docs/openapi/v1.yaml 참조)
  */
 
 import apiClient from './api';
@@ -61,27 +62,28 @@ export interface RecommendedRoute {
  */
 export async function searchRoutes(userId: string = 'user_001'): Promise<RecommendedRoute[]> {
   try {
-    // 백엔드 API 호출: GET /api/v1/briefings/commute?userId={userId}
-    const response = await apiClient.get('/briefings/commute', {
+    // 백엔드 API 호출: GET /api/v1/briefings/routes/search?userId={userId}
+    // 참고: OpenAPI 스펙 (docs/openapi/v1.yaml)에서 정의한 엔드포인트
+    const response = await apiClient.get('/briefings/routes/search', {
       params: { userId },
     });
 
-    // 응답 구조: { data: { ... }, error?: { ... } }
+    // 응답 구조: { data: { paths: [...] }, error?: { ... } }
     if (response.data?.error) {
       throw new Error(response.data.error.message || '경로 검색 실패');
     }
 
     // ODSAY 경로 데이터 추출
-    const routesData: OdsayRoutesData | undefined = response.data?.data?.routesData;
+    const paths: OdsayPath[] | undefined = response.data?.data?.paths;
 
-    if (!routesData || !routesData.paths || routesData.paths.length === 0) {
+    if (!paths || paths.length === 0) {
       // 경로 데이터가 없는 경우 빈 배열 반환
       console.warn('[Route Search] No routes data received from backend');
       return [];
     }
 
     // ODSAY 응답을 UI용 형식으로 변환
-    const recommendedRoutes = transformOdsayPaths(routesData.paths);
+    const recommendedRoutes = transformOdsayPaths(paths);
 
     console.log(`[Route Search] Found ${recommendedRoutes.length} routes`);
     return recommendedRoutes;
