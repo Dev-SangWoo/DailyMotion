@@ -223,9 +223,21 @@ class SeoulSubwayRealtimeClient:
                 row_updn_line = row.findtext("updnLine")
                 row_station = row.findtext("statnNm")
 
-                if (row_subway_id == target_subway_id and
-                    row_updn_line == direction and
-                    row_station == station_name):
+                # 기본 조건: 노선/역 일치
+                if not (row_subway_id == target_subway_id and row_station == station_name):
+                    continue
+
+                # 4-1️⃣ 2호선(1002) 예외 처리: 내선/외선 ↔ 상행/하행 매핑
+                direction_match = False
+                if line_number == 2:
+                    if direction == "상행" and row_updn_line in ("내선", "상행"):
+                        direction_match = True
+                    elif direction == "하행" and row_updn_line in ("외선", "하행"):
+                        direction_match = True
+                else:
+                    direction_match = (row_updn_line == direction)
+
+                if direction_match:
 
                     barvl_dt = row.findtext("barvlDt")  # 도착 예정 시간(초)
                     if barvl_dt and barvl_dt.isdigit():

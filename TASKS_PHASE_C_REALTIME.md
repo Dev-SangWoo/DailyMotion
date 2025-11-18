@@ -65,6 +65,23 @@
 - [x] 서울교통공사_지하철혼잡도정보 샘플 응답(JSON/CSV/XML) 1~2개
 - [x] 혼잡도 → LOW/MED/HIGH/VERY_HIGH로 나누는 임계값 (40/70/90%)
 
+#### C-1.2 현재 구현 현황 (MVP 기준)
+
+- 데이터/매핑
+  - [x] 서울교통공사 혼잡도 CSV 파일 저장 (`server/data/seoul_subway_congestion.csv`)
+  - [x] ODSAY 역ID ↔ 서울 역번호 매핑 초안 (`server/data/master_station_map.json`, 2/3/9호선 일부 샘플)
+  - [x] 역/호선/방향/시간대 인덱싱 및 30분 버킷 Fallback 구현 (`seoul_subway_congestion_repository.py`)
+  - [x] ODSAY 라인 정의 config(`server/config/odsay_lines.json`) 및 마스터 빌드 스크립트(`server/build_odsay_master.py`) 추가
+  - [x] `build_odsay_master.py 1 2` 실행 시 1·2호선 ODSAY 역 마스터 JSON/CSV 생성 및 `master_station_map.json` 자동 병합
+- 서비스 연동
+  - [x] PathOptimizeService에서 지하철 segment(`startID`, `subwayCode`, `wayCode`) 기반 평균 혼잡도 조회
+  - [x] 혼잡도 조회 성공 시 로그 출력 (역/호선/퍼센트/등급)
+  - [x] 추천 교통수단 payload에 `congestionValue`(%) / `congestionLevel`(LOW~VERY_HIGH) 포함
+  - [x] Logic 1.1/1.2 GO_NOW / LAST_CHANCE 메시지에 혼잡도 텍스트 suffix 추가
+- 스키마/테스트
+  - [x] `RecommendedTransport` 모델/스펙에 `congestionValue`·`congestionLevel` 필드 추가 (Pydantic + OpenAPI)
+  - [x] Logic 1.1 테스트에 혼잡도 메시지 포함 여부 검증 케이스 추가 (회귀 방지)
+
 ### C-1.3 ETA Fallback 전략 강화
 
 - [ ] 실시간 실패 시 Fallback 순서 명시
