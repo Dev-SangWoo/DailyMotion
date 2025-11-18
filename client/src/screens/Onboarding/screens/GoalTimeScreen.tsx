@@ -31,9 +31,13 @@ interface JourneyGroup {
   originIcon: string;
   originName: string;           // 표시용: "집"
   originAddress: string;        // 🆕 API용: 실제 주소
+  originX?: string;             // 🆕 경도 (좌표 기반 검색)
+  originY?: string;             // 🆕 위도 (좌표 기반 검색)
   destIcon: string;
   destName: string;             // 표시용: "회사"
   destAddress: string;          // 🆕 API용: 실제 주소
+  destX?: string;               // 🆕 경도 (좌표 기반 검색)
+  destY?: string;               // 🆕 위도 (좌표 기반 검색)
   departTime: string;
   arriveTime: string;
 }
@@ -320,9 +324,13 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
           originIcon: depart.placeIcon,
           originName: depart.placeName,
           originAddress: depart.placeAddress,      // 🆕 실제 주소 추가
+          originX: depart.placeX,                  // 🆕 경도 추가
+          originY: depart.placeY,                  // 🆕 위도 추가
           destIcon: arrive.placeIcon,
           destName: arrive.placeName,
           destAddress: arrive.placeAddress,        // 🆕 실제 주소 추가
+          destX: arrive.placeX,                    // 🆕 경도 추가
+          destY: arrive.placeY,                    // 🆕 위도 추가
           departTime: depart.time,
           arriveTime: arrive.time,
         });
@@ -358,16 +366,32 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         console.log('[GoalTimeScreen] ===== 경로 검색 시작 =====');
         console.log(`[GoalTimeScreen] 여정 ID: ${journeyId}`);
         console.log(`[GoalTimeScreen] 출발지: ${journey.originName} → ${journey.originAddress} (${journey.originIcon})`);
+        if (journey.originX && journey.originY) {
+          console.log(`[GoalTimeScreen]   좌표: (${journey.originX}, ${journey.originY})`);
+        }
         console.log(`[GoalTimeScreen] 목적지: ${journey.destName} → ${journey.destAddress} (${journey.destIcon})`);
+        if (journey.destX && journey.destY) {
+          console.log(`[GoalTimeScreen]   좌표: (${journey.destX}, ${journey.destY})`);
+        }
         console.log(`[GoalTimeScreen] 출발 시간: ${journey.departTime}`);
         console.log(`[GoalTimeScreen] 도착 시간: ${journey.arriveTime}`);
         console.log(`[GoalTimeScreen] 사용자 ID: user_001`);
 
         // 백엔드 API 호출 (ODSAY 경로 검색) - 온보딩용 직접 입력 API 사용
+        // 좌표가 있으면 주소 대신 좌표로 검색 (더 정확함)
+        const originX = journey.originX ? parseFloat(journey.originX) : undefined;
+        const originY = journey.originY ? parseFloat(journey.originY) : undefined;
+        const destX = journey.destX ? parseFloat(journey.destX) : undefined;
+        const destY = journey.destY ? parseFloat(journey.destY) : undefined;
+
         const routes = await searchRoutesForOnboarding(
-          journey.originAddress,  // 🔧 출발지 실제 주소 (ODSAY API용)
-          journey.destAddress,     // 🔧 목적지 실제 주소 (ODSAY API용)
+          journey.originAddress,  // 🔧 출발지 실제 주소 (좌표가 없을 경우)
+          journey.destAddress,     // 🔧 목적지 실제 주소 (좌표가 없을 경우)
           journey.departTime,      // 출발 시간 (HH:MM 형식)
+          originY,                 // 🔧 출발지 위도 (있으면 사용)
+          originX,                 // 🔧 출발지 경도 (있으면 사용)
+          destY,                   // 🔧 목적지 위도 (있으면 사용)
+          destX,                   // 🔧 목적지 경도 (있으면 사용)
         );
 
         console.log(`[GoalTimeScreen] 경로 검색 완료: ${routes.length}개 경로 발견`);
@@ -385,7 +409,13 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         console.error('[GoalTimeScreen] ===== 경로 검색 실패 =====');
         console.error(`[GoalTimeScreen] 여정 ID: ${journeyId}`);
         console.error(`[GoalTimeScreen] 출발지: ${journey.originName} → ${journey.originAddress}`);
+        if (journey.originX && journey.originY) {
+          console.error(`[GoalTimeScreen]   좌표: (${journey.originX}, ${journey.originY})`);
+        }
         console.error(`[GoalTimeScreen] 목적지: ${journey.destName} → ${journey.destAddress}`);
+        if (journey.destX && journey.destY) {
+          console.error(`[GoalTimeScreen]   좌표: (${journey.destX}, ${journey.destY})`);
+        }
         console.error('[GoalTimeScreen] 에러 상세:', error);
         if (error instanceof Error) {
           console.error('[GoalTimeScreen] 에러 메시지:', error.message);

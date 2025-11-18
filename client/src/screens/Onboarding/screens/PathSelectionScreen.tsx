@@ -29,6 +29,8 @@ interface JourneySegment {
   placeName: string;
   placeIcon: string;
   placeAddress: string;      // 🆕 실제 도로명 주소 (ODSAY API 검색용)
+  placeX?: string;           // 🆕 경도 (좌표 기반 검색)
+  placeY?: string;           // 🆕 위도 (좌표 기반 검색)
   type: 'depart' | 'arrive'; // 출발 또는 도착
   time: string; // HH:MM 형식
 }
@@ -376,13 +378,15 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     console.log('PathSelectionScreen - homeAddress type:', typeof homeAddress);
 
     if (homeAddress && typeof homeAddress === 'object' && homeAddress !== null) {
-      const homeObj = homeAddress as { name?: string; icon?: string; address?: string };
+      const homeObj = homeAddress as { name?: string; icon?: string; address?: string; x?: string; y?: string };
       console.log('PathSelectionScreen - homeObj:', homeObj);
       if (homeObj.name) {
         return {
           name: homeObj.name,
           icon: homeObj.icon || '🏠',
-          address: homeObj.address,  // 🆕 address 포함
+          address: homeObj.address,  // address 포함
+          x: homeObj.x,              // 🆕 경도 포함
+          y: homeObj.y,              // 🆕 위도 포함
         };
       }
     }
@@ -407,7 +411,9 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
           placeId: 'home',
           placeName: homeInfo.name,
           placeIcon: homeInfo.icon,
-          placeAddress: homeInfo.address || homeInfo.name,  // 🆕 address 추가
+          placeAddress: homeInfo.address || homeInfo.name,
+          placeX: homeInfo.x,         // 🆕 경도 추가
+          placeY: homeInfo.y,         // 🆕 위도 추가
           type: 'depart',
           time: '07:00', // 기본값
         },
@@ -416,7 +422,9 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
           placeId: 'home',
           placeName: homeInfo.name,
           placeIcon: homeInfo.icon,
-          placeAddress: homeInfo.address || homeInfo.name,  // 🆕 address 추가
+          placeAddress: homeInfo.address || homeInfo.name,
+          placeX: homeInfo.x,         // 🆕 경도 추가
+          placeY: homeInfo.y,         // 🆕 위도 추가
           type: 'arrive',
           time: '22:00', // 기본값
         },
@@ -560,13 +568,13 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
   }, [segments]);
 
   // 장소 선택 확인
-  const handlePlaceSelect = useCallback((place: { name: string; icon: string; address?: string }) => {
+  const handlePlaceSelect = useCallback((place: { name: string; icon: string; address?: string; x?: string; y?: string }) => {
     const placeId = place.name.toLowerCase().replace(/\s+/g, '-');
-    
+
     // 집 도착 세그먼트를 제외한 마지막 세그먼트 찾기
     const segmentsWithoutHomeArrival = segments.filter((seg) => seg.id !== 'home-arrive');
     const lastSegment = segmentsWithoutHomeArrival[segmentsWithoutHomeArrival.length - 1];
-    
+
     // 마지막 세그먼트의 시간을 기준으로 도착 시간 계산 (기본 +30분)
     const lastTime = lastSegment ? lastSegment.time : '07:00';
     const [lastHours, lastMinutes] = lastTime.split(':').map(Number);
@@ -574,7 +582,7 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
     const arriveHours = lastHours + Math.floor(arriveMinutes / 60);
     const finalArriveMinutes = arriveMinutes % 60;
     const arriveTime = `${String(arriveHours % 24).padStart(2, '0')}:${String(finalArriveMinutes).padStart(2, '0')}`;
-    
+
     // 출발 시간은 도착 시간 + 1시간
     const departMinutes = finalArriveMinutes + 60;
     const departHours = arriveHours + Math.floor(departMinutes / 60);
@@ -587,7 +595,9 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
       placeId,
       placeName: place.name,
       placeIcon: place.icon,
-      placeAddress: place.address || place.name,  // 🆕 주소 추가 (없으면 name 사용)
+      placeAddress: place.address || place.name,
+      placeX: place.x,                            // 🆕 경도 추가
+      placeY: place.y,                            // 🆕 위도 추가
       type: 'arrive',
       time: arriveTime,
     };
@@ -597,7 +607,9 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
       placeId,
       placeName: place.name,
       placeIcon: place.icon,
-      placeAddress: place.address || place.name,  // 🆕 주소 추가 (없으면 name 사용)
+      placeAddress: place.address || place.name,
+      placeX: place.x,                            // 🆕 경도 추가
+      placeY: place.y,                            // 🆕 위도 추가
       type: 'depart',
       time: departTime,
     };

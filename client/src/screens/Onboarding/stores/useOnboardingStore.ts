@@ -35,6 +35,8 @@ export interface OnboardingState {
       placeName: string;        // "집", "회사" 등 표시용 이름
       placeIcon: string;
       placeAddress: string;     // 🆕 실제 도로명 주소 (ODSAY API 검색용)
+      placeX?: string;          // 🆕 경도 (좌표 기반 검색)
+      placeY?: string;          // 🆕 위도 (좌표 기반 검색)
       type: 'depart' | 'arrive';
       time: string;
     }>;
@@ -194,6 +196,8 @@ export const useOnboardingStore = create<OnboardingState>()(
           placeName: string;
           placeIcon: string;
           placeAddress: string;      // 🆕 실제 주소 추가
+          placeX?: string;           // 🆕 경도 추가
+          placeY?: string;           // 🆕 위도 추가
           type: 'depart' | 'arrive';
           time: string;
         }>) => {
