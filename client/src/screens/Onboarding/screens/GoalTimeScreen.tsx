@@ -7,13 +7,15 @@
  * - 추천 경로 선택 가능
  */
 
-import React, { useState, useMemo } from 'react';
-import { TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import styled from 'styled-components/native';
 import { theme } from '../../../styles/theme';
 import { onboardingTheme } from '../styles/onboardingTheme';
 import { useOnboardingData, useOnboardingActions } from '../stores/useOnboardingStore';
 import { OnboardingButton } from '../components/OnboardingButton';
+import searchRoutes from '../../../services/routeSearchService';
+import { RecommendedRoute } from '../../../services/routeSearchService';
 
 interface GoalTimeScreenProps {
   navigation: {
@@ -35,24 +37,9 @@ interface JourneyGroup {
 }
 
 /**
- * Route 타입 정의
+ * 경로 로딩 상태
  */
-interface RecommendedRoute {
-  id: string;
-  mode: string;
-  duration: string;
-  transfers: number;
-  icon: string;
-}
-
-/**
- * Mock 추천 경로 데이터
- */
-const MOCK_ROUTES: RecommendedRoute[] = [
-  { id: 'r1', mode: '버스 + 지하철', duration: '45분', transfers: 1, icon: '🚌' },
-  { id: 'r2', mode: '지하철', duration: '50분', transfers: 0, icon: '🚇' },
-  { id: 'r3', mode: '택시', duration: '30분', transfers: 0, icon: '🚕' },
-];
+type RouteLoadingState = 'idle' | 'loading' | 'success' | 'error';
 
 /**
  * OuterContainer
@@ -277,6 +264,15 @@ const EmptyStateText = styled.Text`
 `;
 
 /**
+ * ErrorMessage
+ */
+const ErrorMessage = styled.Text`
+  font-size: 13px;
+  color: #d32f2f;
+  text-align: center;
+`;
+
+/**
  * GoalTimeScreen
  *
  * 여정별로 추천 경로를 선택하는 화면
@@ -289,9 +285,16 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
 
   // 선택된 여정 (경로 선택을 위해 열린 여정)
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
-  
+
   // 각 여정별로 선택된 경로 (여정 ID -> 경로 ID 매핑)
   const [selectedRoutes, setSelectedRoutes] = useState<Record<string, string>>({});
+
+  // 경로 로딩 상태
+  const [routeLoadingState, setRouteLoadingState] = useState<RouteLoadingState>('idle');
+  const [routeError, setRouteError] = useState<string | null>(null);
+
+  // 캐시: 여정별 경로 데이터 (API 호출 결과 캐싱)
+  const [routesCache, setRoutesCache] = useState<Record<string, RecommendedRoute[]>>({});
 
   /**
    * PathSelectionScreen에서 저장된 여정 데이터를 JourneyGroup 형태로 변환
@@ -326,26 +329,74 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
   }, [pathSelection.journeys]);
 
   /**
+   * 여정별 경로 데이터 조회 (API 호출)
+   */
+  const fetchRoutesForJourney = useCallback(
+    async (journeyId: string) => {
+      // 캐시에 있으면 로드
+      if (routesCache[journeyId]) {
+        return;
+      }
+
+      try {
+        setRouteLoadingState('loading');
+        setRouteError(null);
+
+        // 백엔드 API 호출 (ODSAY 경로 검색)
+        const routes = await searchRoutes('user_001');
+
+        // 캐시에 저장
+        setRoutesCache((prev) => ({
+          ...prev,
+          [journeyId]: routes,
+        }));
+
+        setRouteLoadingState('success');
+      } catch (error) {
+        console.error('[GoalTimeScreen] Route search failed:', error);
+        setRouteLoadingState('error');
+        setRouteError(
+          error instanceof Error ? error.message : '경로를 찾을 수 없습니다'
+        );
+      }
+    },
+    [routesCache]
+  );
+
+  /**
    * 여정 선택 핸들러 (경로 선택을 위해 여정 열기/닫기)
    */
-  const handleSelectJourney = (journeyId: string) => {
-    // 같은 여정을 다시 클릭하면 닫기
-    if (selectedJourneyId === journeyId) {
-      setSelectedJourneyId(null);
-    } else {
-      setSelectedJourneyId(journeyId);
-    }
-  };
+  const handleSelectJourney = useCallback(
+    (journeyId: string) => {
+      // 같은 여정을 다시 클릭하면 닫기
+      if (selectedJourneyId === journeyId) {
+        setSelectedJourneyId(null);
+      } else {
+        // 다른 여정을 클릭하면 열기 + 경로 로드
+        setSelectedJourneyId(journeyId);
+        fetchRoutesForJourney(journeyId);
+      }
+    },
+    [selectedJourneyId, fetchRoutesForJourney]
+  );
 
   /**
    * 경로 선택 핸들러
    */
-  const handleSelectRoute = (journeyId: string, routeId: string) => {
-    setSelectedRoutes((prev) => ({
-      ...prev,
-      [journeyId]: routeId,
-    }));
-  };
+  const handleSelectRoute = useCallback(
+    (journeyId: string, routeId: string) => {
+      setSelectedRoutes((prev) => ({
+        ...prev,
+        [journeyId]: routeId,
+      }));
+    },
+    []
+  );
+
+  /**
+   * 선택된 여정의 경로 데이터 가져오기
+   */
+  const selectedRoutesList = selectedJourneyId ? routesCache[selectedJourneyId] : undefined;
 
   /**
    * 모든 여정에 경로가 선택되었는지 확인
@@ -412,24 +463,46 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
                 {selectedJourneyId === journey.id && (
                   <RouteSection>
                     <RouteSectionTitle>추천 경로 선택</RouteSectionTitle>
-                    {MOCK_ROUTES.map((route) => (
-                      <RouteCard
-                        key={route.id}
-                        isSelected={selectedRoutes[journey.id] === route.id}
-                        onPress={() => handleSelectRoute(journey.id, route.id)}
-                      >
-                        <RouteIcon>{route.icon}</RouteIcon>
-                        <RouteDetails>
-                          <RouteMode>{route.mode}</RouteMode>
-                          <RouteMetaInfo>
-                            환승 {route.transfers}회
-                          </RouteMetaInfo>
-                        </RouteDetails>
-                        <DurationBadge>
-                          <DurationText>{route.duration}</DurationText>
-                        </DurationBadge>
-                      </RouteCard>
-                    ))}
+
+                    {/* 로딩 상태 */}
+                    {routeLoadingState === 'loading' && (
+                      <ActivityIndicator
+                        size="large"
+                        color={theme.colors.primary}
+                        style={{ marginVertical: theme.spacing.lg }}
+                      />
+                    )}
+
+                    {/* 에러 상태 */}
+                    {routeLoadingState === 'error' && (
+                      <ErrorMessage style={{ marginVertical: theme.spacing.md }}>
+                        {routeError || '경로를 불러올 수 없습니다'}
+                      </ErrorMessage>
+                    )}
+
+                    {/* 경로 리스트 */}
+                    {routeLoadingState === 'success' && selectedRoutesList && selectedRoutesList.length > 0 ? (
+                      selectedRoutesList.map((route) => (
+                        <RouteCard
+                          key={route.id}
+                          isSelected={selectedRoutes[journey.id] === route.id}
+                          onPress={() => handleSelectRoute(journey.id, route.id)}
+                        >
+                          <RouteIcon>{route.icon}</RouteIcon>
+                          <RouteDetails>
+                            <RouteMode>{route.mode}</RouteMode>
+                            <RouteMetaInfo>
+                              환승 {route.transfers}회
+                            </RouteMetaInfo>
+                          </RouteDetails>
+                          <DurationBadge>
+                            <DurationText>{route.duration}</DurationText>
+                          </DurationBadge>
+                        </RouteCard>
+                      ))
+                    ) : routeLoadingState === 'success' ? (
+                      <EmptyStateText>검색된 경로가 없습니다</EmptyStateText>
+                    ) : null}
                   </RouteSection>
                 )}
                 
