@@ -719,6 +719,25 @@ const DailyBriefingScreen: React.FC = () => {
     const selectedPath = pathSelection.selectedPath;
     console.log('🔍 [selectedJourneyInfo] selectedPath:', selectedPath);
 
+    // 🆕 selectedPath 상세 검증
+    if (selectedPath) {
+      console.log('🔍 [selectedJourneyInfo] selectedPath exists:', {
+        hasId: !!selectedPath.id,
+        hasTotalTime: !!selectedPath.totalTime,
+        hasSubPath: !!selectedPath.subPath,
+        subPathLength: selectedPath.subPath?.length ?? 0,
+      });
+      if (selectedPath.subPath?.length) {
+        console.log('🔍 [selectedJourneyInfo] subPath:', JSON.stringify(selectedPath.subPath, null, 2));
+
+        // WALK 세그먼트 분석
+        const walkSegments = selectedPath.subPath.filter((seg: any) => seg.trafficType === 3);
+        if (walkSegments.length > 0) {
+          console.log(`🔍 [selectedJourneyInfo] WALK segments (${walkSegments.length}):`, JSON.stringify(walkSegments, null, 2));
+        }
+      }
+    }
+
     // 예상 소요시간 계산 (초를 분으로 변환)
     const estimatedDurationMinutes = selectedPath ? Math.round(selectedPath.totalTime / 60) : 45;
 

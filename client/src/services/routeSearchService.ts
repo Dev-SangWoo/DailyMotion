@@ -233,6 +233,29 @@ function transformOdsayPaths(paths: OdsayPath[]): RecommendedRoute[] {
     console.log(`[transformOdsayPaths] Path ${index}: subPath exists=${!!path.subPath}, count=${path.subPath?.length ?? 0}`);
     if (path.subPath) {
       console.log(`[transformOdsayPaths] Path ${index} subPath details:`, JSON.stringify(path.subPath, null, 2));
+
+      // 🆕 WALK 세그먼트 상세 분석
+      const walkSegments = path.subPath.filter(seg => seg.trafficType === 3);
+      if (walkSegments.length > 0) {
+        console.log(`[transformOdsayPaths] Path ${index} WALK segments found: ${walkSegments.length}`);
+        walkSegments.forEach((walkSeg, walkIdx) => {
+          console.log(`[transformOdsayPaths]   WALK ${walkIdx}:`, {
+            sectionTime: walkSeg.sectionTime,
+            distance: walkSeg.distance,
+            startName: walkSeg.startName,
+            endName: walkSeg.endName,
+            hasLane: !!walkSeg.lane,
+            stationCount: walkSeg.stationCount,
+          });
+        });
+      }
+
+      // 🆕 각 트래픽 타입별 세그먼트 요약
+      const trafficTypeCount: Record<number, number> = {};
+      path.subPath.forEach(seg => {
+        trafficTypeCount[seg.trafficType] = (trafficTypeCount[seg.trafficType] || 0) + 1;
+      });
+      console.log(`[transformOdsayPaths] Path ${index} traffic type summary:`, trafficTypeCount);
     }
 
     const result = {

@@ -294,12 +294,36 @@ export const useOnboardingStore = create<OnboardingState>()(
             subPathCount: path.subPath?.length ?? 0,
             hasSubPath: !!path.subPath,
           });
+
+          // 🆕 subPath 데이터 상세 로깅
+          if (path.subPath && Array.isArray(path.subPath)) {
+            console.log(`🔍 [useOnboardingStore] subPath ${path.subPath.length}개 세그먼트:`, JSON.stringify(path.subPath, null, 2));
+
+            // WALK 세그먼트 특별 분석
+            const walkSegments = path.subPath.filter((seg: any) => seg.trafficType === 3);
+            if (walkSegments.length > 0) {
+              console.log(`🔍 [useOnboardingStore] WALK segments (${walkSegments.length}):`, JSON.stringify(walkSegments, null, 2));
+            }
+          }
+
           set((state) => ({
             pathSelection: {
               ...state.pathSelection,
               selectedPath: path,
             },
           }));
+
+          // 🆕 저장 후 검증
+          const storeState = get();
+          const savedPath = storeState.pathSelection.selectedPath;
+          console.log('🔍 [useOnboardingStore] 저장된 경로 검증:', {
+            savedId: savedPath?.id,
+            savedSubPathCount: savedPath?.subPath?.length ?? 0,
+            saved: !!savedPath,
+          });
+          if (savedPath?.subPath?.length) {
+            console.log('🔍 [useOnboardingStore] 저장된 subPath:', JSON.stringify(savedPath.subPath, null, 2));
+          }
           console.log('🔍 [useOnboardingStore] setSelectedPath 저장 완료');
         },
 
