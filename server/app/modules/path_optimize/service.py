@@ -727,6 +727,16 @@ class PathOptimizeService:
                 "bus_route_id": "100100578",
             }
         """
+        # Subway: 1호선 서울역 → 시청 (direction=1: 상행)
+        if segment_id == "subway_1호선_서울역-시청_1":
+            return {
+                "mode": "SUBWAY",
+                "line": "1호선",
+                # 구간 시작역(서울역) 기준으로 실시간 ETA 조회
+                "station_name": "서울역",
+                "direction": "상행",
+            }
+
         # Subway: 7호선 남구로 → 온수
         # 테스트 시나리오에서 사용하는 segment_id에 맞춘 매핑입니다.
         if segment_id == "subway_7_남구로-온수":
