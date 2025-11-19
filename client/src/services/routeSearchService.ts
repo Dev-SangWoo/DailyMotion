@@ -88,6 +88,27 @@ export interface RecommendedRoute {
   distance?: string;               // 총 거리 (km)
   fare?: number | null;            // 요금 (원)
   segments?: RouteSegmentInfo[];    // 🆕 세그먼트 상세 정보
+
+  // 🆕 ODSAY 원본 데이터 (DailyBriefingScreen에서 세그먼트 렌더링용)
+  pathId?: string;
+  totalTime?: number;              // 초 단위
+  totalDistance?: number;          // 미터 단위
+  transferCount?: number;
+  subPath?: Array<{                // ODSAY 원본 세그먼트
+    trafficType: number;
+    distance?: number;
+    sectionTime?: number;
+    lane?: Array<{
+      busNo?: string;
+      subwayName?: string;
+      subwayCode?: number;
+    }>;
+    startName?: string;
+    endName?: string;
+    startTime?: string;
+    endTime?: string;
+    [key: string]: any;
+  }>;
 }
 
 /**
@@ -218,6 +239,13 @@ function transformOdsayPaths(paths: OdsayPath[]): RecommendedRoute[] {
       distance,                // 🆕 총 거리
       fare: path.fare || null, // 🆕 요금
       segments: segmentInfos,  // 🆕 세그먼트 정보
+
+      // 🆕 ODSAY 원본 데이터 (DailyBriefingScreen의 상세 경로 렌더링용)
+      pathId,
+      totalTime: path.totalTime,
+      totalDistance: path.totalDistance,
+      transferCount: path.transferCount,
+      subPath: path.subPath,
     };
   });
 }

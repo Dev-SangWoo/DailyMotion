@@ -1152,14 +1152,47 @@ const DailyBriefingScreen: React.FC = () => {
                     },
                   ];
 
-                  // 실제 경로 세그먼트 추가
-                  if (selectedJourneyInfo.selectedPath?.segments) {
+                  // 🆕 ODSAY 원본 subPath 사용 (더 정확한 데이터)
+                  const subPath = selectedJourneyInfo.selectedPath?.subPath;
+                  if (subPath && Array.isArray(subPath)) {
+                    const trafficTypeMap: Record<number, string> = {
+                      1: 'SUBWAY',
+                      2: 'BUS',
+                      3: 'WALK',
+                      4: 'TAXI',
+                      5: 'TRAIN',
+                    };
+
+                    subPath.forEach((segment: any) => {
+                      const type = trafficTypeMap[segment.trafficType] || 'OTHER';
+                      const duration = segment.sectionTime ? Math.round(segment.sectionTime / 60) : 0;
+
+                      // 노선 정보 추출
+                      let lineName = '';
+                      if (segment.lane && Array.isArray(segment.lane) && segment.lane.length > 0) {
+                        const laneInfo = segment.lane[0];
+                        lineName = laneInfo.subwayName || laneInfo.busNo || '';
+                      }
+
+                      if (type !== 'WALK' || duration > 0) {  // 도보는 시간이 있을 때만 표시
+                        steps.push({
+                          icon: getSegmentIcon(type),
+                          title: `${lineName || type}`,
+                          description: `${segment.startName} → ${segment.endName}`,
+                          duration: duration,
+                          type: type,
+                        });
+                      }
+                    });
+                  }
+                  // Fallback: segments 배열이 있으면 그것을 사용 (UI 미리보기용)
+                  else if (selectedJourneyInfo.selectedPath?.segments) {
                     selectedJourneyInfo.selectedPath.segments.forEach((segment: any) => {
                       steps.push({
                         icon: getSegmentIcon(segment.type),
                         title: `${segment.line || segment.type}`,
                         description: `${segment.startStation} → ${segment.endStation}`,
-                        duration: Math.round(segment.duration / 60),
+                        duration: segment.duration ? Math.round(parseInt(segment.duration) / 60) : 0,
                         type: segment.type,
                       });
                     });

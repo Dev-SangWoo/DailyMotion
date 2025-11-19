@@ -78,6 +78,10 @@
   - [ ] `users` 테이블: 출퇴근 설정, 모드, 선호 경로 등
   - [x] `segment_statistics` 테이블: 구간별/시간대별 평균 소요시간  
         ↳ PathOptimize 모듈 기준으로 `AverageDurationDB` (테이블명 `average_duration`) 설계 + Alembic 마이그레이션 완료.  
+        ↳ 서울교통공사 열차시간표 API 기반 ETL 파이프라인 1차 구현  
+           - 시간표 수집 스크립트: `build_seoul_subway_timetable.py` (라인/요일별 원시 시간표 + 구간 소요시간 집계)  
+           - 평균 소요시간 CSV: `data/average_duration_stats.csv` (segment_id/hour/day_of_week 단위 통계)  
+           - CSV → DB import 스크립트: `import_average_duration_from_csv.py` (AverageDurationDB upsert)  
         ↳ 프로젝트 전역 스키마 관점에서의 문서화/다른 모듈 연동은 아직.
   - [x] `route_history` 테이블: 출퇴근/퇴근 경로 이력  
         ↳ PathOptimize 모듈 기준으로 `OptimizationHistoryDB` (테이블명 `optimization_history`) 설계 + 마이그레이션 완료,  
@@ -137,11 +141,17 @@
 ### 3-2. Logic 2.2, 3.1, 3.2 관련
 
 - [ ] 실시간 환승 대기 시간 API 연동 (Logic 2.2)
-  - [ ] 현재는 단순 상수/통계 기반 → 실제 버스/지하철 환승 여유 시간 반영
+  - [x] 지하철 환승: ODSAY 경로 + 서울시 realtimeStationArrival 기반 첫 환승 구간 ETA 반영 (Gate 2 / `/context/routes/with-transfer-eta`)
+  - [ ] 버스 환승: 실제 버스 실시간 ETA를 사용해 환승 여유 시간 반영
 
 - [ ] 실시간 구간 지연 감지 강화 (Logic 3.1)
   - [ ] 도로/대중교통 TPEG 등 외부 교통 정보 API 후보 조사
-  - [ ] delay_detector에 실시간 소스 통합 (현재 Mock/통계 기반)
+  - [x] delay_detector에 실시간 소스 통합 (지하철/버스 ETA + AverageDurationDB)  
+        ↳ PathOptimizeService에 Logic 3.1용 실시간 맵 빌더 (`build_realtime_data_map`, `_get_api_params_by_segment_id`) 추가.  
+        ↳ 특정 구간(예: `subway_7_남구로-온수`, `subway_1호선_서울역-시청_1`)에 대해  
+           AverageDurationDB 평균 vs 서울시 실시간 ETA를 비교하여 지연 여부를 판단하도록 연결 완료.  
+        ↳ 샘플 수/신뢰도 기준(MIN_SAMPLE_COUNT_FOR_RELIABILITY=100) 적용으로,  
+           데이터 부족 시 보수적으로 NO_ACTION/TPEG 폴백 처리.
 
 - [ ] 택시 ETA/요금 API 연동 (Logic 3.2)
   - [ ] 카카오T / 타다 등 호출 API 평가

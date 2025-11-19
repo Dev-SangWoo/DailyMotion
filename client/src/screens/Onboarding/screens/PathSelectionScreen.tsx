@@ -16,7 +16,7 @@ import { onboardingTheme } from '../styles/onboardingTheme';
 import { useOnboardingActions, useOnboardingData } from '../stores/useOnboardingStore';
 import { OnboardingButton } from '../components/OnboardingButton';
 import { TimePickerModal } from '../components/TimePickerModal';
-import apiClient from '../../../services/api';  // 🆕 경로 검색 API 호출용
+import { searchRoutesForOnboarding } from '../../../services/routeSearchService';  // 🆕 경로 검색 서비스
 
 interface PathSelectionScreenProps {
   navigation: {
@@ -659,24 +659,25 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
           departureTime: departSegment.time,
         });
 
-        // ODSAY API로 경로 검색
-        const response = await apiClient.get('/v1/briefings/routes/search/onboarding', {
-          params: {
-            originAddress: departSegment.placeAddress,
-            destinationAddress: arriveSegment.placeAddress,
-            departureTime: departSegment.time,
-            originLatitude: departSegment.placeY,
-            originLongitude: departSegment.placeX,
-            destinationLatitude: arriveSegment.placeY,
-            destinationLongitude: arriveSegment.placeX,
-          },
-        });
+        // ODSAY API로 경로 검색 (서비스 함수 사용)
+        const routes = await searchRoutesForOnboarding(
+          departSegment.placeAddress,
+          arriveSegment.placeAddress,
+          departSegment.time,
+          departSegment.placeY ? parseFloat(departSegment.placeY) : undefined,
+          departSegment.placeX ? parseFloat(departSegment.placeX) : undefined,
+          arriveSegment.placeY ? parseFloat(arriveSegment.placeY) : undefined,
+          arriveSegment.placeX ? parseFloat(arriveSegment.placeX) : undefined,
+        );
 
         // 첫 번째 경로(최적 경로)를 선택하여 저장
-        if (response.data?.data?.paths && response.data.data.paths.length > 0) {
-          const selectedPath = response.data.data.paths[0];
-          console.log('🔍 [PathSelectionScreen] 경로 선택됨:', selectedPath);
-          actions.setSelectedPath(selectedPath);
+        if (routes && routes.length > 0) {
+          const selectedRoute = routes[0];
+          console.log('🔍 [PathSelectionScreen] 경로 선택됨:', selectedRoute);
+          console.log('🔍 [PathSelectionScreen] 경로 세그먼트:', selectedRoute.segments);
+
+          // 경로 정보를 스토어에 저장
+          actions.setSelectedPath(selectedRoute);
         }
       }
     } catch (error) {
