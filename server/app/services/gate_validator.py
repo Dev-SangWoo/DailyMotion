@@ -98,11 +98,36 @@ class GateValidator:
     # Gate 2: 환승 확정성 (Transfer Certainty)
     # ========================================
 
+    def compute_transfer_window(
+        self,
+        current_bus_arrival_minutes: Optional[int],
+        current_bus_duration_minutes: Optional[int],
+        transfer_bus_arrival_minutes: Optional[int],
+    ) -> Optional[int]:
+        """
+        환승 여유 시간(transfer_window) 계산
+
+        현재 수단 하차 시각과 다음 수단 도착 시각의 차이를 분 단위로 반환합니다.
+        """
+        if (
+            current_bus_arrival_minutes is None
+            or current_bus_duration_minutes is None
+            or transfer_bus_arrival_minutes is None
+        ):
+            logger.warning(
+                "⚠️ 환승 여유 시간 계산 불가: 도착/소요 시간 중 None 존재 (transfer_window=None)"
+            )
+            return None
+
+        current_bus_departure = current_bus_arrival_minutes + current_bus_duration_minutes
+        transfer_time_available = transfer_bus_arrival_minutes - current_bus_departure
+        return transfer_time_available
+
     def validate_gate_2_transfer_certainty(
         self,
-        current_bus_arrival_minutes: int,
-        current_bus_duration_minutes: int,
-        transfer_bus_arrival_minutes: int
+        current_bus_arrival_minutes: Optional[int],
+        current_bus_duration_minutes: Optional[int],
+        transfer_bus_arrival_minutes: Optional[int],
     ) -> bool:
         """
         Gate 2: 환승 확정성 (Transfer Certainty) 검증
@@ -118,11 +143,18 @@ class GateValidator:
         Returns:
             Gate 2 통과 여부
         """
-        # 현재 버스 하차 시간
-        current_bus_departure = current_bus_arrival_minutes + current_bus_duration_minutes
+        # 환승 여유 시간(transfer_window) 계산
+        transfer_time_available = self.compute_transfer_window(
+            current_bus_arrival_minutes=current_bus_arrival_minutes,
+            current_bus_duration_minutes=current_bus_duration_minutes,
+            transfer_bus_arrival_minutes=transfer_bus_arrival_minutes,
+        )
 
-        # 환승 여유 시간
-        transfer_time_available = transfer_bus_arrival_minutes - current_bus_departure
+        if transfer_time_available is None:
+            logger.warning(
+                "⚠️ Gate 2 (환승): 환승 여유 시간을 계산할 수 없어 보수적으로 FAIL 처리 (transfer_window=None)"
+            )
+            return False
 
         gate_2_pass = transfer_time_available >= self.GATE_2_TRANSFER_TIME_MIN
 
@@ -223,8 +255,10 @@ class GateValidator:
 
         # 시간 단축 및 환승 여유 계산
         time_benefit = current_route_time - alternative_route_time
-        transfer_time = transfer_bus_arrival_minutes - (
-            current_bus_arrival_minutes + current_bus_duration_minutes
+        transfer_time = self.compute_transfer_window(
+            current_bus_arrival_minutes=current_bus_arrival_minutes,
+            current_bus_duration_minutes=current_bus_duration_minutes,
+            transfer_bus_arrival_minutes=transfer_bus_arrival_minutes,
         )
 
         # 실패 이유
@@ -241,10 +275,15 @@ class GateValidator:
                 )
 
         if not gate_2_pass:
-            reasons.append(
-                f"Gate 2 실패: 환승 여유가 {transfer_time}분으로 "
-                f"{self.GATE_2_TRANSFER_TIME_MIN}분 미만"
-            )
+            if transfer_time is None:
+                reasons.append(
+                    "Gate 2 실패: 환승 여유 시간을 계산할 수 없어 보수적으로 제안하지 않습니다."
+                )
+            else:
+                reasons.append(
+                    f"Gate 2 실패: 환승 여유가 {transfer_time}분으로 "
+                    f"{self.GATE_2_TRANSFER_TIME_MIN}분 미만"
+                )
 
         if not gate_3_pass:
             congestion_label = self._get_congestion_label(transfer_bus_congestion)

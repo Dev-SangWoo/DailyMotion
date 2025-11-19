@@ -207,6 +207,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /routes/with-transfer-eta:
+    post:
+      summary: 출발/도착역 기반 경로 및 환승 ETA 조회
+      description: |
+        출발역과 도착역을 기반으로 ODSAY 경로를 조회하고,
+        경로 내 첫 번째 지하철↔지하철 환승 지점과 그 환승 열차의 실시간 도착 정보를 반환합니다.
+
+        - 환승 지점이 있고 실시간 정보가 존재할 때:
+          - hasTransfer: true
+          - stationName, subwayLine, direction, arrivalMinutes 등의 필드에 값이 채워집니다.
+        - 환승 지점이 없거나 실시간 정보가 없을 때:
+          - hasTransfer: false
+          - 나머지 필드는 null 입니다.
+      operationId: getRouteWithTransferEta
+      tags:
+        - Briefings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startStationName:
+                  type: string
+                  description: 출발역/정류장 이름
+                  example: "남구로역"
+                endStationName:
+                  type: string
+                  description: 도착역/정류장 이름
+                  example: "부천역"
+      responses:
+        '200':
+          description: 경로 및 환승 ETA 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteWithTransferEtaResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /seating/optimize:
     get:
       summary: 탑승/환승 최적화 가이드 조회
@@ -1207,6 +1252,12 @@ components:
             transferTime:
               type: integer
               nullable: true
+            serverRealtimeTransferMinutes:
+              type: integer
+              nullable: true
+              description: >
+                서버가 Gate 2 판단에 사용한 환승 수단의 실시간 대기시간(분).
+                실시간 데이터를 사용하지 못한 경우 null.
             reasons:
               type: array
               nullable: true
@@ -1215,6 +1266,46 @@ components:
             failedGates:
               type: object
               nullable: true
+
+    # Logic 2.x: 출발/도착역 기반 경로 + 환승 ETA 응답
+    RouteWithTransferEtaResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            hasTransfer:
+              type: boolean
+              description: 경로 내 지하철↔지하철 환승 구간 존재 여부
+            stationName:
+              type: string
+              nullable: true
+              description: 환승역 이름 (예: "온수")
+            subwayLine:
+              type: string
+              nullable: true
+              description: 환승할 지하철 노선 (예: "1호선")
+            direction:
+              type: string
+              nullable: true
+              description: 열차 행선지/상·하행 정보
+            arrivalMinutes:
+              type: integer
+              nullable: true
+              description: 환승 열차 도착까지 남은 시간 (분)
+            arrivalSeconds:
+              type: integer
+              nullable: true
+              description: 환승 열차 도착까지 남은 시간 (초)
+            message:
+              type: string
+              nullable: true
+              description: 실시간 API 원문 또는 요약 메시지
+            trainStatus:
+              type: string
+              nullable: true
+              description: 열차 타입 (예: 일반, 급행)
+              example: "급행"
       required:
         - data
 

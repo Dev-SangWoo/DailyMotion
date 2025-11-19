@@ -24,6 +24,8 @@ from app.modules.path_optimize.models import (
     CommuteSettings,
     TransportType
 )
+from app.modules.path_optimize.service import PathOptimizeService
+from app.services.gate_validator import gate_validator
 
 
 class TestPhase5GateValidation:
@@ -499,3 +501,96 @@ class TestLogic2_2AllGatesPassage:
         assert transfer_line in message
         assert "혼잡도" in message
         assert congestion_label in message
+
+
+class TestLogic2_2RealtimeIntegration:
+    """Logic 2.2 - 실시간 환승 ETA와 Gate 2 연동 테스트"""
+
+    def setup_method(self):
+        self.service = PathOptimizeService()
+
+    def test_alternative_route_uses_realtime_transfer_eta(self, monkeypatch: pytest.MonkeyPatch):
+        """
+        [Logic 2.2 - C-2.1] 서버 기준 실시간 환승 ETA를 사용해 Gate 2를 평가
+
+        상황:
+        - payload 상 환승 버스 ETA: 5분 (Gate 2 -> 여유 1분 → FAIL)
+        - 서버 실시간 환승 ETA: 7분 (Gate 2 -> 여유 3분 → PASS)
+
+        예상:
+        - get_transfer_vehicle_realtime_info 결과를 사용하여 Gate 2 PASS
+        - 대안 경로 제안(suggestAlternativeRoute=True)
+        - transferTime=3으로 반환
+        """
+
+        def mock_get_transfer_vehicle_realtime_info(
+            routes_data,
+            current_time,
+            station_name,
+            subway_line,
+            direction=None,
+        ):
+            assert station_name == "온수"
+            assert "1호선" in subway_line
+            return {
+                "stationName": station_name,
+                "subwayLine": subway_line,
+                "direction": direction or "상행",
+                "arrivalMinutes": 7,
+                "arrivalSeconds": 7 * 60,
+                "message": "7분 후",
+            }
+
+        monkeypatch.setattr(
+            self.service,
+            "get_transfer_vehicle_realtime_info",
+            mock_get_transfer_vehicle_realtime_info,
+        )
+
+        result = self.service.get_alternative_route_suggestion(
+            current_route_time=40,
+            alternative_route_time=30,
+            mode=SystemMode.COMMUTE,
+            current_bus_arrival_minutes=2,
+            current_bus_duration_minutes=2,
+            transfer_bus_arrival_minutes=5,  # 실시간 없이면 여유 1분 → FAIL
+            transfer_bus_congestion=40,
+            transfer_location="온수",
+            transfer_line="1호선 급행",
+            congestion_level=None,
+        )
+
+        data = result["data"]
+        assert data["suggestAlternativeRoute"] is True
+        # 7 - (2 + 2) = 3분
+        assert data["transferTime"] == 3
+        # 서버가 사용한 실시간 환승 ETA도 노출
+        assert data["serverRealtimeTransferMinutes"] == 7
+
+    def test_gate_2_fails_when_transfer_eta_unknown(self):
+        """
+        [Logic 2.2 - C-2.1] transfer_window=None일 때 보수적으로 Gate 2 FAIL 처리
+
+        상황:
+        - current/transfer ETA 모두 None → 환승 여유 계산 불가
+
+        예상:
+        - Gate 2 FAIL
+        - reasons에 '환승 여유 시간을 계산할 수 없어' 문구 포함
+        """
+        result = gate_validator.validate_all_gates(
+            current_route_time=40,
+            alternative_route_time=30,
+            mode=SystemMode.COMMUTE,
+            current_bus_arrival_minutes=None,
+            current_bus_duration_minutes=2,
+            transfer_bus_arrival_minutes=None,
+            transfer_bus_congestion=40,
+            congestion_level=None,
+        )
+
+        assert result["gate_2_pass"] is False
+        assert result["all_pass"] is False
+        assert any(
+            "환승 여유 시간을 계산할 수 없어" in reason for reason in result["reasons"]
+        )

@@ -19,7 +19,8 @@ v3.0 명세서:
 - 실시간 버스 도착 정보 (국토부/서울 버스 API)
 - 평균 시간표 · 평균 소요시간 (statistical_data_map / delay_detector 기반)
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+import re
 from datetime import datetime, time, timedelta
 import logging
 import requests
@@ -151,6 +152,26 @@ def _build_congestion_suffix(transport: Optional[Dict[str, Any]]) -> str:
     return f" (현재 열차 혼잡도: {label} ({value_int}%))"
 
 
+def _build_eta_fallback_suffix(transport: Optional[Dict[str, Any]]) -> str:
+    """
+    ETA Fallback 사용 시 사용자 메시지에 붙일 텍스트 생성
+
+    - 실시간 사용(isRealtime=True)이면 아무것도 붙이지 않음
+    - 통계 기반(etaSource == 'STATISTICAL')일 때만 안내 문구를 추가
+    """
+    if not transport:
+        return ""
+
+    if transport.get("isRealtime"):
+        return ""
+
+    eta_source = transport.get("etaSource")
+    if eta_source == "STATISTICAL":
+        return " ⚠️ 실시간 정보 없음 (평균 소요시간)"
+
+    return ""
+
+
 # =====================================================
 # 실시간 데이터 클라이언트 클래스 (Phase 14+)
 # =====================================================
@@ -240,26 +261,65 @@ class SeoulSubwayRealtimeClient:
                 if direction_match:
 
                     barvl_dt = row.findtext("barvlDt")  # 도착 예정 시간(초)
+                    arvl_msg2 = row.findtext("arvlMsg2", "")
+                    arvl_cd = row.findtext("arvlCd", "99")  # 0=진입, 1=도착, 4=전역 진입, 5=전역 도착, 99=기타
+                    train_status = row.findtext("btrainSttus", "")  # 일반/급행 등
+
                     if barvl_dt and barvl_dt.isdigit():
+                        raw_seconds = int(barvl_dt)
+
+                        # barvlDt가 0일 때: arvlMsg2/ arvlCd를 기반으로 근접/원거리 구분
+                        if raw_seconds == 0:
+                            arrival_seconds = 0
+
+                            # 패턴 1: "[N]번째 전역 (X역)" → N * 2분 정도로 환산
+                            m = re.search(r"\[(\d+)\]\s*번째\s*전역", arvl_msg2)
+                            if m:
+                                n = int(m.group(1))
+                                # 1정거장 ≈ 2분, 최소 2분부터 시작
+                                arrival_seconds = max(n * 120, 120)
+                            # 패턴 2: 전역 진입/전역 도착 → 약 2분 내 도착으로 간주
+                            elif "전역" in arvl_msg2 and ("도착" in arvl_msg2 or "진입" in arvl_msg2):
+                                arrival_seconds = 120
+                            elif arvl_cd in ("4", "5"):  # 전역 진입/도착 코드
+                                arrival_seconds = 120
+                            # 패턴 3: 현재역 도착(예: "온수 도착")은 그대로 0초 유지
+                            else:
+                                arrival_seconds = raw_seconds
+                        else:
+                            arrival_seconds = raw_seconds
+
                         trains.append({
-                            "arrivalSeconds": int(barvl_dt),
+                            "arrivalSeconds": arrival_seconds,
                             "trainDirection": row.findtext("trainLineNm", ""),
-                            "message": row.findtext("arvlMsg2", ""),
-                            "arvlCd": row.findtext("arvlCd", "99"),  # 0=진입, 1=도착, 99=진입전
+                            "message": arvl_msg2,
+                            "arvlCd": arvl_cd,
+                            "trainStatus": train_status,
                         })
 
-            # 5️⃣ 가장 임박한 열차 선택 (barvlDt 최소값)
+            # 5️⃣ 가장 임박한 열차 선택
+            # - 기본: barvlDt(초)가 가장 작은 열차
+            # - 단, barvlDt == 0 (이미 도착/진입한 열차)는 건너뛰고
+            #   "곧 도착할 다음 열차"를 우선 선택
             if not trains:
-                logger.warning(f"⚠️ 실시간 열차 정보 없음: {station_name} {subway_line} {direction}")
+                logger.warning(
+                    f"⚠️ 실시간 열차 정보 없음: {station_name} {subway_line} {direction}"
+                )
                 return None
 
-            best_train = min(trains, key=lambda x: x["arrivalSeconds"])
+            positive_trains = [t for t in trains if t["arrivalSeconds"] > 0]
+            if positive_trains:
+                best_train = min(positive_trains, key=lambda x: x["arrivalSeconds"])
+            else:
+                # 모든 열차가 0초(이미 도착/진입)인 극단적인 경우에는 그중 하나 선택
+                best_train = min(trains, key=lambda x: x["arrivalSeconds"])
 
             result = {
                 "arrivalMinutes": best_train["arrivalSeconds"] // 60,
                 "arrivalSeconds": best_train["arrivalSeconds"],
                 "trainDirection": best_train["trainDirection"],
                 "message": best_train["message"],
+                "trainStatus": best_train.get("trainStatus", ""),
             }
 
             logger.info(f"✅ 지하철 실시간 정보: {station_name} {subway_line} - {result['arrivalMinutes']}분 후")
@@ -833,6 +893,7 @@ class PathOptimizeService:
                             "departureInMinutes": realtime_info["arrivalMinutes"],
                             "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
                             "isRealtime": True,
+                            "etaSource": "REALTIME",
                             **congestion_payload,
                         }
 
@@ -850,6 +911,7 @@ class PathOptimizeService:
                                 "departureInMinutes": stat_data.get("avgDepartureInterval", 5),
                                 "transitTimeMinutes": stat_data.get("avgTransitTime", 30),
                                 "isRealtime": False,
+                                "etaSource": "STATISTICAL",
                                 **congestion_payload,
                             }
 
@@ -864,6 +926,7 @@ class PathOptimizeService:
                         "departureInMinutes": departure_in_minutes_odsay or DEFAULT_FIRST_MILE_DURATION,
                         "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
                         "isRealtime": False,
+                        "etaSource": "FALLBACK",
                         **congestion_payload,
                     }
 
@@ -938,7 +1001,8 @@ class PathOptimizeService:
                             "destination": destination,
                             "departureInMinutes": realtime_info["arrivalMinutes"],
                             "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
-                            "isRealtime": True
+                            "isRealtime": True,
+                            "etaSource": "REALTIME",
                         }
 
                     # 통계 데이터 확인
@@ -954,7 +1018,8 @@ class PathOptimizeService:
                                 "destination": destination,
                                 "departureInMinutes": stat_data.get("avgDepartureInterval", 5),
                                 "transitTimeMinutes": stat_data.get("avgTransitTime", 30),
-                                "isRealtime": False
+                                "isRealtime": False,
+                                "etaSource": "STATISTICAL",
                             }
 
                     # ✅ BUG FIX 1: departureInMinutes Null 방지 - Fallback 기본값 사용
@@ -967,7 +1032,8 @@ class PathOptimizeService:
                         "destination": destination,
                         "departureInMinutes": departure_in_minutes_odsay or DEFAULT_FIRST_MILE_DURATION,
                         "transitTimeMinutes": fastest_path.get("totalTimeMinutes", 30),
-                        "isRealtime": False
+                        "isRealtime": False,
+                        "etaSource": "FALLBACK",
                     }
 
             logger.warning("⚠️ subPath에서 대중교통 정보 없음")
@@ -1162,6 +1228,147 @@ class PathOptimizeService:
                     "timestamp": datetime.utcnow().isoformat(),
                 }
             }
+
+    def get_transfer_vehicle_realtime_info(
+        self,
+        routes_data: Optional[Dict[str, Any]] = None,
+        current_time: Optional[datetime] = None,
+        station_name: Optional[str] = None,
+        subway_line: Optional[str] = None,
+        direction: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        환승할 열차의 실시간 도착 정보 조회 (지하철 전용)
+
+        우선순위:
+        1) station_name / subway_line 이 직접 주어진 경우 → 이를 사용
+        2) 없으면 ODSAY routes_data.subPath 에서 첫 번째 지하철↔지하철 환승 구간을 찾아
+           환승역/노선을 추론
+
+        Args:
+            routes_data: ODSAY 경로 데이터 (parse_route_info 결과, 선택)
+            current_time: 호출 시각 (로깅용, 선택)
+            station_name: 환승역 이름 (예: \"온수\" 또는 \"온수역\", 선택)
+            subway_line: 환승 노선 (예: \"1호선\", \"1호선 급행\", 선택)
+            direction: 상/하행(선택, 미지정 시 ODSAY wayCode 또는 \"상행\" 사용)
+
+        Returns:
+            {
+                \"stationName\": str,
+                \"subwayLine\": str,
+                \"direction\": str,
+                \"arrivalMinutes\": int,
+                \"arrivalSeconds\": int,
+                \"message\": str
+            } 또는 None
+        """
+        try:
+            resolved_station_name = station_name
+            resolved_subway_line = subway_line
+            resolved_direction = direction
+
+            # 1️⃣ station_name / subway_line 이 없으면 ODSAY routes_data에서 추론
+            if (not resolved_station_name or not resolved_subway_line) and routes_data:
+                if "paths" not in routes_data or not routes_data["paths"]:
+                    logger.warning("⚠️ ODSAY routes_data 없음 (환승 ETA 계산 불가)")
+                    return None
+
+                fastest_path = routes_data["paths"][0]
+                sub_path = fastest_path.get("subPath", [])
+                if not sub_path:
+                    logger.warning("⚠️ subPath 정보 없음 (환승 ETA 계산 불가)")
+                    return None
+
+                # 첫 번째 지하철→지하철 환승 구간 찾기
+                # - 기존: trafficType=1 이 연속으로 붙어있는 구간만 인식
+                # - 개선: 사이에 도보(trafficType=3)가 끼어 있어도
+                #        "첫 번째 지하철 구간"과 "두 번째 지하철 구간"을 환승으로 간주
+                subway_indices: List[int] = [
+                    idx for idx, seg in enumerate(sub_path) if seg.get("trafficType") == 1
+                ]
+
+                if len(subway_indices) < 2:
+                    logger.info("ℹ️ 지하철 구간이 2개 미만 (환승 ETA 계산 스킵)")
+                    return None
+
+                current_segment = sub_path[subway_indices[0]]
+                next_segment = sub_path[subway_indices[1]]
+
+                resolved_station_name = (
+                    current_segment.get("endName")
+                    or next_segment.get("startName")
+                    or ""
+                )
+
+                lane_list = next_segment.get("lane") or []
+                lane = lane_list[0] if lane_list else {}
+                subway_code = lane.get("subwayCode")
+
+                if not subway_code or not resolved_station_name:
+                    logger.warning(
+                        "⚠️ 환승역 이름 또는 지하철 노선 코드(subwayCode)를 찾을 수 없음"
+                    )
+                    return None
+
+                resolved_subway_line = f"{subway_code}호선"
+                if resolved_direction is None:
+                    way_code = next_segment.get("wayCode", 1)
+                    resolved_direction = _map_direction(way_code)  # "상행" / "하행"
+
+            # 2️⃣ 여전히 필수 정보가 없다면 중단
+            if not resolved_station_name or not resolved_subway_line:
+                logger.warning(
+                    "⚠️ 환승 ETA 계산 불가: station_name/subway_line 미지정 및 routes_data 없음"
+                )
+                return None
+
+            # 3️⃣ 역명/노선 정규화 ("온수역" → "온수", "1호선 급행" → "1호선")
+            normalized_station = resolved_station_name.replace("역", "").strip()
+            normalized_line = resolved_subway_line.strip()
+            if "호선" in normalized_line:
+                idx = normalized_line.find("호선")
+                normalized_line = normalized_line[: idx + 2]
+
+            direction_label = resolved_direction or "상행"
+
+            logger.info(
+                f"🚇 환승 실시간 ETA 조회 시도: station={normalized_station}, "
+                f"line={normalized_line}, direction={direction_label}"
+            )
+
+            realtime_info = self.subway_client.get_arrival_info(
+                station_name=normalized_station,
+                subway_line=normalized_line,
+                direction=direction_label,
+            )
+
+            if not realtime_info:
+                logger.warning(
+                    f"⚠️ 환승 구간 실시간 열차 정보 없음: {normalized_station} {normalized_line} {direction_label}"
+                )
+                return None
+
+            result = {
+                "stationName": normalized_station,
+                "subwayLine": normalized_line,
+                "direction": realtime_info.get("trainDirection") or direction_label,
+                "arrivalMinutes": realtime_info.get("arrivalMinutes"),
+                "arrivalSeconds": realtime_info.get("arrivalSeconds"),
+                "message": realtime_info.get("message", ""),
+                "trainStatus": realtime_info.get("trainStatus"),
+            }
+
+            logger.info(
+                "✅ 환승 실시간 ETA: "
+                f"{result['stationName']} {result['subwayLine']} "
+                f"{result['direction']} "
+                f"{result['arrivalMinutes']}분 후"
+            )
+            return result
+
+        except Exception as e:
+            logger.warning(f"⚠️ 환승 열차 실시간 ETA 조회 실패: {str(e)}")
+            return None
 
     def optimize_path(
         self,
@@ -1387,8 +1594,9 @@ class PathOptimizeService:
                         f"{target_time_str} 도착을 위해, 지금 집에서 출발하셔서 "
                         f"{departure_total_minutes}분 후 도착하는 [{transport_name}]를 타세요.{realtime_tag}"
                     )
-                    # 혼잡도 정보가 있으면 메시지에 붙인다.
+                    # 혼잡도/ETA Fallback 정보가 있으면 메시지에 붙인다.
                     message += _build_congestion_suffix(recommended_transport)
+                    message += _build_eta_fallback_suffix(recommended_transport)
                 else:
                     transport_name = "지금 출발 가능한 교통수단"
                     message = (
@@ -1449,9 +1657,10 @@ class PathOptimizeService:
                     f"⚠️지각 주의! {target_time_str} 도착을 위한 {last_transport_label}[{last_bus_number}]가 "
                     f"{departure_total_minutes}분 뒤 도착합니다. 지금 출발하세요! (여유: {slack_minutes}분)"
                 )
-                # 혼잡도 정보가 있으면 메시지에 붙인다.
+                # 혼잡도/ETA Fallback 정보가 있으면 메시지에 붙인다.
                 if recommended_transport:
                     message += _build_congestion_suffix(recommended_transport)
+                    message += _build_eta_fallback_suffix(recommended_transport)
 
                 logger.warning(f"⚠️ Logic 1.2 LAST_CHANCE 경고: 슬랙 {slack_minutes}분")
                 return {
@@ -1685,7 +1894,9 @@ class PathOptimizeService:
         transfer_bus_congestion: int,
         transfer_location: str,
         transfer_line: str,
-        congestion_level: Optional[int] = None
+        congestion_level: Optional[int] = None,
+        routes_data: Optional[Dict[str, Any]] = None,
+        server_time: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         """
         고신뢰 대안 경로 제안 (Logic 2.2)
@@ -1730,6 +1941,31 @@ class PathOptimizeService:
                 }
             }
         """
+        # 0️⃣ 환승 수단 실시간 ETA를 우선 조회하여 서버 기준 값으로 대체
+        effective_transfer_arrival = transfer_bus_arrival_minutes
+        server_realtime_transfer_minutes: Optional[int] = None
+        try:
+            realtime_info = self.get_transfer_vehicle_realtime_info(
+                routes_data=routes_data,
+                current_time=server_time or datetime.utcnow(),
+                station_name=transfer_location,
+                subway_line=transfer_line,
+            )
+            if realtime_info and realtime_info.get("arrivalMinutes") is not None:
+                effective_transfer_arrival = realtime_info["arrivalMinutes"]
+                server_realtime_transfer_minutes = realtime_info["arrivalMinutes"]
+                logger.info(
+                    "✅ Gate 2용 실시간 환승 ETA 사용: %s %s %s분 후 (payload=%s분)",
+                    realtime_info.get("stationName"),
+                    realtime_info.get("subwayLine"),
+                    effective_transfer_arrival,
+                    transfer_bus_arrival_minutes,
+                )
+        except Exception as e:
+            logger.warning(
+                f"⚠️ 실시간 환승 ETA 조회 실패, payload 값 사용 (Logic 2.2): {str(e)}"
+            )
+
         # 1️⃣ 모든 Gate 검증
         validation_result = gate_validator.validate_all_gates(
             current_route_time=current_route_time,
@@ -1737,7 +1973,7 @@ class PathOptimizeService:
             mode=mode,
             current_bus_arrival_minutes=current_bus_arrival_minutes,
             current_bus_duration_minutes=current_bus_duration_minutes,
-            transfer_bus_arrival_minutes=transfer_bus_arrival_minutes,
+            transfer_bus_arrival_minutes=effective_transfer_arrival,
             transfer_bus_congestion=transfer_bus_congestion,
             congestion_level=congestion_level
         )
@@ -1760,7 +1996,8 @@ class PathOptimizeService:
                     "transferLocation": transfer_location,
                     "transferLine": transfer_line,
                     "transferCongestion": transfer_bus_congestion,
-                    "transferTime": validation_result["transfer_time"]
+                    "transferTime": validation_result["transfer_time"],
+                    "serverRealtimeTransferMinutes": server_realtime_transfer_minutes,
                 }
             }
         else:
@@ -1778,7 +2015,8 @@ class PathOptimizeService:
                         "gate_1": not validation_result["gate_1_pass"],
                         "gate_2": not validation_result["gate_2_pass"],
                         "gate_3": not validation_result["gate_3_pass"]
-                    }
+                    },
+                    "serverRealtimeTransferMinutes": server_realtime_transfer_minutes,
                 }
             }
 

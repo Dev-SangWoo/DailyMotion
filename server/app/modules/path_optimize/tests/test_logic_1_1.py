@@ -284,3 +284,47 @@ class TestDepartureInMinutesWithRealtime:
 
         transport = result["data"]["recommendedTransport"]
         assert transport["departureInMinutes"] == 10
+
+    def test_eta_fallback_suffix_for_statistical(self):
+        """
+        통계 기반 ETA를 사용할 때 메시지에 Fallback 안내 문구가 포함되는지 확인
+        """
+
+        class _DummyServiceWithStatFallback(PathOptimizeService):
+            def _extract_recommended_transport(  # type: ignore[override]
+                self,
+                routes_data,
+                current_time,
+                commute_settings=None,
+                statistical_data_map=None,
+            ):
+                return {
+                    "type": "SUBWAY",
+                    "name": "2호선",
+                    "lineNumber": "2호선",
+                    "destination": "상행",
+                    "departureInMinutes": 10,
+                    "transitTimeMinutes": 20,
+                    "isRealtime": False,
+                    "etaSource": "STATISTICAL",
+                }
+
+        service = _DummyServiceWithStatFallback()
+
+        commute_settings = {
+            "homeAddress": "서울 강남구",
+            "workAddress": "서울 중구",
+            "targetArrivalTime": time(9, 0, 0),
+            "firstMileDefaultDuration": 5,
+            "lastMileDefaultDuration": 7,
+        }
+        current_time = datetime(2025, 1, 15, 8, 30, 0)
+
+        result = service.get_commute_briefing(
+            commute_settings=commute_settings,
+            current_time=current_time,
+        )
+
+        message = result["data"]["message"]
+        assert "실시간 정보 없음" in message
+        assert "평균 소요시간" in message
