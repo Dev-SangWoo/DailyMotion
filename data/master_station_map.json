@@ -1,0 +1,926 @@
+[
+  {
+    "odsayStationID": 340,
+    "odsaySubwayCode": 3,
+    "seoulStationID": "340",
+    "seoulLineNum": "3호선",
+    "debugName": "고속터미널 (3호선)"
+  },
+  {
+    "odsayStationID": 915,
+    "odsaySubwayCode": 9,
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "여의도 (9호선 - 데이터 없음)"
+  },
+  {
+    "odsayStationID": 923,
+    "odsaySubwayCode": 9,
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "고속터미널 (9호선 - 데이터 없음)"
+  },
+  {
+    "odsayStationID": 222,
+    "odsaySubwayCode": 2,
+    "seoulStationID": "222",
+    "seoulLineNum": "2호선",
+    "debugName": "강남 (2호선 - 테스트용)"
+  },
+  {
+    "odsayStationID": 220,
+    "odsaySubwayCode": 2,
+    "seoulStationID": "220",
+    "seoulLineNum": "2호선",
+    "debugName": "잠실 (2호선 - 테스트용)"
+  },
+  {
+    "odsayStationID": "97",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "연천"
+  },
+  {
+    "odsayStationID": "98",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "전곡"
+  },
+  {
+    "odsayStationID": "99",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "청산"
+  },
+  {
+    "odsayStationID": "100",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "소요산"
+  },
+  {
+    "odsayStationID": "101",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "동두천"
+  },
+  {
+    "odsayStationID": "102",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "보산"
+  },
+  {
+    "odsayStationID": "103",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "동두천중앙"
+  },
+  {
+    "odsayStationID": "104",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "지행"
+  },
+  {
+    "odsayStationID": "105",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "덕정"
+  },
+  {
+    "odsayStationID": "106",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "덕계"
+  },
+  {
+    "odsayStationID": "107",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "양주"
+  },
+  {
+    "odsayStationID": "108",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "녹양"
+  },
+  {
+    "odsayStationID": "110",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "가능"
+  },
+  {
+    "odsayStationID": "111",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "의정부"
+  },
+  {
+    "odsayStationID": "112",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "회룡"
+  },
+  {
+    "odsayStationID": "113",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "망월사"
+  },
+  {
+    "odsayStationID": "114",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "도봉산"
+  },
+  {
+    "odsayStationID": "115",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "도봉"
+  },
+  {
+    "odsayStationID": "116",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "방학"
+  },
+  {
+    "odsayStationID": "117",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "창동"
+  },
+  {
+    "odsayStationID": "118",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "녹천"
+  },
+  {
+    "odsayStationID": "119",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "월계"
+  },
+  {
+    "odsayStationID": "120",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "광운대"
+  },
+  {
+    "odsayStationID": "121",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "석계"
+  },
+  {
+    "odsayStationID": "122",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "신이문"
+  },
+  {
+    "odsayStationID": "123",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "외대앞"
+  },
+  {
+    "odsayStationID": "124",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "회기"
+  },
+  {
+    "odsayStationID": "125",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "158",
+    "seoulLineNum": "1호선",
+    "debugName": "청량리"
+  },
+  {
+    "odsayStationID": "126",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "157",
+    "seoulLineNum": "1호선",
+    "debugName": "제기동"
+  },
+  {
+    "odsayStationID": "127",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "156",
+    "seoulLineNum": "1호선",
+    "debugName": "신설동"
+  },
+  {
+    "odsayStationID": "199",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "159",
+    "seoulLineNum": "1호선",
+    "debugName": "동묘앞"
+  },
+  {
+    "odsayStationID": "128",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "155",
+    "seoulLineNum": "1호선",
+    "debugName": "동대문"
+  },
+  {
+    "odsayStationID": "129",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "154",
+    "seoulLineNum": "1호선",
+    "debugName": "종로5가"
+  },
+  {
+    "odsayStationID": "130",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "153",
+    "seoulLineNum": "1호선",
+    "debugName": "종로3가"
+  },
+  {
+    "odsayStationID": "131",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "152",
+    "seoulLineNum": "1호선",
+    "debugName": "종각"
+  },
+  {
+    "odsayStationID": "132",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "151",
+    "seoulLineNum": "1호선",
+    "debugName": "시청"
+  },
+  {
+    "odsayStationID": "133",
+    "odsaySubwayCode": "1",
+    "seoulStationID": "150",
+    "seoulLineNum": "1호선",
+    "debugName": "서울역"
+  },
+  {
+    "odsayStationID": "134",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "남영"
+  },
+  {
+    "odsayStationID": "135",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "용산"
+  },
+  {
+    "odsayStationID": "136",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "노량진"
+  },
+  {
+    "odsayStationID": "137",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "대방"
+  },
+  {
+    "odsayStationID": "138",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "신길"
+  },
+  {
+    "odsayStationID": "139",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "영등포"
+  },
+  {
+    "odsayStationID": "140",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "신도림"
+  },
+  {
+    "odsayStationID": "141",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "구로"
+  },
+  {
+    "odsayStationID": "142",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "구일"
+  },
+  {
+    "odsayStationID": "143",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "개봉"
+  },
+  {
+    "odsayStationID": "144",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "오류동"
+  },
+  {
+    "odsayStationID": "145",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "온수"
+  },
+  {
+    "odsayStationID": "146",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "역곡"
+  },
+  {
+    "odsayStationID": "147",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "소사"
+  },
+  {
+    "odsayStationID": "148",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "부천"
+  },
+  {
+    "odsayStationID": "149",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "중동"
+  },
+  {
+    "odsayStationID": "150",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "송내"
+  },
+  {
+    "odsayStationID": "151",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "부개"
+  },
+  {
+    "odsayStationID": "152",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "부평"
+  },
+  {
+    "odsayStationID": "153",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "백운"
+  },
+  {
+    "odsayStationID": "154",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "동암"
+  },
+  {
+    "odsayStationID": "155",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "간석"
+  },
+  {
+    "odsayStationID": "156",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "주안"
+  },
+  {
+    "odsayStationID": "157",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "도화"
+  },
+  {
+    "odsayStationID": "158",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "제물포"
+  },
+  {
+    "odsayStationID": "159",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "도원"
+  },
+  {
+    "odsayStationID": "160",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "동인천"
+  },
+  {
+    "odsayStationID": "161",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "인천"
+  },
+  {
+    "odsayStationID": "172",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "가산디지털단지"
+  },
+  {
+    "odsayStationID": "173",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "독산"
+  },
+  {
+    "odsayStationID": "174",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "금천구청"
+  },
+  {
+    "odsayStationID": "175",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "석수"
+  },
+  {
+    "odsayStationID": "176",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "관악"
+  },
+  {
+    "odsayStationID": "177",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "안양"
+  },
+  {
+    "odsayStationID": "178",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "명학"
+  },
+  {
+    "odsayStationID": "179",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "금정"
+  },
+  {
+    "odsayStationID": "180",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "군포"
+  },
+  {
+    "odsayStationID": "1181",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "당정"
+  },
+  {
+    "odsayStationID": "181",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "의왕"
+  },
+  {
+    "odsayStationID": "182",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "성균관대"
+  },
+  {
+    "odsayStationID": "183",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "화서"
+  },
+  {
+    "odsayStationID": "184",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "수원"
+  },
+  {
+    "odsayStationID": "185",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "세류"
+  },
+  {
+    "odsayStationID": "186",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "병점"
+  },
+  {
+    "odsayStationID": "187",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "세마"
+  },
+  {
+    "odsayStationID": "188",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "오산대"
+  },
+  {
+    "odsayStationID": "189",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "오산"
+  },
+  {
+    "odsayStationID": "190",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "진위"
+  },
+  {
+    "odsayStationID": "1401",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "송탄"
+  },
+  {
+    "odsayStationID": "1402",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "서정리"
+  },
+  {
+    "odsayStationID": "1403",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "평택지제"
+  },
+  {
+    "odsayStationID": "1404",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "평택"
+  },
+  {
+    "odsayStationID": "1405",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "성환"
+  },
+  {
+    "odsayStationID": "1406",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "직산"
+  },
+  {
+    "odsayStationID": "1407",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "두정"
+  },
+  {
+    "odsayStationID": "1408",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "천안"
+  },
+  {
+    "odsayStationID": "1409",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "봉명"
+  },
+  {
+    "odsayStationID": "1410",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "쌍용(나사렛대)"
+  },
+  {
+    "odsayStationID": "1411",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "아산"
+  },
+  {
+    "odsayStationID": "1412",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "탕정"
+  },
+  {
+    "odsayStationID": "1413",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "배방"
+  },
+  {
+    "odsayStationID": "1415",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "온양온천"
+  },
+  {
+    "odsayStationID": "1416",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "신창(순천향대)"
+  },
+  {
+    "odsayStationID": "1187",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "서동탄"
+  },
+  {
+    "odsayStationID": "1175",
+    "odsaySubwayCode": "1",
+    "seoulStationID": null,
+    "seoulLineNum": null,
+    "debugName": "광명"
+  },
+  {
+    "odsayStationID": "201",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "201",
+    "seoulLineNum": "2호선",
+    "debugName": "시청"
+  },
+  {
+    "odsayStationID": "202",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "202",
+    "seoulLineNum": "2호선",
+    "debugName": "을지로입구"
+  },
+  {
+    "odsayStationID": "203",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "203",
+    "seoulLineNum": "2호선",
+    "debugName": "을지로3가"
+  },
+  {
+    "odsayStationID": "204",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "204",
+    "seoulLineNum": "2호선",
+    "debugName": "을지로4가"
+  },
+  {
+    "odsayStationID": "205",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "205",
+    "seoulLineNum": "2호선",
+    "debugName": "동대문역사문화공원"
+  },
+  {
+    "odsayStationID": "206",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "206",
+    "seoulLineNum": "2호선",
+    "debugName": "신당"
+  },
+  {
+    "odsayStationID": "207",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "207",
+    "seoulLineNum": "2호선",
+    "debugName": "상왕십리"
+  },
+  {
+    "odsayStationID": "208",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "208",
+    "seoulLineNum": "2호선",
+    "debugName": "왕십리"
+  },
+  {
+    "odsayStationID": "209",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "209",
+    "seoulLineNum": "2호선",
+    "debugName": "한양대"
+  },
+  {
+    "odsayStationID": "210",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "210",
+    "seoulLineNum": "2호선",
+    "debugName": "뚝섬"
+  },
+  {
+    "odsayStationID": "211",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "211",
+    "seoulLineNum": "2호선",
+    "debugName": "성수"
+  },
+  {
+    "odsayStationID": "212",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "212",
+    "seoulLineNum": "2호선",
+    "debugName": "건대입구"
+  },
+  {
+    "odsayStationID": "213",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "213",
+    "seoulLineNum": "2호선",
+    "debugName": "구의"
+  },
+  {
+    "odsayStationID": "214",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "214",
+    "seoulLineNum": "2호선",
+    "debugName": "강변"
+  },
+  {
+    "odsayStationID": "215",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "215",
+    "seoulLineNum": "2호선",
+    "debugName": "잠실나루"
+  },
+  {
+    "odsayStationID": "216",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "216",
+    "seoulLineNum": "2호선",
+    "debugName": "잠실"
+  },
+  {
+    "odsayStationID": "251",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "244",
+    "seoulLineNum": "2호선",
+    "debugName": "용답"
+  },
+  {
+    "odsayStationID": "252",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "245",
+    "seoulLineNum": "2호선",
+    "debugName": "신답"
+  },
+  {
+    "odsayStationID": "254",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "250",
+    "seoulLineNum": "2호선",
+    "debugName": "용두"
+  },
+  {
+    "odsayStationID": "253",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "246",
+    "seoulLineNum": "2호선",
+    "debugName": "신설동"
+  },
+  {
+    "odsayStationID": "234",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "234",
+    "seoulLineNum": "2호선",
+    "debugName": "신도림"
+  },
+  {
+    "odsayStationID": "261",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "247",
+    "seoulLineNum": "2호선",
+    "debugName": "도림천"
+  },
+  {
+    "odsayStationID": "262",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "248",
+    "seoulLineNum": "2호선",
+    "debugName": "양천구청"
+  },
+  {
+    "odsayStationID": "263",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "249",
+    "seoulLineNum": "2호선",
+    "debugName": "신정네거리"
+  },
+  {
+    "odsayStationID": "264",
+    "odsaySubwayCode": "2",
+    "seoulStationID": "260",
+    "seoulLineNum": "2호선",
+    "debugName": "까치산"
+  }
+]
