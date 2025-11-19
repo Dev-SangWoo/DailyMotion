@@ -674,10 +674,21 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
         if (routes && routes.length > 0) {
           const selectedRoute = routes[0];
           console.log('🔍 [PathSelectionScreen] 경로 선택됨:', selectedRoute);
+          console.log('🔍 [PathSelectionScreen] 경로 ID:', selectedRoute.id);
           console.log('🔍 [PathSelectionScreen] 경로 세그먼트:', selectedRoute.segments);
+          console.log('🔍 [PathSelectionScreen] subPath 존재?:', !!selectedRoute.subPath);
+          console.log('🔍 [PathSelectionScreen] subPath 길이:', selectedRoute.subPath?.length ?? 0);
+          if (selectedRoute.subPath) {
+            console.log('🔍 [PathSelectionScreen] subPath 상세:', JSON.stringify(selectedRoute.subPath, null, 2));
+          }
+          console.log('🔍 [PathSelectionScreen] totalTime:', selectedRoute.totalTime);
 
           // 경로 정보를 스토어에 저장
+          console.log('🔍 [PathSelectionScreen] setSelectedPath 호출 시작...');
           actions.setSelectedPath(selectedRoute);
+          console.log('🔍 [PathSelectionScreen] setSelectedPath 호출 완료');
+        } else {
+          console.warn('⚠️ [PathSelectionScreen] 경로 검색 결과 없음');
         }
       }
     } catch (error) {

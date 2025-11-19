@@ -230,7 +230,12 @@ function transformOdsayPaths(paths: OdsayPath[]): RecommendedRoute[] {
     // 🆕 세그먼트 상세 정보 파싱
     const segmentInfos = parseSegments(segments);
 
-    return {
+    console.log(`[transformOdsayPaths] Path ${index}: subPath exists=${!!path.subPath}, count=${path.subPath?.length ?? 0}`);
+    if (path.subPath) {
+      console.log(`[transformOdsayPaths] Path ${index} subPath details:`, JSON.stringify(path.subPath, null, 2));
+    }
+
+    const result = {
       id: pathId,
       mode: modeLabel,
       duration: durationLabel,
@@ -247,6 +252,15 @@ function transformOdsayPaths(paths: OdsayPath[]): RecommendedRoute[] {
       transferCount: path.transferCount,
       subPath: path.subPath,
     };
+
+    console.log(`[transformOdsayPaths] Path ${index} result:`, {
+      id: result.id,
+      totalTime: result.totalTime,
+      subPathCount: result.subPath?.length ?? 0,
+      hasSubPath: !!result.subPath,
+    });
+
+    return result;
   });
 }
 

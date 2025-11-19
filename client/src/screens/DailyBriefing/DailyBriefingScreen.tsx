@@ -1154,6 +1154,8 @@ const DailyBriefingScreen: React.FC = () => {
 
                   // 🆕 ODSAY 원본 subPath 사용 (더 정확한 데이터)
                   const subPath = selectedJourneyInfo.selectedPath?.subPath;
+                  console.log('🔍 [DailyBriefing] subPath:', subPath);
+
                   if (subPath && Array.isArray(subPath)) {
                     const trafficTypeMap: Record<number, string> = {
                       1: 'SUBWAY',
@@ -1163,7 +1165,17 @@ const DailyBriefingScreen: React.FC = () => {
                       5: 'TRAIN',
                     };
 
-                    subPath.forEach((segment: any) => {
+                    console.log('🔍 [DailyBriefing] Processing subPath, count:', subPath.length);
+
+                    subPath.forEach((segment: any, idx: number) => {
+                      console.log(`🔍 [DailyBriefing] Segment ${idx}:`, {
+                        trafficType: segment.trafficType,
+                        sectionTime: segment.sectionTime,
+                        startName: segment.startName,
+                        endName: segment.endName,
+                        lane: segment.lane,
+                      });
+
                       const type = trafficTypeMap[segment.trafficType] || 'OTHER';
                       const duration = segment.sectionTime ? Math.round(segment.sectionTime / 60) : 0;
 
@@ -1174,16 +1186,19 @@ const DailyBriefingScreen: React.FC = () => {
                         lineName = laneInfo.subwayName || laneInfo.busNo || '';
                       }
 
-                      if (type !== 'WALK' || duration > 0) {  // 도보는 시간이 있을 때만 표시
-                        steps.push({
-                          icon: getSegmentIcon(type),
-                          title: `${lineName || type}`,
-                          description: `${segment.startName} → ${segment.endName}`,
-                          duration: duration,
-                          type: type,
-                        });
-                      }
+                      console.log(`🔍 [DailyBriefing] Processed segment ${idx}: type=${type}, duration=${duration}, lineName=${lineName}`);
+
+                      // 도보도 항상 표시 (duration이 0이어도)
+                      steps.push({
+                        icon: getSegmentIcon(type),
+                        title: `${lineName || type}`,
+                        description: `${segment.startName} → ${segment.endName}`,
+                        duration: duration,
+                        type: type,
+                      });
                     });
+                  } else {
+                    console.log('🔍 [DailyBriefing] No subPath or not an array');
                   }
                   // Fallback: segments 배열이 있으면 그것을 사용 (UI 미리보기용)
                   else if (selectedJourneyInfo.selectedPath?.segments) {

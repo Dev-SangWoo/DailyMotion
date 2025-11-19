@@ -48,20 +48,37 @@ export interface OnboardingState {
     }>;
     // 🆕 선택된 경로의 ODSAY 세부 정보
     selectedPath?: {
-      pathId: string;
-      totalTime: number;        // 초 단위
-      totalDistance: number;    // 미터 단위
-      transferCount: number;
-      fare: number | null;
-      segments: Array<{
+      id?: string;              // RecommendedRoute.id
+      pathId?: string;
+      totalTime?: number;        // 초 단위
+      totalDistance?: number;    // 미터 단위
+      transferCount?: number;
+      fare?: number | null;
+      segments?: Array<{
         type: string;           // BUS, SUBWAY, WALK, TAXI 등
-        line: string;           // 노선명 또는 버스번호
+        line?: string;           // 노선명 또는 버스번호
         direction?: string;
-        startStation: string;
-        endStation: string;
-        startTime: string;      // HH:mm 형식
-        endTime: string;        // HH:mm 형식
-        duration: number;       // 초 단위
+        startStation?: string;
+        endStation?: string;
+        startTime?: string;      // HH:mm 형식
+        endTime?: string;        // HH:mm 형식
+        duration?: number;       // 초 단위
+      }>;
+      // 🆕 ODSAY 원본 subPath 데이터
+      subPath?: Array<{
+        trafficType: number;    // 1=SUBWAY, 2=BUS, 3=WALK, 4=TAXI, 5=TRAIN
+        distance?: number;      // 미터
+        sectionTime?: number;   // 초
+        lane?: Array<{
+          busNo?: string;
+          subwayName?: string;
+          subwayCode?: number;
+        }>;
+        startName?: string;     // 출발역/정류장명
+        endName?: string;       // 도착역/정류장명
+        startTime?: string;
+        endTime?: string;
+        [key: string]: any;     // 기타 필드
       }>;
     };
   };
@@ -270,29 +287,20 @@ export const useOnboardingStore = create<OnboardingState>()(
           }));
         },
 
-        setSelectedPath: (path: {
-          pathId: string;
-          totalTime: number;
-          totalDistance: number;
-          transferCount: number;
-          fare: number | null;
-          segments: Array<{
-            type: string;
-            line: string;
-            direction?: string;
-            startStation: string;
-            endStation: string;
-            startTime: string;
-            endTime: string;
-            duration: number;
-          }>;
-        }) => {
+        setSelectedPath: (path: any) => {
+          console.log('🔍 [useOnboardingStore] setSelectedPath 호출됨:', {
+            id: path.id,
+            totalTime: path.totalTime,
+            subPathCount: path.subPath?.length ?? 0,
+            hasSubPath: !!path.subPath,
+          });
           set((state) => ({
             pathSelection: {
               ...state.pathSelection,
               selectedPath: path,
             },
           }));
+          console.log('🔍 [useOnboardingStore] setSelectedPath 저장 완료');
         },
 
         // 목표 시간
