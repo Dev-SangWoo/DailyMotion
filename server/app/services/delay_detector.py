@@ -26,6 +26,7 @@ class DelayDetector:
 
     # 지연 감지 임계값
     DELAY_THRESHOLD_MINUTES = 5  # 5분 이상 지연 시 경고
+    DELAY_THRESHOLD_PERCENT = 30  # 평소 대비 30% 이상 지연 시 경고
     CRITICAL_DELAY_THRESHOLD_MINUTES = 10  # 10분 이상은 CRITICAL
 
     # 통계 데이터 신뢰도 기준
@@ -159,6 +160,7 @@ class DelayDetector:
     def detect_exception(
         self,
         delay_minutes: int,
+        delay_percentage: float,
         segment_info: Dict[str, str]
     ) -> Dict[str, Any]:
         """
@@ -177,8 +179,11 @@ class DelayDetector:
                 "message": "지연 감지 메시지"
             }
         """
-        # 1️⃣ 지연 여부 판정
-        is_delayed = delay_minutes >= self.DELAY_THRESHOLD_MINUTES
+        # 1️⃣ 지연 여부 판정 (분 절대값 + 퍼센트 기준 병행)
+        is_delayed = (
+            delay_minutes >= self.DELAY_THRESHOLD_MINUTES
+            or delay_percentage >= self.DELAY_THRESHOLD_PERCENT
+        )
 
         if not is_delayed:
             logger.info(f"✅ 정상 운행: {delay_minutes}분 지연 (임계값 미만)")
@@ -190,7 +195,7 @@ class DelayDetector:
                 "message": None
             }
 
-        # 2️⃣ 지연 심각도 판정
+        # 2️⃣ 지연 심각도 판정 (우선 분 기준으로 CRITICAL / HIGH 구분)
         priority = "CRITICAL" if delay_minutes >= self.CRITICAL_DELAY_THRESHOLD_MINUTES else "HIGH"
 
         # 3️⃣ 메시지 생성
@@ -303,6 +308,11 @@ class DelayDetector:
             avg_data.get("sample_count", 0),
             avg_data.get("data_quality")
         ):
+            # data_source 의미:
+            # - STATISTICAL: 평균/통계를 baseline으로 삼아, 그 대비 지연 여부를 판단함
+            #   (실시간 데이터가 함께 있어도 baseline은 통계 데이터로 간주)
+            # - TPEG: 통계 부족 시 TPEG/실시간만 존재 (현재는 NO_ACTION 처리)
+            # - NONE: 통계/실시간 모두 없음 (판정 불가)
             data_source = "STATISTICAL"
             avg_duration = avg_data["avg_duration_seconds"]
             confidence = 0.9
@@ -363,9 +373,10 @@ class DelayDetector:
             real_time["predicted_duration_seconds"]
         )
 
-        # 5️⃣ 지연 감지
+        # 5️⃣ 지연 감지 (분 + 퍼센트 기준)
         exception_info = self.detect_exception(
             delay_info["delay_minutes"],
+            delay_info["delay_percentage"],
             segment_info
         )
 

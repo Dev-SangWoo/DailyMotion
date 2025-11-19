@@ -137,7 +137,8 @@
 ### 3-2. Logic 2.2, 3.1, 3.2 관련
 
 - [ ] 실시간 환승 대기 시간 API 연동 (Logic 2.2)
-  - [ ] 현재는 단순 상수/통계 기반 → 실제 버스/지하철 환승 여유 시간 반영
+  - [x] 지하철 환승: ODSAY 경로 + 서울시 realtimeStationArrival 기반 첫 환승 구간 ETA 반영 (Gate 2 / `/context/routes/with-transfer-eta`)
+  - [ ] 버스 환승: 실제 버스 실시간 ETA를 사용해 환승 여유 시간 반영
 
 - [ ] 실시간 구간 지연 감지 강화 (Logic 3.1)
   - [ ] 도로/대중교통 TPEG 등 외부 교통 정보 API 후보 조사

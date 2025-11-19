@@ -238,6 +238,9 @@ paths:
                   type: string
                   description: 도착역/정류장 이름
                   example: "부천역"
+                required:
+                  - startStationName : "을지로입구역"
+                  - endStationName : "홍대입구역"
       responses:
         '200':
           description: 경로 및 환승 ETA 정보

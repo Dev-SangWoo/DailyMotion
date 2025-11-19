@@ -172,6 +172,154 @@ def _build_eta_fallback_suffix(transport: Optional[Dict[str, Any]]) -> str:
     return ""
 
 
+    # =====================================================
+    # Logic 3.1: 돌발상황 감지용 실시간 데이터 빌더
+    # =====================================================
+
+    def _get_api_params_by_segment_id(
+        self,
+        segment_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        MVP용 하드코딩 매핑
+
+        segment_id를 기반으로 실시간 API 호출에 필요한 파라미터를 반환합니다.
+
+        Returns 예시:
+            {
+                "mode": "SUBWAY",
+                "line": "7호선",
+                "station_name": "온수",
+                "direction": "상행",
+            }
+            또는
+            {
+                "mode": "BUS",
+                "bus_route_id": "100100578",
+            }
+        """
+        # Subway: 7호선 남구로 → 온수
+        # 테스트 시나리오에서 사용하는 segment_id에 맞춘 매핑입니다.
+        if segment_id == "subway_7_남구로-온수":
+            return {
+                "mode": "SUBWAY",
+                "line": "7호선",
+                "station_name": "온수",
+                "direction": "상행",
+            }
+
+        # Bus: 강남역 → 신논현
+        if segment_id == "bus_강남역-신논현":
+            # 서울시 버스 API에서 사용할 수 있는 임의 노선 ID (MVP용)
+            # 실제 운영 시에는 AverageDurationDB 또는 별도 메타데이터 테이블에서
+            # busRouteId / 정류장 정보를 조회하도록 교체합니다.
+            return {
+                "mode": "BUS",
+                # 예시용 busRouteId (테스트/로컬 환경에서만 사용)
+                "bus_route_id": "100100578",
+            }
+
+        # 그 외 구간은 아직 매핑 정보 없음
+        return None
+
+    def build_realtime_data_map(
+        self,
+        segments: List[Dict[str, Any]],
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Logic 3.1용 실시간 데이터 맵 생성
+
+        Args:
+            segments: 지연 감지 대상 구간 리스트
+
+        Returns:
+            segment_id -> {
+                "segment_id": str,
+                "predicted_duration_seconds": int,
+                "data_source": "REALTIME",
+                "last_updated": str,
+                "confidence": float,
+            }
+        """
+        realtime_map: Dict[str, Dict[str, Any]] = {}
+
+        if not segments:
+            return realtime_map
+
+        # 실시간 클라이언트 인스턴스 (지연 감지 전용)
+        subway_client = SeoulSubwayRealtimeClient()
+        bus_client = SeoulBusRealtimeClient()
+
+        for segment in segments:
+            segment_id = segment.get("segment_id")
+            if not segment_id:
+                continue
+
+            params = self._get_api_params_by_segment_id(segment_id)
+            if not params:
+                continue
+
+            try:
+                mode = params.get("mode")
+                predicted_duration_seconds: Optional[int] = None
+
+                if mode == "SUBWAY":
+                    station_name = params.get("station_name")
+                    line = params.get("line")
+                    direction = params.get("direction", "상행")
+
+                    if not station_name or not line:
+                        continue
+
+                    # 환승 ETA와 동일한 subway_client 규칙을 사용
+                    realtime = subway_client.get_arrival_info(
+                        station_name=station_name.replace("역", "").strip(),
+                        subway_line=line,
+                        direction=direction,
+                    )
+                    if realtime and realtime.get("arrivalSeconds") is not None:
+                        predicted_duration_seconds = int(realtime["arrivalSeconds"])
+
+                elif mode == "BUS":
+                    bus_route_id = params.get("bus_route_id")
+                    if not bus_route_id:
+                        continue
+
+                    realtime_bus = bus_client.get_arrival_info(bus_route_id=str(bus_route_id))
+                    if realtime_bus and realtime_bus.get("arrivalSeconds") is not None:
+                        predicted_duration_seconds = int(realtime_bus["arrivalSeconds"])
+
+                # 실시간 데이터를 얻지 못한 경우 건너뜀 (통계 데이터만으로 NO_ACTION 처리)
+                if predicted_duration_seconds is None:
+                    logger.info(
+                        f"ℹ️ 실시간 지연 데이터 없음 (segment_id={segment_id}, mode={params.get('mode')})"
+                    )
+                    continue
+
+                realtime_map[segment_id] = {
+                    "segment_id": segment_id,
+                    "predicted_duration_seconds": predicted_duration_seconds,
+                    "data_source": "REALTIME",
+                    "last_updated": datetime.utcnow().isoformat(),
+                    # MVP용 고정 신뢰도 값 (추후 TPEG/AI 기반으로 조정)
+                    "confidence": 0.9,
+                }
+
+                logger.info(
+                    f"✅ 실시간 지연 데이터 생성: segment_id={segment_id}, "
+                    f"predicted={predicted_duration_seconds}s"
+                )
+
+            except Exception as e:
+                # 개별 구간 실패 시 전체 로직이 중단되지 않도록 방어
+                logger.warning(
+                    f"⚠️ 실시간 데이터 조회 실패 (segment_id={segment_id}): {str(e)}"
+                )
+                continue
+
+        return realtime_map
+
+
 # =====================================================
 # 실시간 데이터 클라이언트 클래스 (Phase 14+)
 # =====================================================
@@ -2200,6 +2348,14 @@ class PathOptimizeService:
                 "mostCritical": None,
                 "hasCritical": False
             }
+
+        # 실시간 데이터 맵 구성 (호출 측에서 제공한 경우 우선 사용)
+        if real_time_data_map is None:
+            try:
+                real_time_data_map = self.build_realtime_data_map(segments)
+            except Exception as e:
+                logger.warning(f"⚠️ 실시간 데이터 맵 생성 실패 (DelayDetector는 통계만 사용): {str(e)}")
+                real_time_data_map = {}
 
         # DelayDetector를 사용한 경로 지연 분석
         route_analysis = delay_detector.detect_delays_on_route(

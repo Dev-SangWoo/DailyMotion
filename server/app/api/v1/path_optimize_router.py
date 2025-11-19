@@ -539,7 +539,22 @@ def get_seating_optimization(
 
 @context_router.post("/exceptions/delays", response_model=Envelope[Dict[str, Any]])
 def get_exception_alert(
-    payload: Dict[str, Any] = Body(..., description="지연 감지 입력 데이터"),
+    payload: Dict[str, Any] = Body(
+        ...,
+        description="지연 감지 입력 데이터",
+        example={
+            "segments": [
+                {
+                    "segmentId": "subway_7_남구로-온수",
+                    "segmentName": "남구로 → 온수",
+                    "fromStation": "남구로",
+                    "toStation": "온수",
+                }
+            ],
+            "currentHour": 8,
+            "currentDayOfWeek": 2,
+        },
+    ),
 ):
     """
     돌발상황 지연 감지 (Logic 3.1)
