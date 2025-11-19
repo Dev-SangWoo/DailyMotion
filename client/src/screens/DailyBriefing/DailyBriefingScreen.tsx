@@ -1197,11 +1197,9 @@ const DailyBriefingScreen: React.FC = () => {
                         type: type,
                       });
                     });
-                  } else {
-                    console.log('🔍 [DailyBriefing] No subPath or not an array');
-                  }
-                  // Fallback: segments 배열이 있으면 그것을 사용 (UI 미리보기용)
-                  else if (selectedJourneyInfo.selectedPath?.segments) {
+                  } else if (selectedJourneyInfo.selectedPath?.segments) {
+                    // Fallback: segments 배열이 있으면 그것을 사용 (UI 미리보기용)
+                    console.log('🔍 [DailyBriefing] Fallback to segments array');
                     selectedJourneyInfo.selectedPath.segments.forEach((segment: any) => {
                       steps.push({
                         icon: getSegmentIcon(segment.type),
@@ -1211,6 +1209,8 @@ const DailyBriefingScreen: React.FC = () => {
                         type: segment.type,
                       });
                     });
+                  } else {
+                    console.log('🔍 [DailyBriefing] No subPath or segments available');
                   }
 
                   // 도착지 추가
