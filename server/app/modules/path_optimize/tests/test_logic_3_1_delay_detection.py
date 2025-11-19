@@ -20,6 +20,9 @@ import pytest
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
+from app.modules.path_optimize.service import PathOptimizeService
+from app.services.delay_detector import DelayDetector
+
 
 class TestLogic3_1DelayDetection:
     """Logic 3.1 - 돌발상황 감지 (Delay Detection) 테스트"""
@@ -430,3 +433,236 @@ class TestLogic3_1DelayDetection:
         # Then
         assert delay_minutes == 4
         assert is_delayed is False
+
+    # ========================================
+    # Scenario 7: 7호선 남구로 → 온수 지연 (서비스/DelayDetector 통합)
+    # ========================================
+
+    def test_subway_7_namguro_to_onsu_delay_via_service(self):
+        """
+        [Phase 7 - 시나리오 7] 7호선 남구로 → 온수 지연 (서비스/DelayDetector 통합 테스트)
+
+        가정:
+        - 구간 ID: subway_7_남구로-온수
+        - 통계 평균: 2분 (120초)
+        - 실시간 예상: 10분 (600초)
+        - 지연차: 8분 → 5분 기준 이상이므로 지연 판정
+
+        기대:
+        - result["action"] == "EXCEPTION_DETECTED"
+        - delayedSegments에 subway_7_남구로-온수 구간이 포함되고 delayMinutes >= 8
+        """
+        service = PathOptimizeService()
+
+        segments = [
+            {
+                "segment_id": "subway_7_남구로-온수",
+                "segment_name": "남구로 → 온수",
+                "from_station": "남구로",
+                "to_station": "온수",
+            }
+        ]
+
+        current_hour = 8
+        current_day_of_week = 2  # 화요일 (임의)
+
+        # 통계 데이터: 평소 2분 (120초)
+        statistical_data_map = {
+            "subway_7_남구로-온수": {
+                "avg_duration_seconds": 120,
+                "sample_count": 200,  # 신뢰도 충분
+                "transport_type": "SUBWAY",
+                "transport_name": "7호선",
+                "data_quality": "HIGH",
+            }
+        }
+
+        # 실시간 데이터: 10분 (600초)
+        real_time_data_map = {
+            "subway_7_남구로-온수": {
+                "segment_id": "subway_7_남구로-온수",
+                "predicted_duration_seconds": 600,
+                "data_source": "REALTIME",
+                "last_updated": datetime.utcnow().isoformat(),
+                "confidence": 0.9,
+            }
+        }
+
+        result = service.get_exception_alert(
+            segments=segments,
+            current_hour=current_hour,
+            current_day_of_week=current_day_of_week,
+            statistical_data_map=statistical_data_map,
+            real_time_data_map=real_time_data_map,
+        )
+
+        data = result["data"]
+        assert data["action"] == "EXCEPTION_DETECTED"
+        assert data["totalSegments"] == 1
+        assert data["delayedCount"] == 1
+        assert data["hasCritical"] is False
+
+        delayed = data["delayedSegments"][0]
+        assert delayed["segmentId"] == "subway_7_남구로-온수"
+        assert delayed["segmentName"] == "남구로 → 온수"
+        assert delayed["isDelayed"] is True
+        # 평균 2분(120초) → 실시간 10분(600초) → 지연 8분
+        assert delayed["delayMinutes"] == 8
+        assert delayed["type"] == "DELAY_WARNING"
+        assert delayed["priority"] == "HIGH"
+        # 현재 구현은 평균 통계(AverageDuration)를 기준 데이터 소스로 간주하고 있으므로
+        # dataSource는 STATISTICAL이어야 한다.
+        assert delayed["dataSource"] == "STATISTICAL"
+
+    # ========================================
+    # Scenario 8: 버스 강남역 → 신논현 지연 (서비스/DelayDetector 통합)
+    # ========================================
+
+    def test_bus_gangnam_to_sinnonhyeon_delay_via_service(self):
+        """
+        [Phase 7 - 시나리오 8] 버스 강남역 → 신논현 지연 (서비스/DelayDetector 통합 테스트)
+
+        가정:
+        - 구간 ID: bus_강남역-신논현
+        - 통계 평균: 4분 (240초)
+        - 실시간 예상: 12분 (720초)
+        - 지연차: 8분 → 5분 기준 이상이므로 지연 판정
+
+        기대:
+        - result["action"] == "EXCEPTION_DETECTED"
+        - delayedSegments에 bus_강남역-신논현 구간이 포함되고 delayMinutes >= 8
+        """
+        service = PathOptimizeService()
+
+        segments = [
+            {
+                "segment_id": "bus_강남역-신논현",
+                "segment_name": "강남역 → 신논현",
+                "from_station": "강남역",
+                "to_station": "신논현",
+            }
+        ]
+
+        current_hour = 18  # 퇴근 시간대 예시
+        current_day_of_week = 3  # 수요일 (임의)
+
+        # 통계 데이터: 평소 4분 (240초)
+        statistical_data_map = {
+            "bus_강남역-신논현": {
+                "avg_duration_seconds": 240,
+                "sample_count": 200,  # 신뢰도 충분
+                "transport_type": "BUS",
+                "transport_name": "강남역-신논현 구간 버스",
+                "data_quality": "HIGH",
+            }
+        }
+
+        # 실시간 데이터: 12분 (720초)
+        real_time_data_map = {
+            "bus_강남역-신논현": {
+                "segment_id": "bus_강남역-신논현",
+                "predicted_duration_seconds": 720,
+                "data_source": "REALTIME",
+                "last_updated": datetime.utcnow().isoformat(),
+                "confidence": 0.9,
+            }
+        }
+
+        result = service.get_exception_alert(
+            segments=segments,
+            current_hour=current_hour,
+            current_day_of_week=current_day_of_week,
+            statistical_data_map=statistical_data_map,
+            real_time_data_map=real_time_data_map,
+        )
+
+        data = result["data"]
+        assert data["action"] == "EXCEPTION_DETECTED"
+        assert data["totalSegments"] == 1
+        assert data["delayedCount"] == 1
+
+        delayed = data["delayedSegments"][0]
+        assert delayed["segmentId"] == "bus_강남역-신논현"
+        assert delayed["segmentName"] == "강남역 → 신논현"
+        assert delayed["isDelayed"] is True
+        # 평균 4분(240초) → 실시간 12분(720초) → 지연 8분
+        assert delayed["delayMinutes"] == 8
+        assert delayed["type"] == "DELAY_WARNING"
+        assert delayed["priority"] == "HIGH"
+        assert delayed["dataSource"] == "STATISTICAL"
+
+    # ========================================
+    # Scenario 9: 실시간 없음 + 통계만 있음 (지연 아님, NO_ACTION)
+    # ========================================
+
+    def test_no_realtime_uses_statistical_only(self, segment_info: Dict[str, Any]):
+        """
+        [Phase 7 - 시나리오 9] 실시간 없음 + 통계만 있는 경우
+
+        상황:
+        - 통계 평균: 2분
+        - 실시간 데이터: 없음
+
+        기대:
+        - is_delayed == False
+        - data_source == "STATISTICAL"
+        - action == "NO_ACTION"
+        """
+        detector = DelayDetector()
+
+        avg_data = {
+            "segment_id": "SEG_STAT_ONLY",
+            "avg_duration_seconds": 120,
+            "sample_count": 200,
+            "data_quality": "HIGH",
+        }
+
+        result = detector.detect_delay_on_segment(
+            segment_id="SEG_STAT_ONLY",
+            segment_info=segment_info,
+            current_hour=8,
+            current_day_of_week=1,
+            statistical_data=avg_data,
+            real_time_data=None,
+        )
+
+        assert result["is_delayed"] is False
+        assert result["action"] == "NO_ACTION"
+        assert result["delay_minutes"] == 0
+        assert result["data_source"] == "STATISTICAL"
+        assert result["reason"] == "실시간 데이터 없음"
+
+    # ========================================
+    # Scenario 10: 실시간/통계 둘 다 없음 (판정 불가, NO_ACTION)
+    # ========================================
+
+    def test_no_statistical_and_realtime_returns_no_action(self, segment_info: Dict[str, Any]):
+        """
+        [Phase 7 - 시나리오 10] 통계/실시간 둘 다 없는 경우
+
+        상황:
+        - AverageDuration 없음
+        - 실시간 데이터 없음
+
+        기대:
+        - 에러 대신 정상 응답
+        - is_delayed == False
+        - data_source == "NONE"
+        - delayed 구간 없음 (delay_minutes == 0)
+        """
+        detector = DelayDetector()
+
+        result = detector.detect_delay_on_segment(
+            segment_id="SEG_NO_DATA",
+            segment_info=segment_info,
+            current_hour=8,
+            current_day_of_week=1,
+            statistical_data=None,
+            real_time_data=None,
+        )
+
+        assert result["is_delayed"] is False
+        assert result["action"] == "NO_ACTION"
+        assert result["delay_minutes"] == 0
+        assert result["data_source"] == "NONE"
+        assert result["reason"] == "데이터 없음"

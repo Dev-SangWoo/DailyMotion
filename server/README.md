@@ -108,7 +108,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 # CORS 설정
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8081"]
 ```
-source venv_server/bin/activate
 ### 2. 의존성 설치
 
 ```bash
@@ -126,6 +125,7 @@ CREATE EXTENSION postgis;
 ```
 
 ### 4. 서버 실행
+source venv_server/bin/activate
 
 ```bash
 # 개발 모드 (자동 리로드)

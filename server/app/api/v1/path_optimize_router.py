@@ -338,6 +338,176 @@ def get_alternative_route_suggestion(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@context_router.post(
+    "/routes/with-transfer-eta",
+    response_model=Envelope[Dict[str, Any]],
+)
+async def get_route_with_transfer_eta(
+    payload: Dict[str, Any] = Body(..., description="출발/도착역 기반 경로 및 환승 ETA 조회 입력 데이터"),
+):
+    """
+    출발/도착역 기반 경로 및 환승 ETA 조회
+
+    - ODSAY Station 검색으로 출발/도착 좌표를 찾고
+    - ODSAY Route 검색으로 경로를 구성한 뒤
+    - PathOptimizeService.get_transfer_vehicle_realtime_info()를 통해
+      첫 지하철↔지하철 환승 지점의 실시간 ETA를 조회합니다.
+    """
+    try:
+        start_name = payload.get("startStationName")
+        end_name = payload.get("endStationName")
+
+        if not start_name or not end_name:
+            raise HTTPException(
+                status_code=400,
+                detail="startStationName과 endStationName은 모두 필수입니다.",
+            )
+
+        api_key = os.getenv("ODSAY_API_KEY")
+        if not api_key:
+            logger.error("❌ ODSAY_API_KEY 환경변수가 설정되지 않음")
+            raise HTTPException(
+                status_code=500,
+                detail="ODSAY API key is not configured on the server.",
+            )
+
+        odsay_client = OdsayAPIClient(api_key=api_key)
+
+        # 1️⃣ 출발역 좌표 조회
+        start_resp = await odsay_client.search_station(
+            station_name=start_name,
+            station_class="2",  # 지하철 우선
+        )
+        if "error" in start_resp or "result" not in start_resp:
+            logger.warning(f"⚠️ 출발역 Station 검색 실패: {start_resp.get('error')}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"출발역 '{start_name}'을(를) 찾을 수 없습니다.",
+            )
+
+        start_stations = start_resp.get("result", {}).get("station", []) or []
+        if not start_stations:
+            logger.warning(f"⚠️ 출발역 Station 결과 없음: {start_name}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"출발역 '{start_name}'을(를) 찾을 수 없습니다.",
+            )
+
+        start_station = start_stations[0]
+        start_x = start_station["x"]
+        start_y = start_station["y"]
+        logger.info(
+            f"✅ 출발역 발견: {start_station.get('stationName')} ({start_x}, {start_y})"
+        )
+
+        # 2️⃣ 도착역 좌표 조회
+        end_resp = await odsay_client.search_station(
+            station_name=end_name,
+            station_class="2",
+        )
+        if "error" in end_resp or "result" not in end_resp:
+            logger.warning(f"⚠️ 도착역 Station 검색 실패: {end_resp.get('error')}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"도착역 '{end_name}'을(를) 찾을 수 없습니다.",
+            )
+
+        end_stations = end_resp.get("result", {}).get("station", []) or []
+        if not end_stations:
+            logger.warning(f"⚠️ 도착역 Station 결과 없음: {end_name}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"도착역 '{end_name}'을(를) 찾을 수 없습니다.",
+            )
+
+        end_station = end_stations[0]
+        end_x = end_station["x"]
+        end_y = end_station["y"]
+        logger.info(
+            f"✅ 도착역 발견: {end_station.get('stationName')} ({end_x}, {end_y})"
+        )
+
+        # 3️⃣ 출발/도착 좌표 기반 경로 검색
+        logger.info(
+            f"🔍 경로 검색 (with-transfer-eta): ({start_x},{start_y}) → ({end_x},{end_y})"
+        )
+        route_response = await odsay_client.search_route(
+            start_x=start_x,
+            start_y=start_y,
+            end_x=end_x,
+            end_y=end_y,
+            search_type=0,
+        )
+
+        if "error" in route_response:
+            logger.warning(f"⚠️ 경로 검색 실패: {route_response.get('error')}")
+            raise HTTPException(
+                status_code=500,
+                detail="경로를 찾는 중 오류가 발생했습니다.",
+            )
+
+        routes_data = odsay_client.parse_route_info(route_response)
+        paths = routes_data.get("paths", []) or []
+        if not paths:
+            logger.info("ℹ️ 경로 데이터 없음 (paths 비어 있음)")
+            return {
+                "data": {
+                    "hasTransfer": False,
+                    "stationName": None,
+                    "subwayLine": None,
+                    "direction": None,
+                    "arrivalMinutes": None,
+                    "arrivalSeconds": None,
+                    "message": None,
+                }
+            }
+
+        # 4️⃣ 첫 지하철↔지하철 환승 구간 실시간 ETA 조회
+        transfer_eta = service.get_transfer_vehicle_realtime_info(
+            routes_data=routes_data,
+            current_time=datetime.utcnow(),
+        )
+
+        if not transfer_eta:
+            logger.info("ℹ️ 환승 구간 또는 실시간 ETA 없음 (hasTransfer=False)")
+            return {
+                "data": {
+                    "hasTransfer": False,
+                    "stationName": None,
+                    "subwayLine": None,
+                    "direction": None,
+                    "arrivalMinutes": None,
+                    "arrivalSeconds": None,
+                    "message": None,
+                    "trainStatus": None,
+                }
+            }
+
+        logger.info(
+            "✅ 환승 ETA 응답: %s %s %s분 후",
+            transfer_eta.get("stationName"),
+            transfer_eta.get("subwayLine"),
+            transfer_eta.get("arrivalMinutes"),
+        )
+
+        return {
+            "data": {
+                "hasTransfer": True,
+                "stationName": transfer_eta.get("stationName"),
+                "subwayLine": transfer_eta.get("subwayLine"),
+                "direction": transfer_eta.get("direction"),
+                "arrivalMinutes": transfer_eta.get("arrivalMinutes"),
+                "arrivalSeconds": transfer_eta.get("arrivalSeconds"),
+                "message": transfer_eta.get("message"),
+                "trainStatus": transfer_eta.get("trainStatus"),
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 경로 + 환승 ETA 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @context_router.get("/seating/optimize", response_model=Envelope[Dict[str, Any]])
 def get_seating_optimization(
     guidance_type: str = Query(..., alias="guidanceType", description="안내 유형"),
@@ -369,7 +539,22 @@ def get_seating_optimization(
 
 @context_router.post("/exceptions/delays", response_model=Envelope[Dict[str, Any]])
 def get_exception_alert(
-    payload: Dict[str, Any] = Body(..., description="지연 감지 입력 데이터"),
+    payload: Dict[str, Any] = Body(
+        ...,
+        description="지연 감지 입력 데이터",
+        example={
+            "segments": [
+                {
+                    "segmentId": "subway_7_남구로-온수",
+                    "segmentName": "남구로 → 온수",
+                    "fromStation": "남구로",
+                    "toStation": "온수",
+                }
+            ],
+            "currentHour": 8,
+            "currentDayOfWeek": 2,
+        },
+    ),
 ):
     """
     돌발상황 지연 감지 (Logic 3.1)
