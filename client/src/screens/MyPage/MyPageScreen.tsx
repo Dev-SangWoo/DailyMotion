@@ -6,45 +6,218 @@
 
 import React from 'react';
 import styled from 'styled-components/native';
-import { ScrollView } from 'react-native';
+import { ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../../components/common/AppHeader';
 import { theme } from '../../styles/theme';
+import { useOnboardingStore } from '../Onboarding/stores/useOnboardingStore';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { MyPageStackParamList } from './MyPageNavigator';
 
 const Container = styled.View`
   flex: 1;
   background-color: ${theme.colors.background};
 `;
 
-const Content = styled.View`
+const ScrollContent = styled(ScrollView)`
   flex: 1;
-  padding: ${theme.spacing.md}px;
+`;
+
+const Content = styled.View`
+  padding: ${theme.spacing.lg}px;
+  gap: ${theme.spacing.lg}px;
+`;
+
+const PageHeader = styled.View`
+  gap: ${theme.spacing.xs}px;
 `;
 
 const Title = styled.Text`
   font-size: ${theme.fonts.sizes.xxl}px;
   font-weight: ${theme.fonts.weights.bold};
   color: ${theme.colors.text};
-  margin-bottom: ${theme.spacing.md}px;
 `;
 
 const Description = styled.Text`
   font-size: ${theme.fonts.sizes.md}px;
   color: ${theme.colors.textSecondary};
-  line-height: 24px;
+  line-height: 22px;
+`;
+
+const SectionCard = styled.View`
+  background-color: white;
+  border-radius: 16px;
+  padding: ${theme.spacing.lg}px;
+  border-width: 1px;
+  border-color: #e8e8e8;
+  gap: ${theme.spacing.md}px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  elevation: 2;
+`;
+
+const SectionHeader = styled.View`
+  gap: ${theme.spacing.xs}px;
+`;
+
+const SectionTitle = styled.Text`
+  font-size: 18px;
+  font-weight: 700;
+  color: ${theme.colors.text};
+`;
+
+const SectionSubtitle = styled.Text`
+  font-size: 13px;
+  color: ${theme.colors.textSecondary};
+`;
+
+const SummaryRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const SummaryValue = styled.Text`
+  font-size: 15px;
+  color: ${theme.colors.text};
+  font-weight: 600;
+`;
+
+const SummaryDescription = styled.Text`
+  font-size: 13px;
+  color: ${theme.colors.textSecondary};
+`;
+
+const PrimaryButton = styled(TouchableOpacity)`
+  margin-top: ${theme.spacing.sm}px;
+  padding-vertical: 12px;
+  border-radius: 12px;
+  background-color: ${theme.colors.primary};
+  align-items: center;
+`;
+
+const PrimaryButtonText = styled.Text`
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+`;
+
+const SecondaryButton = styled(TouchableOpacity)`
+  margin-top: ${theme.spacing.sm}px;
+  padding-vertical: 12px;
+  border-radius: 12px;
+  background-color: #edf0ff;
+  align-items: center;
+`;
+
+const SecondaryButtonText = styled.Text`
+  color: ${theme.colors.primary};
+  font-size: 14px;
+  font-weight: 600;
 `;
 
 export default function MyPageScreen() {
+  const navigation = useNavigation<StackNavigationProp<MyPageStackParamList>>();
+  const profile = useOnboardingStore((state) => state.profile);
+  const places = useOnboardingStore((state) => state.places);
+  const pathSelection = useOnboardingStore((state) => state.pathSelection);
+  const schedule = useOnboardingStore((state) => state.schedule);
+  const goalTime = useOnboardingStore((state) => state.goalTime);
+  const permissions = useOnboardingStore((state) => state.permissions);
+
+  const homeInfo =
+    typeof places.homeAddress === 'object' && places.homeAddress !== null
+      ? places.homeAddress
+      : places.homeAddress
+      ? { name: '집', address: String(places.homeAddress) }
+      : null;
+
+  const favoriteCount = places.favoritePlaces?.length ?? 0;
+  const journeyCount = (pathSelection.journeys?.length ?? 0) / 2;
+
   return (
     <Container>
       <AppHeader />
-      <ScrollView>
+      <ScrollContent showsVerticalScrollIndicator={false}>
         <Content>
-          <Title>마이페이지</Title>
-          <Description>
-            사용자 정보 및 앱 설정을 관리할 수 있습니다.
-          </Description>
+          <PageHeader>
+            <Title>마이페이지</Title>
+            <Description>온보딩에서 입력한 출퇴근 설정을 언제든지 수정할 수 있어요.</Description>
+          </PageHeader>
+
+          {/* 프로필 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>프로필</SectionTitle>
+              <SectionSubtitle>이름과 대표 이모지를 설정해 주세요.</SectionSubtitle>
+            </SectionHeader>
+            <SummaryRow>
+              <SummaryValue>{profile.avatarEmoji} {profile.displayName}</SummaryValue>
+            </SummaryRow>
+            <PrimaryButton onPress={() => navigation.navigate('ProfileSettings')}>
+              <PrimaryButtonText>프로필 설정</PrimaryButtonText>
+            </PrimaryButton>
+          </SectionCard>
+
+          {/* 장소 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>나의 장소</SectionTitle>
+              <SectionSubtitle>집과 즐겨찾는 장소를 관리해요.</SectionSubtitle>
+            </SectionHeader>
+            <SummaryRow>
+              <SummaryDescription>
+                집: {homeInfo?.address || '미등록'}{'\n'}
+                즐겨찾기: {favoriteCount}개
+              </SummaryDescription>
+            </SummaryRow>
+            <PrimaryButton onPress={() => navigation.navigate('PlaceSettings')}>
+              <PrimaryButtonText>장소 설정</PrimaryButtonText>
+            </PrimaryButton>
+          </SectionCard>
+
+          {/* 여정 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>반복 여정</SectionTitle>
+              <SectionSubtitle>출발·도착 카드와 시간을 조정하세요.</SectionSubtitle>
+            </SectionHeader>
+            <SummaryValue>{journeyCount > 0 ? `${journeyCount}개 여정` : '여정 없음'}</SummaryValue>
+            <PrimaryButton onPress={() => navigation.navigate('JourneySettings')}>
+              <PrimaryButtonText>여정 설정</PrimaryButtonText>
+            </PrimaryButton>
+          </SectionCard>
+
+          {/* 스케줄/시간 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>요일 · 도착시간</SectionTitle>
+              <SectionSubtitle>필요한 요일과 목표 시간을 바꿔보세요.</SectionSubtitle>
+            </SectionHeader>
+            <SummaryValue>
+              {schedule.daysOfWeek?.map((day) => day.slice(0, 3)).join(', ') || '미설정'}
+            </SummaryValue>
+            <SummaryDescription>목표 도착: {goalTime.arrivalTime}</SummaryDescription>
+            <PrimaryButton onPress={() => navigation.navigate('ScheduleSettings')}>
+              <PrimaryButtonText>스케줄 설정</PrimaryButtonText>
+            </PrimaryButton>
+          </SectionCard>
+
+          {/* 권한 상태 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>권한 상태</SectionTitle>
+              <SectionSubtitle>필수 권한 허용 여부를 확인하세요.</SectionSubtitle>
+            </SectionHeader>
+            <SummaryDescription>
+              푸시 알림: {permissions.notificationGranted ? '허용' : '미허용'}{'\n'}
+              위치 정보: {permissions.locationGranted ? '허용' : '미허용'}
+            </SummaryDescription>
+            <SecondaryButton onPress={() => navigation.navigate('ScheduleSettings')}>
+              <SecondaryButtonText>권한 가이드 보기</SecondaryButtonText>
+            </SecondaryButton>
+          </SectionCard>
         </Content>
-      </ScrollView>
+      </ScrollContent>
     </Container>
   );
 }

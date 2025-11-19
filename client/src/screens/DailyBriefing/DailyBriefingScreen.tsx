@@ -686,7 +686,7 @@ const DailyBriefingScreen: React.FC = () => {
     }
   }, [isError, isLoading, setOffline, setLastUpdated]);
 
-  // 선택된 여정의 상세 정보 추출 (출발지/목적지)
+  // 선택된 여정의 상세 정보 추출 (출발지/목적지 + 경로 데이터)
   const selectedJourneyInfo = React.useMemo(() => {
     console.log('🔍 [selectedJourneyInfo] selectedJourneyIndex:', selectedJourneyIndex, 'journeyTabs.length:', journeyTabs.length);
 
@@ -715,6 +715,20 @@ const DailyBriefingScreen: React.FC = () => {
       return null;
     }
 
+    // 🆕 저장된 경로 데이터 가져오기
+    const selectedPath = pathSelection.selectedPath;
+    console.log('🔍 [selectedJourneyInfo] selectedPath:', selectedPath);
+
+    // 예상 소요시간 계산 (초를 분으로 변환)
+    const estimatedDurationMinutes = selectedPath ? Math.round(selectedPath.totalTime / 60) : 45;
+
+    // 예상 도착시간 계산
+    const [departHours, departMinutes] = departJourney.time.split(':').map(Number);
+    const totalMinutes = departHours * 60 + departMinutes + estimatedDurationMinutes;
+    const arriveHours = Math.floor(totalMinutes / 60) % 24;
+    const arriveMins = totalMinutes % 60;
+    const arriveTime = `${String(arriveHours).padStart(2, '0')}:${String(arriveMins).padStart(2, '0')}`;
+
     const result = {
       originName: departJourney.placeName,
       originAddress: departJourney.placeAddress,
@@ -727,10 +741,13 @@ const DailyBriefingScreen: React.FC = () => {
       destinationX: arriveJourney.placeX,
       destinationY: arriveJourney.placeY,
       departureTime: departJourney.time,
+      estimatedDurationMinutes,
+      arriveTime,
+      selectedPath,
     };
     console.log('🔍 [selectedJourneyInfo] Result:', result);
     return result;
-  }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys]);
+  }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath]);
 
   // 선택된 여정이 바뀔 때 검색창 업데이트
   React.useEffect(() => {
@@ -772,6 +789,19 @@ const DailyBriefingScreen: React.FC = () => {
   const handleCheckHazardsPress = () => {
     // TODO: 위험 확인 액션 구현 (Phase 2의 안전 정보 표시)
     console.log('위험 확인 버튼 클릭');
+  };
+
+  // 🆕 세그먼트 타입에 따른 아이콘 반환
+  const getSegmentIcon = (segmentType: string): string => {
+    const typeMap: Record<string, string> = {
+      'SUBWAY': '🚇',
+      'BUS': '🚌',
+      'WALK': '👣',
+      'TAXI': '🚕',
+      'TRAIN': '🚂',
+      'TRAM': '🚊',
+    };
+    return typeMap[segmentType] || '🚌';
   };
 
 
@@ -1090,11 +1120,11 @@ const DailyBriefingScreen: React.FC = () => {
             <JourneyHeaderBar>
               <View>
                 <JourneyHeaderText isSubtitle>총 예상 소요 시간</JourneyHeaderText>
-                <JourneyHeaderText>{data?.data?.recommendedTransport?.departureInMinutes || 45}분</JourneyHeaderText>
+                <JourneyHeaderText>{selectedJourneyInfo?.estimatedDurationMinutes || 45}분</JourneyHeaderText>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <JourneyHeaderText isSubtitle>선택된 여정</JourneyHeaderText>
-                <JourneyHeaderText>{selectedJourneyInfo ? `${selectedJourneyInfo.originName}→${selectedJourneyInfo.destinationName}` : '여정 없음'}</JourneyHeaderText>
+                <JourneyHeaderText isSubtitle>예상 도착시간</JourneyHeaderText>
+                <JourneyHeaderText>{selectedJourneyInfo?.arriveTime || '--:--'}</JourneyHeaderText>
               </View>
             </JourneyHeaderBar>
 
@@ -1110,55 +1140,58 @@ const DailyBriefingScreen: React.FC = () => {
             >
               <JourneyStepsContent>
               {selectedJourneyInfo ? (
-                // 선택된 여정이 있을 때: 출발지 → 목적지 기본 경로 표시
-                [
-                  {
-                    icon: selectedJourneyInfo.originIcon || '📍',
-                    title: selectedJourneyInfo.originName,
-                    description: selectedJourneyInfo.originAddress,
-                    duration: 0
-                  },
-                  {
-                    icon: '👣',
-                    title: '도보 이동',
-                    description: '최초 이동 시간',
-                    duration: 5
-                  },
-                  {
-                    icon: '🚇',
-                    title: '대중교통 탑승',
-                    description: `${selectedJourneyInfo.originName}에서 ${selectedJourneyInfo.destinationName}으로 이동`,
-                    duration: (data?.data?.recommendedTransport?.departureInMinutes || 40) - 10
-                  },
-                  {
-                    icon: '👣',
-                    title: '도보 이동',
-                    description: '최종 목적지까지',
-                    duration: 5
-                  },
-                  {
+                // 선택된 여정이 있을 때: 실제 경로 세그먼트 표시
+                (() => {
+                  const steps: Array<any> = [
+                    {
+                      icon: selectedJourneyInfo.originIcon || '📍',
+                      title: selectedJourneyInfo.originName,
+                      description: selectedJourneyInfo.originAddress,
+                      duration: 0,
+                      isStation: true,
+                    },
+                  ];
+
+                  // 실제 경로 세그먼트 추가
+                  if (selectedJourneyInfo.selectedPath?.segments) {
+                    selectedJourneyInfo.selectedPath.segments.forEach((segment: any) => {
+                      steps.push({
+                        icon: getSegmentIcon(segment.type),
+                        title: `${segment.line || segment.type}`,
+                        description: `${segment.startStation} → ${segment.endStation}`,
+                        duration: Math.round(segment.duration / 60),
+                        type: segment.type,
+                      });
+                    });
+                  }
+
+                  // 도착지 추가
+                  steps.push({
                     icon: selectedJourneyInfo.destinationIcon || '🏢',
                     title: selectedJourneyInfo.destinationName,
                     description: selectedJourneyInfo.destinationAddress,
-                    duration: 0
-                  },
-                ].map((step, index) => (
-                  <StepItem key={index}>
-                    <StepIconContainer>
-                      <CardTitle style={{ fontSize: 22, color: '#666' }}>{step.icon}</CardTitle>
-                  </StepIconContainer>
-                  <StepContentBox>
-                    <StepTitle>{step.title}</StepTitle>
-                    <StepDescription>{step.description}</StepDescription>
-                  </StepContentBox>
-                  {step.duration > 0 && (
-                    <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
-                      <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>{step.duration}</CardTitle>
-                      <StepDescription>분</StepDescription>
-                    </View>
-                  )}
-                </StepItem>
-              ))
+                    duration: 0,
+                    isStation: true,
+                  });
+
+                  return steps.map((step, index) => (
+                    <StepItem key={index}>
+                      <StepIconContainer>
+                        <CardTitle style={{ fontSize: 22, color: '#666' }}>{step.icon}</CardTitle>
+                    </StepIconContainer>
+                    <StepContentBox>
+                      <StepTitle>{step.title}</StepTitle>
+                      <StepDescription>{step.description}</StepDescription>
+                    </StepContentBox>
+                    {step.duration > 0 && (
+                      <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
+                        <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>{step.duration}</CardTitle>
+                        <StepDescription>분</StepDescription>
+                      </View>
+                    )}
+                  </StepItem>
+                  ));
+                })()
               ) : (
                 // 선택된 여정이 없을 때: 기본 경로 표시
                 [

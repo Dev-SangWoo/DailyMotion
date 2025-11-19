@@ -39,6 +39,7 @@ export interface OdsayPath {
   totalDistance: number; // 미터 단위
   totalDistanceKm?: string; // 킬로미터 단위 (백엔드에서 제공)
   transferCount: number; // 환승 횟수
+  fare?: number | null; // 🆕 요금 (원)
   segments?: RouteSegment[]; // 호환성을 위해 유지
   subPath?: Array<{ // 실제 백엔드 응답 구조
     trafficType: number; // 1=지하철, 2=버스, 3=도보 등
@@ -62,14 +63,31 @@ export interface OdsayRoutesData {
 }
 
 /**
- * GoalTimeScreen에서 사용하는 추천 경로 타입
+ * 경로 세그먼트 (버스, 지하철, 도보 등)
+ */
+export interface RouteSegmentInfo {
+  type: string;                    // 'SUBWAY' | 'BUS' | 'WALK' 등
+  line?: string;                   // 노선명 또는 버스번호 (예: "2호선", "80번")
+  startStation?: string;           // 시작역/정류장명 (예: "덕정고.한국병원")
+  endStation?: string;             // 종료역/정류장명 (예: "양주역")
+  duration?: string;               // 소요시간 (예: "64분", "6초")
+  distance?: string;               // 거리 (예: "18.3km", "388m")
+  icon?: string;                   // 이모지 아이콘 (🚇, 🚌, 🚶 등)
+  stationCount?: string;           // 경유 정류장 수 (예: "46개 정류장")
+}
+
+/**
+ * GoalTimeScreen에서 사용하는 추천 경로 타입 (상세 정보)
  */
 export interface RecommendedRoute {
   id: string;
-  mode: string;
-  duration: string;
-  transfers: number;
-  icon: string;
+  mode: string;                    // 교통수단 조합 (예: "지하철 · 도보")
+  duration: string;                // 소요시간 (분)
+  transfers: number;               // 환승 횟수
+  icon: string;                    // 주요 교통수단 아이콘
+  distance?: string;               // 총 거리 (km)
+  fare?: number | null;            // 요금 (원)
+  segments?: RouteSegmentInfo[];    // 🆕 세그먼트 상세 정보
 }
 
 /**
@@ -184,21 +202,130 @@ function transformOdsayPaths(paths: OdsayPath[]): RecommendedRoute[] {
     // 경로 ID 추출 (id 또는 pathId 사용)
     const pathId = path.id || path.pathId || `route_${index}`;
 
+    // 🆕 거리 정보 (km 단위)
+    const distance = path.totalDistanceKm ||
+      (path.totalDistance ? `${(path.totalDistance / 1000).toFixed(1)}km` : undefined);
+
+    // 🆕 세그먼트 상세 정보 파싱
+    const segmentInfos = parseSegments(segments);
+
     return {
       id: pathId,
       mode: modeLabel,
       duration: durationLabel,
       transfers: path.transferCount,
       icon,
+      distance,                // 🆕 총 거리
+      fare: path.fare || null, // 🆕 요금
+      segments: segmentInfos,  // 🆕 세그먼트 정보
     };
   });
+}
+
+/**
+ * 경로 세그먼트를 상세 정보로 파싱 (네이버 지도 스타일)
+ *
+ * @param segments - 경로 세그먼트 배열 (ODSAY subPath 구조)
+ * @returns 세그먼트 상세 정보 배열
+ */
+function parseSegments(segments: any[]): RouteSegmentInfo[] {
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
+    return [];
+  }
+
+  const trafficTypeMap: { [key: number]: string } = {
+    1: 'SUBWAY',
+    2: 'BUS',
+    3: 'WALK',
+    4: 'TAXI',
+    5: 'TRAIN',
+  };
+
+  const trafficIconMap: { [key: number]: string } = {
+    1: '🚇',
+    2: '🚌',
+    3: '🚶',
+    4: '🚖',
+    5: '🚆',
+  };
+
+  return segments
+    .filter((segment) => segment?.trafficType) // trafficType이 있는 세그먼트만
+    .map((segment) => {
+      const trafficType = segment.trafficType;
+      const typeStr = trafficTypeMap[trafficType] || 'OTHER';
+      const icon = trafficIconMap[trafficType] || '🚗';
+
+      // 거리 (m -> km, 도보는 m 단위로 표시)
+      let distance: string | undefined;
+      if (segment.distance) {
+        if (trafficType === 3) {
+          // 도보는 m 단위
+          distance = `${segment.distance}m`;
+        } else {
+          // 버스/지하철은 km 단위
+          distance = `${(segment.distance / 1000).toFixed(1)}km`;
+        }
+      }
+
+      // 시간 (초 -> 분, 1분 미만은 초로 표시)
+      let duration: string | undefined;
+      if (segment.sectionTime) {
+        const minutes = Math.floor(segment.sectionTime / 60);
+        const seconds = segment.sectionTime % 60;
+        if (minutes > 0) {
+          duration = seconds > 0 ? `${minutes}분 ${seconds}초` : `${minutes}분`;
+        } else {
+          duration = `${seconds}초`;
+        }
+      }
+
+      // 노선명 또는 버스번호 (버스/지하철만)
+      let line: string | undefined;
+      if (segment.lane && Array.isArray(segment.lane) && segment.lane.length > 0) {
+        const laneInfo = segment.lane[0];
+        if (laneInfo.subwayName) {
+          line = laneInfo.subwayName;
+        } else if (laneInfo.busNo) {
+          line = `${laneInfo.busNo}번`;
+        }
+      }
+
+      // 시작/종료 정류장명 (ODSAY 응답은 startName, endName 사용)
+      const startStation = segment.startName || undefined;
+      const endStation = segment.endName || undefined;
+
+      // 경유 정류장 수 (버스/지하철만)
+      const stationCount = segment.stationCount || 
+        (segment.passStopList?.stations?.length) || 
+        undefined;
+
+      return {
+        type: typeStr,
+        line,
+        startStation,
+        endStation,
+        duration,
+        distance,
+        icon,
+        // 추가 정보 (선택적)
+        stationCount: stationCount ? `${stationCount}개 정류장` : undefined,
+      };
+    });
 }
 
 /**
  * 세그먼트에서 교통수단 종류 추출
  *
  * @param segments - 경로 세그먼트 배열 (subPath 또는 segments)
- * @returns 교통수단 타입 배열
+ * @returns 교통수단 타입 배열 (도보 제외)
+ * 
+ * 참고: ODSAY trafficType
+ * - 1: 지하철
+ * - 2: 버스
+ * - 3: 도보 (레이블에 포함하지 않음)
+ * - 4: 택시
+ * - 5: 기차
  */
 function extractTransportModes(segments: any[]): number[] {
   if (!segments || !Array.isArray(segments)) {
@@ -211,7 +338,8 @@ function extractTransportModes(segments: any[]): number[] {
     // subPath 구조: { trafficType: number, ... }
     // segments 구조: { trafficType: number, ... }
     const trafficType = segment?.trafficType;
-    if (trafficType && typeof trafficType === 'number' && trafficType !== 0) {
+    // 도보(trafficType: 3)는 경로 레이블에 포함하지 않음
+    if (trafficType && typeof trafficType === 'number' && trafficType !== 0 && trafficType !== 3) {
       modes.add(trafficType);
     }
   }
@@ -221,15 +349,21 @@ function extractTransportModes(segments: any[]): number[] {
 /**
  * 교통수단 타입을 한글 레이블로 변환
  *
- * @param modes - 교통수단 타입 배열
- * @returns 교통수단 레이블 (예: "버스 + 지하철")
+ * @param modes - 교통수단 타입 배열 (도보 제외)
+ * @returns 교통수단 레이블 (예: "버스", "지하철", "버스 · 지하철")
+ * 
+ * 참고: ODSAY trafficType 매핑
+ * - 1: 지하철
+ * - 2: 버스
+ * - 3: 도보 (레이블에 포함하지 않음)
+ * - 4: 택시
+ * - 5: 기차
  */
 function generateModeLabel(modes: number[]): string {
   const modeNames: { [key: number]: string } = {
     1: '지하철',
     2: '버스',
-    3: '택시',
-    4: '자동차',
+    4: '택시',
     5: '기차',
   };
 
@@ -238,14 +372,15 @@ function generateModeLabel(modes: number[]): string {
     .map((mode) => modeNames[mode]);
 
   if (labels.length === 0) {
-    return '기타';
+    return '대중교통';
   }
 
   if (labels.length === 1) {
     return labels[0];
   }
 
-  return labels.join(' + ');
+  // 여러 교통수단은 " · "로 구분 (예: "버스 · 지하철")
+  return labels.join(' · ');
 }
 
 /**

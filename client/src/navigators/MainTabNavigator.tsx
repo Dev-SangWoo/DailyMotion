@@ -18,7 +18,7 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import SafetyGuardScreen from '../screens/SafetyGuard/SafetyGuardScreen';
 import RiskReportScreen from '../screens/RiskReport/RiskReportScreen';
 import NewJourneyScreen from '../screens/NewJourney/NewJourneyScreen';
-import MyPageScreen from '../screens/MyPage/MyPageScreen';
+import MyPageNavigator from '../screens/MyPage/MyPageNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -91,7 +91,7 @@ export default function MainTabNavigator() {
       />
       <Tab.Screen
         name="MyPage"
-        component={MyPageScreen}
+        component={MyPageNavigator}
         options={{
           title: '마이페이지',
           tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,

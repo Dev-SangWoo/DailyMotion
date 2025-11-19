@@ -523,6 +523,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /briefings/eta:
+    get:
+      summary: ETA 조회 (출근 알림용)
+      description: |
+        저장된 여정(journeyId)을 기반으로 현재 시간의 예상 도착 시간(ETA)을 조회합니다.
+        출발 30분 전부터 10분마다 폴링하여 실시간으로 도착 시간을 업데이트합니다.
+        경로 정보는 반환하지 않으며, ETA와 요금만 제공합니다.
+      operationId: getEta
+      tags:
+        - Briefings
+      parameters:
+        - name: journeyId
+          in: query
+          description: 여정 ID (예: "home-office")
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: query
+          description: 사용자 ID (선택)
+          required: false
+          schema:
+            type: string
+            default: "user_001"
+        - name: departureTime
+          in: query
+          description: 출발 예정 시간 (HH:mm 또는 ISO 8601 형식, 예: "08:30")
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ETA 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EtaBriefingResponse'
+        '400':
+          description: 잘못된 요청 (필수 파라미터 누락 등)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 여정을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /briefings/routes/search:
     get:
       summary: 온보딩 경로 검색 (사용자 설정 기반)
@@ -1084,6 +1140,59 @@ components:
         - type
         - name
         - departureInMinutes
+
+    # ETA 조회 응답 (출근 알림용)
+    EtaBriefingResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            journeyId:
+              type: string
+              description: 여정 ID
+              example: "home-office"
+            eta:
+              type: string
+              description: 예상 도착 시간 (HH:mm 형식)
+              example: "08:52"
+            estimatedDuration:
+              type: integer
+              description: 현재 기준 예상 소요 시간 (분)
+              example: 45
+            fare:
+              type: integer
+              nullable: true
+              description: 요금 (원)
+              example: 2400
+            currentTrafficStatus:
+              type: string
+              description: 현재 교통 상황 (NORMAL, CONGESTED, SEVERE)
+              enum:
+                - NORMAL
+                - CONGESTED
+                - SEVERE
+              example: "NORMAL"
+            message:
+              type: string
+              description: 사용자에게 표시할 메시지
+              example: "현재 출발하면 8시 52분에 도착합니다"
+            confidence:
+              type: number
+              format: float
+              description: ETA 예측 신뢰도 (0.0 ~ 1.0)
+              example: 0.95
+            timestamp:
+              type: string
+              format: date-time
+              description: 응답 생성 시각 (UTC 기준)
+              example: "2025-11-19T08:20:00Z"
+          required:
+            - journeyId
+            - eta
+            - estimatedDuration
+            - currentTrafficStatus
+            - message
 
     # 온보딩: 경로 검색 응답
     RouteSearchResponse:

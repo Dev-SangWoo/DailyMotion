@@ -7,7 +7,7 @@ Phase 12: API Endpoint 구현 (Mock 기반)
 - 퇴근 목표 선택 저장
 - (추가) 환승 리마인더 조회 (Logic 2.4)
 """
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Optional, Dict, Any, List
 
 import logging
@@ -607,6 +607,128 @@ async def get_commute_briefing(
         raise e
     except Exception as e:
         logger.error(f"❌ 출근 브리핑 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 1️⃣-2️⃣ GET /api/v1/briefings/eta - ETA 조회 (출근 알림용 폴링)
+@router.get("/eta", response_model=Envelope[Dict[str, Any]])
+async def get_eta(
+    journey_id: str = Query(..., alias="journeyId", description="여정 ID"),
+    user_id: str = Query("user_001", alias="userId", description="사용자 ID"),
+    departure_time: str = Query(..., alias="departureTime", description="출발 예정 시간 (HH:mm 또는 ISO 8601)"),
+):
+    """
+    ETA 조회 (출근 알림용 폴링)
+
+    저장된 여정(journeyId)을 기반으로 현재 시간의 예상 도착 시간(ETA)을 조회합니다.
+    출발 30분 전부터 10분마다 폴링하여 실시간으로 도착 시간을 업데이트합니다.
+
+    📊 데이터 흐름:
+    1. 사용자 출퇴근 설정 조회 (MockUserDB)
+    2. ODSAY API로 경로 검색 (현재 기준)
+    3. 도착지 시간 계산
+    4. 요금 등 추가 정보 반환
+
+    Response Example:
+    {
+        "data": {
+            "journeyId": "home-office",
+            "eta": "08:52",
+            "estimatedDuration": 45,
+            "fare": 2400,
+            "currentTrafficStatus": "NORMAL",
+            "message": "현재 출발하면 8시 52분에 도착합니다",
+            "confidence": 0.95,
+            "timestamp": "2025-11-19T08:20:00Z"
+        }
+    }
+    """
+    try:
+        # 1️⃣ Mock DB에서 사용자 설정 조회
+        commute_settings = MockUserDB.get_commute_settings(user_id)
+        if not commute_settings:
+            logger.error(f"❌ 사용자 없음: {user_id}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"User {user_id} not found"
+            )
+
+        logger.info(f"📋 ETA 조회: journey={journey_id}, user={user_id}, departure={departure_time}")
+
+        # 2️⃣ ODSAY 경로 데이터 조회 (현재 시간 기준)
+        routes_data = await _get_routes_data_for_commute(commute_settings)
+
+        if not routes_data or not routes_data.get("paths"):
+            logger.warning(f"⚠️ 경로 데이터 없음")
+            raise HTTPException(
+                status_code=404,
+                detail="No route data available"
+            )
+
+        # 3️⃣ 첫 번째 경로 기반 ETA 계산 (최적 경로)
+        best_path = routes_data["paths"][0]
+        total_time_seconds = best_path.get("totalTime", 0)
+        total_time_minutes = round(total_time_seconds / 60)
+        fare = best_path.get("fare")
+
+        # 4️⃣ 현재 시간과 출발 시간 파싱
+        current_time = datetime.now()
+
+        # departureTime 파싱 (HH:mm 또는 ISO 8601)
+        try:
+            if "T" in departure_time or len(departure_time) > 5:
+                # ISO 8601 형식
+                departure_dt = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
+            else:
+                # HH:mm 형식
+                parts = departure_time.split(":")
+                departure_dt = current_time.replace(hour=int(parts[0]), minute=int(parts[1]), second=0, microsecond=0)
+        except Exception as e:
+            logger.error(f"❌ 출발 시간 파싱 실패: {departure_time}, error: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid departureTime format: {departure_time}")
+
+        # 5️⃣ ETA 계산
+        eta_datetime = departure_dt + timedelta(minutes=total_time_minutes)
+        eta_str = eta_datetime.strftime("%H:%M")
+
+        # 6️⃣ 교통 상황 판정 (실제로는 ODSAY 혼잡도 데이터 사용)
+        # 총 시간이 기준보다 얼마나 더 걸리는지로 판정
+        # (이상적 시간을 40분으로 가정)
+        ideal_time = 40
+        if total_time_minutes <= ideal_time:
+            traffic_status = "NORMAL"
+            confidence = 0.95
+        elif total_time_minutes <= ideal_time + 5:
+            traffic_status = "CONGESTED"
+            confidence = 0.90
+        else:
+            traffic_status = "SEVERE"
+            confidence = 0.85
+
+        # 7️⃣ 응답 구성
+        result = {
+            "data": {
+                "journeyId": journey_id,
+                "eta": eta_str,
+                "estimatedDuration": total_time_minutes,
+                "fare": fare,
+                "currentTrafficStatus": traffic_status,
+                "message": f"현재 출발하면 {eta_str}에 도착합니다",
+                "confidence": confidence,
+                "timestamp": datetime.utcnow().isoformat() + "Z"
+            }
+        }
+
+        logger.info(
+            f"✅ ETA 조회 성공: journey={journey_id}, eta={eta_str}, "
+            f"duration={total_time_minutes}분, traffic={traffic_status}"
+        )
+        return result
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"❌ ETA 조회 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

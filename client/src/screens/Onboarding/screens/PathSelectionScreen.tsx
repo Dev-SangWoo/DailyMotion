@@ -16,6 +16,7 @@ import { onboardingTheme } from '../styles/onboardingTheme';
 import { useOnboardingActions, useOnboardingData } from '../stores/useOnboardingStore';
 import { OnboardingButton } from '../components/OnboardingButton';
 import { TimePickerModal } from '../components/TimePickerModal';
+import apiClient from '../../../services/api';  // 🆕 경로 검색 API 호출용
 
 interface PathSelectionScreenProps {
   navigation: {
@@ -638,9 +639,51 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
   }, []);
 
   // 다음 버튼
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     // 여정 데이터를 스토어에 저장
     actions.setJourneys(segments);
+
+    // 🆕 첫 번째 여정(집 출발 -> 첫 번째 목적지)의 경로를 API로 검색
+    try {
+      // 첫 번째 여정 찾기: home-depart와 첫 번째 목적지
+      const firstDepartIndex = segments.findIndex((seg) => seg.id === 'home-depart');
+      const firstArriveIndex = segments.findIndex((seg) => seg.type === 'arrive' && seg.id !== 'home-arrive');
+
+      if (firstDepartIndex >= 0 && firstArriveIndex >= 0) {
+        const departSegment = segments[firstDepartIndex];
+        const arriveSegment = segments[firstArriveIndex];
+
+        console.log('🔍 [PathSelectionScreen] 경로 검색 시작:', {
+          originAddress: departSegment.placeAddress,
+          destinationAddress: arriveSegment.placeAddress,
+          departureTime: departSegment.time,
+        });
+
+        // ODSAY API로 경로 검색
+        const response = await apiClient.get('/v1/briefings/routes/search/onboarding', {
+          params: {
+            originAddress: departSegment.placeAddress,
+            destinationAddress: arriveSegment.placeAddress,
+            departureTime: departSegment.time,
+            originLatitude: departSegment.placeY,
+            originLongitude: departSegment.placeX,
+            destinationLatitude: arriveSegment.placeY,
+            destinationLongitude: arriveSegment.placeX,
+          },
+        });
+
+        // 첫 번째 경로(최적 경로)를 선택하여 저장
+        if (response.data?.data?.paths && response.data.data.paths.length > 0) {
+          const selectedPath = response.data.data.paths[0];
+          console.log('🔍 [PathSelectionScreen] 경로 선택됨:', selectedPath);
+          actions.setSelectedPath(selectedPath);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [PathSelectionScreen] 경로 검색 실패:', error);
+      // 에러가 발생해도 진행 (나중에 DailyBriefingScreen에서 다시 조회 가능)
+    }
+
     actions.nextStep();
     navigation.navigate('GoalTime');
   }, [actions, navigation, segments]);

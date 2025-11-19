@@ -13,6 +13,12 @@ import { persist } from 'zustand/middleware';
  * 온보딩 상태 인터페이스
  */
 export interface OnboardingState {
+  // 프로필
+  profile: {
+    displayName: string;
+    avatarEmoji: string;
+  };
+
   // 장소 설정 (스크린 4-5)
   places: {
     homeAddress: string | { name: string; icon: string; address?: string; x?: string; y?: string } | null;
@@ -40,6 +46,24 @@ export interface OnboardingState {
       type: 'depart' | 'arrive';
       time: string;
     }>;
+    // 🆕 선택된 경로의 ODSAY 세부 정보
+    selectedPath?: {
+      pathId: string;
+      totalTime: number;        // 초 단위
+      totalDistance: number;    // 미터 단위
+      transferCount: number;
+      fare: number | null;
+      segments: Array<{
+        type: string;           // BUS, SUBWAY, WALK, TAXI 등
+        line: string;           // 노선명 또는 버스번호
+        direction?: string;
+        startStation: string;
+        endStation: string;
+        startTime: string;      // HH:mm 형식
+        endTime: string;        // HH:mm 형식
+        duration: number;       // 초 단위
+      }>;
+    };
   };
 
   // 목표 시간 (스크린 6)
@@ -72,6 +96,9 @@ export interface OnboardingState {
     updateFavoritePlaces: (places: Array<{ name: string; icon: string; address?: string }>) => void;
     resetPlaces: () => void;
 
+    // 프로필
+    updateProfile: (profile: Partial<OnboardingState['profile']>) => void;
+
     // 경로 선택
     selectPath: (pathIndex: number) => void;
     setCustomPath: (path: string) => void;
@@ -81,9 +108,28 @@ export interface OnboardingState {
       placeName: string;
       placeIcon: string;
       placeAddress: string;     // 🆕 실제 주소
+      placeX?: string;
+      placeY?: string;
       type: 'depart' | 'arrive';
       time: string;
     }>) => void;
+    setSelectedPath: (path: {
+      pathId: string;
+      totalTime: number;
+      totalDistance: number;
+      transferCount: number;
+      fare: number | null;
+      segments: Array<{
+        type: string;
+        line: string;
+        direction?: string;
+        startStation: string;
+        endStation: string;
+        startTime: string;
+        endTime: string;
+        duration: number;
+      }>;
+    }) => void;
 
     // 목표 시간
     updateArrivalTime: (time: string) => void;
@@ -111,6 +157,10 @@ export interface OnboardingState {
  * 온보딩 초기 상태
  */
 const initialState = {
+  profile: {
+    displayName: '데일리모션',
+    avatarEmoji: '🙂',
+  },
   places: {
     homeAddress: '',
     favoritePlaces: [],
@@ -118,6 +168,7 @@ const initialState = {
   pathSelection: {
     selectedPathIndex: 0,
     customPath: undefined,
+    selectedPath: undefined,  // 🆕 경로 데이터는 사용자가 선택할 때 저장됨
   },
   goalTime: {
     arrivalTime: '09:00',
@@ -147,11 +198,21 @@ export const useOnboardingStore = create<OnboardingState>()(
 
       actions: {
         // 장소 설정
-        updateHomeAddress: (address: string) => {
+        updateHomeAddress: (address: OnboardingState['places']['homeAddress']) => {
           set((state) => ({
             places: {
               ...state.places,
               homeAddress: address,
+            },
+          }));
+        },
+
+        // 프로필
+        updateProfile: (profile) => {
+          set((state) => ({
+            profile: {
+              ...state.profile,
+              ...profile,
             },
           }));
         },
@@ -205,6 +266,31 @@ export const useOnboardingStore = create<OnboardingState>()(
             pathSelection: {
               ...state.pathSelection,
               journeys,
+            },
+          }));
+        },
+
+        setSelectedPath: (path: {
+          pathId: string;
+          totalTime: number;
+          totalDistance: number;
+          transferCount: number;
+          fare: number | null;
+          segments: Array<{
+            type: string;
+            line: string;
+            direction?: string;
+            startStation: string;
+            endStation: string;
+            startTime: string;
+            endTime: string;
+            duration: number;
+          }>;
+        }) => {
+          set((state) => ({
+            pathSelection: {
+              ...state.pathSelection,
+              selectedPath: path,
             },
           }));
         },

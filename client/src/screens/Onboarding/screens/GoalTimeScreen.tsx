@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, ScrollView, ActivityIndicator, View } from 'react-native';
 import styled from 'styled-components/native';
 import { theme } from '../../../styles/theme';
 import { onboardingTheme } from '../styles/onboardingTheme';
@@ -167,88 +167,319 @@ const TimeText = styled.Text`
 `;
 
 /**
- * RouteSection
+ * RouteSection (경계 없음, 여백 최소화)
  */
 const RouteSection = styled.View`
-  background-color: #F9F9F9;
-  border-radius: 12px;
-  padding: ${theme.spacing.md}px;
-  margin-top: ${theme.spacing.md}px;
+  margin-top: ${theme.spacing.lg}px;
 `;
 
 /**
  * RouteSectionTitle
  */
 const RouteSectionTitle = styled.Text`
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: ${theme.colors.text};
   margin-bottom: ${theme.spacing.md}px;
 `;
 
 /**
- * RouteCard
+ * RouteCard (네이버 지도 스타일 - 패딩 없음, 전체 공간 활용)
  */
 const RouteCard = styled(TouchableOpacity)<{ isSelected: boolean }>`
   background-color: white;
-  border-radius: 10px;
-  padding: ${theme.spacing.md}px;
-  margin-bottom: ${theme.spacing.sm}px;
+  border-radius: 12px;
+  padding: 0px;
+  margin-bottom: ${theme.spacing.md}px;
+  border-width: ${(props) => props.isSelected ? '2px' : '0px'};
+  border-color: ${(props) => props.isSelected ? theme.colors.primary : 'transparent'};
+  box-shadow: ${(props) => props.isSelected ? '0 4px 12px rgba(0, 122, 255, 0.2)' : '0 2px 6px rgba(0, 0, 0, 0.08)'};
+  elevation: ${(props) => props.isSelected ? 5 : 2};
+  border-bottom-width: 1px;
+  border-bottom-color: #e0e0e0;
+`;
+
+/**
+ * RouteHeader (상단: 최적 라벨, 총 시간, 시간 범위, 요금)
+ */
+const RouteHeader = styled.View`
+  margin-bottom: ${theme.spacing.md}px;
+  padding: ${theme.spacing.lg}px ${theme.spacing.lg}px 0px ${theme.spacing.lg}px;
+`;
+
+/**
+ * RouteHeaderTop (최적 라벨 + 버튼들)
+ */
+const RouteHeaderTop = styled.View`
   flex-direction: row;
   align-items: center;
-  border-width: 2px;
-  border-color: ${(props) => props.isSelected ? theme.colors.primary : '#e0e0e0'};
+  justify-content: space-between;
+  margin-bottom: ${theme.spacing.xs}px;
 `;
 
 /**
- * RouteIcon
+ * RouteLabel (최적)
  */
-const RouteIcon = styled.Text`
-  font-size: 24px;
-  margin-right: ${theme.spacing.md}px;
+const RouteLabel = styled.Text`
+  font-size: 13px;
+  font-weight: 700;
+  color: ${theme.colors.primary};
 `;
 
 /**
- * RouteDetails
+ * RouteTimeInfo (총 시간 + 시간 범위 + 요금)
  */
-const RouteDetails = styled.View`
-  flex: 1;
+const RouteTimeInfo = styled.View`
+  flex-direction: row;
+  align-items: baseline;
+  gap: ${theme.spacing.md}px;
 `;
 
 /**
- * RouteMode
+ * RouteTotalTime (총 시간 - 큰 글씨)
  */
-const RouteMode = styled.Text`
+const RouteTotalTime = styled.Text`
+  font-size: 32px;
+  font-weight: 800;
+  color: ${theme.colors.text};
+  letter-spacing: -0.5px;
+`;
+
+/**
+ * RouteTimeRange (시간 범위)
+ */
+const RouteTimeRange = styled.Text`
+  font-size: 15px;
+  font-weight: 500;
+  color: ${theme.colors.textSecondary};
+  margin-left: ${theme.spacing.sm}px;
+`;
+
+/**
+ * RouteFare (요금)
+ */
+const RouteFare = styled.Text`
+  font-size: 15px;
+  font-weight: 700;
+  color: ${theme.colors.text};
+  margin-left: auto;
+`;
+
+/**
+ * TimelineBar (가로 타임라인 바 - 전체 너비 사용, 둥근 모서리)
+ */
+const TimelineBar = styled.View`
+  flex-direction: row;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: ${theme.spacing.md}px;
+  background-color: #f5f5f5;
+`;
+
+/**
+ * TimelineSegment (타임라인 세그먼트 - 모든 요소 표시)
+ */
+const TimelineSegment = styled.View<{ width: number; color: string }>`
+  flex: ${(props) => props.width};
+  background-color: ${(props) => props.color};
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 35px;
+  padding: 4px 2px;
+  position: relative;
+`;
+
+/**
+ * TimelineSegmentContent (아이콘과 시간을 세로로 배치)
+ */
+const TimelineSegmentContent = styled.View`
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+`;
+
+/**
+ * TimelineSegmentIcon
+ */
+const TimelineSegmentIcon = styled.Text`
+  font-size: 16px;
+  line-height: 16px;
+`;
+
+/**
+ * TimelineSegmentTime
+ */
+const TimelineSegmentTime = styled.Text`
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 0.5px 2px rgba(0, 0, 0, 0.3);
+  line-height: 10px;
+  text-align: center;
+`;
+
+/**
+ * RouteSegmentsContainer (세로 리스트 - 세그먼트 상세 정보)
+ */
+const RouteSegmentsContainer = styled.View`
+  margin-bottom: ${theme.spacing.md}px;
+  padding-top: ${theme.spacing.md}px;
+  padding-left: ${theme.spacing.lg}px;
+  padding-right: ${theme.spacing.lg}px;
+  padding-bottom: ${theme.spacing.md}px;
+  border-top-width: 1px;
+  border-top-color: #f0f0f0;
+  position: relative;
+`;
+
+/**
+ * VerticalLine (세로 연결선)
+ */
+const VerticalLine = styled.View`
+  position: absolute;
+  left: 14px;
+  top: ${theme.spacing.md}px;
+  bottom: 0;
+  width: 2px;
+  background-color: #e0e0e0;
+`;
+
+/**
+ * SegmentRow (각 세그먼트 행)
+ */
+const SegmentRow = styled.View`
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: ${theme.spacing.md}px;
+  position: relative;
+  z-index: 1;
+`;
+
+/**
+ * SegmentIconContainer (아이콘 + 점)
+ */
+const SegmentIconContainer = styled.View`
+  width: 28px;
+  align-items: center;
+  margin-right: ${theme.spacing.sm}px;
+`;
+
+/**
+ * SegmentIcon (아이콘 배경)
+ */
+const SegmentIcon = styled.View<{ bgColor: string }>`
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: ${(props) => props.bgColor};
+  align-items: center;
+  justify-content: center;
+`;
+
+/**
+ * SegmentIconText
+ */
+const SegmentIconText = styled.Text`
   font-size: 14px;
-  font-weight: 600;
+`;
+
+/**
+ * SegmentInfo
+ */
+const SegmentInfo = styled.View`
+  flex: 1;
+  margin-right: ${theme.spacing.sm}px;
+`;
+
+/**
+ * SegmentTypeLabel (일반, 급행 등)
+ */
+const SegmentTypeLabel = styled.Text`
+  font-size: 13px;
+  font-weight: 700;
   color: ${theme.colors.text};
   margin-bottom: 4px;
 `;
 
 /**
- * RouteMetaInfo
+ * SegmentLine (노선명)
  */
-const RouteMetaInfo = styled.Text`
+const SegmentLine = styled.Text`
+  font-size: 15px;
+  font-weight: 700;
+  color: ${theme.colors.text};
+  margin-bottom: 4px;
+`;
+
+/**
+ * SegmentStations (역명/정류장명)
+ */
+const SegmentStations = styled.Text`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${theme.colors.text};
+  line-height: 18px;
+  margin-bottom: 3px;
+`;
+
+/**
+ * SegmentMeta (배차간격 등 추가 정보)
+ */
+const SegmentMeta = styled.Text`
   font-size: 12px;
+  font-weight: 500;
+  color: ${theme.colors.textSecondary};
+  margin-top: 2px;
+`;
+
+/**
+ * RouteFooter (요금 정보)
+ */
+const RouteFooter = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: ${theme.spacing.md}px ${theme.spacing.lg}px;
+  border-top-width: 1px;
+  border-top-color: #f0f0f0;
+`;
+
+/**
+ * FareInfo
+ */
+const FareInfo = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: ${theme.spacing.xs}px;
+`;
+
+/**
+ * FareLabel
+ */
+const FareLabel = styled.Text`
+  font-size: 11px;
   color: ${theme.colors.textSecondary};
 `;
 
 /**
- * DurationBadge
+ * FareValue
  */
-const DurationBadge = styled.View`
-  background-color: ${theme.colors.primary}20;
-  border-radius: 8px;
-  padding: 4px 8px;
+const FareValue = styled.Text`
+  font-size: 12px;
+  font-weight: 700;
+  color: ${theme.colors.text};
 `;
 
 /**
- * DurationText
+ * DistanceInfo
  */
-const DurationText = styled.Text`
-  font-size: 13px;
-  font-weight: 600;
-  color: ${theme.colors.primary};
+const DistanceInfo = styled.Text`
+  font-size: 11px;
+  color: ${theme.colors.textSecondary};
 `;
 
 /**
@@ -442,7 +673,7 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         setSelectedJourneyId(null);
       } else {
         // 다른 여정을 클릭하면 열기 + 경로 로드
-        setSelectedJourneyId(journeyId);
+    setSelectedJourneyId(journeyId);
         fetchRoutesForJourney(journeyId);
       }
     },
@@ -458,8 +689,13 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         ...prev,
         [journeyId]: routeId,
       }));
+      
+      // 경로 선택 후 해당 여정 창 자동 축소
+      if (selectedJourneyId === journeyId) {
+        setSelectedJourneyId(null);
+      }
     },
-    []
+    [selectedJourneyId]
   );
 
   /**
@@ -549,25 +785,161 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
                       </ErrorMessage>
                     )}
 
-                    {/* 경로 리스트 */}
+                    {/* 경로 리스트 (네이버 지도 스타일) */}
                     {routeLoadingState === 'success' && selectedRoutesList && selectedRoutesList.length > 0 ? (
-                      selectedRoutesList.map((route) => (
-                        <RouteCard
-                          key={route.id}
+                      selectedRoutesList.map((route, idx) => (
+                      <RouteCard
+                        key={route.id}
                           isSelected={selectedRoutes[journey.id] === route.id}
                           onPress={() => handleSelectRoute(journey.id, route.id)}
                         >
-                          <RouteIcon>{route.icon}</RouteIcon>
-                          <RouteDetails>
-                            <RouteMode>{route.mode}</RouteMode>
-                            <RouteMetaInfo>
-                              환승 {route.transfers}회
-                            </RouteMetaInfo>
-                          </RouteDetails>
-                          <DurationBadge>
-                            <DurationText>{route.duration}</DurationText>
-                          </DurationBadge>
-                        </RouteCard>
+                          {/* 상단: 최적 라벨 + 총 시간 + 시간 범위 + 요금 */}
+                          <RouteHeader>
+                            <RouteHeaderTop>
+                              {idx === 0 && <RouteLabel>최적</RouteLabel>}
+                            </RouteHeaderTop>
+                            <RouteTimeInfo>
+                              <RouteTotalTime>{route.duration}</RouteTotalTime>
+                              <RouteTimeRange>
+                                {journey.departTime} - {journey.arriveTime}
+                              </RouteTimeRange>
+                              {route.fare !== null && route.fare !== undefined && (
+                                <RouteFare>{route.fare.toLocaleString()}원</RouteFare>
+                              )}
+                            </RouteTimeInfo>
+                          </RouteHeader>
+
+                          {/* 가로 타임라인 바 */}
+                          {route.segments && route.segments.length > 0 && (() => {
+                            // 총 시간 계산 (초 단위)
+                            const totalSeconds = route.segments.reduce((sum, seg) => {
+                              const timeStr = seg.duration || '';
+                              // "64분", "6초", "1분 30초" 형식 파싱
+                              const minuteMatch = timeStr.match(/(\d+)분/);
+                              const secondMatch = timeStr.match(/(\d+)초/);
+                              const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+                              const seconds = secondMatch ? parseInt(secondMatch[1]) : 0;
+                              return sum + (minutes * 60 + seconds);
+                            }, 0);
+                            
+                            // 각 세그먼트의 시간(초) 배열
+                            const segmentSecondsArray = route.segments.map((seg) => {
+                              const timeStr = seg.duration || '';
+                              const minuteMatch = timeStr.match(/(\d+)분/);
+                              const secondMatch = timeStr.match(/(\d+)초/);
+                              const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+                              const seconds = secondMatch ? parseInt(secondMatch[1]) : 0;
+                              return minutes * 60 + seconds;
+                            });
+                            
+                            return (
+                              <TimelineBar>
+                                {route.segments.map((segment, idx) => {
+                                  const segmentSeconds = segmentSecondsArray[idx] || 0;
+                                  
+                                  // flex 비율 계산 (실제 시간 비율 기반)
+                                  // 최소값을 1로 설정하여 모든 세그먼트가 표시되도록
+                                  const flexRatio = totalSeconds > 0 
+                                    ? Math.max(1, segmentSeconds) 
+                                    : 1;
+                                  
+                                  // 색상 결정
+                                  let color = '#9E9E9E'; // 기본 회색 (도보)
+                                  if (segment.type === 'BUS') color = '#4CAF50'; // 초록 (버스)
+                                  if (segment.type === 'SUBWAY') color = '#2196F3'; // 파랑 (지하철)
+ 
+                                  // 표시할 시간 텍스트 (실제 시간 표시)
+                                  // - 60초 미만: 초 단위
+                                  // - 60초 이상: 분 단위 (더 짧은 포맷)
+                                  let displayTime = '';
+                                  if (segmentSeconds < 60) {
+                                    displayTime = `${segmentSeconds}s`;
+                                  } else {
+                                    const mins = Math.round(segmentSeconds / 60);
+                                    displayTime = `${mins}'`;
+                                  }
+                                  
+                                  return (
+                                    <TimelineSegment key={idx} width={flexRatio} color={color}>
+                                      <TimelineSegmentContent>
+                                        <TimelineSegmentIcon>{segment.icon}</TimelineSegmentIcon>
+                                        {displayTime && (
+                                          <TimelineSegmentTime>{displayTime}</TimelineSegmentTime>
+                                        )}
+                                      </TimelineSegmentContent>
+                                    </TimelineSegment>
+                                  );
+                                })}
+                              </TimelineBar>
+                            );
+                          })()}
+
+                          {/* 세로 리스트: 세그먼트 상세 정보 */}
+                          {route.segments && route.segments.length > 0 && (
+                            <RouteSegmentsContainer>
+                              <VerticalLine />
+                              {route.segments.map((segment, idx) => {
+                                let bgColor = '#9E9E9E';
+                                if (segment.type === 'BUS') bgColor = '#4CAF50';
+                                if (segment.type === 'SUBWAY') bgColor = '#2196F3';
+                                
+                                return (
+                                  <SegmentRow key={idx}>
+                                    <SegmentIconContainer>
+                                      <SegmentIcon bgColor={bgColor}>
+                                        <SegmentIconText>{segment.icon}</SegmentIconText>
+                                      </SegmentIcon>
+                                    </SegmentIconContainer>
+                                    <SegmentInfo style={{ flex: 1 }}>
+                                      {/* 버스: "일반" 라벨 */}
+                                      {segment.type === 'BUS' && (
+                                        <SegmentTypeLabel>일반</SegmentTypeLabel>
+                                      )}
+                                      {/* 지하철: 노선명 */}
+                                      {segment.type === 'SUBWAY' && segment.line && (
+                                        <SegmentTypeLabel>{segment.line}</SegmentTypeLabel>
+                                      )}
+                                      {/* 시작 정류장/역 */}
+                                      {segment.startStation && (
+                                        <SegmentStations>{segment.startStation}</SegmentStations>
+                                      )}
+                                      {/* 노선명 (버스번호 등) */}
+                                      {segment.line && segment.type === 'BUS' && (
+                                        <SegmentLine>{segment.line}</SegmentLine>
+                                      )}
+                                      {/* 종료 정류장/역 */}
+                                      {segment.endStation && (
+                                        <SegmentStations>
+                                          {segment.type === 'WALK' ? '하차' : ''} {segment.endStation}
+                                        </SegmentStations>
+                                      )}
+                                      {/* 도보는 간단히 표시 */}
+                                      {segment.type === 'WALK' && !segment.startStation && !segment.endStation && (
+                                        <SegmentStations>
+                                          {segment.distance || '도보'}
+                                        </SegmentStations>
+                                      )}
+                                      {/* 배차간격 등 추가 정보 (버스만) */}
+                                      {segment.type === 'BUS' && segment.stationCount && (
+                                        <SegmentMeta>배차간격 평일 8-12분</SegmentMeta>
+                                      )}
+                                    </SegmentInfo>
+                                  </SegmentRow>
+                                );
+                              })}
+                            </RouteSegmentsContainer>
+                          )}
+
+                          {/* 하단: 요금 정보 (있는 경우만 표시) */}
+                          {route.fare !== null && route.fare !== undefined && route.fare > 0 && (
+                            <RouteFooter>
+                              <FareInfo>
+                                <FareLabel>요금:</FareLabel>
+                                <FareValue>{route.fare.toLocaleString()}원</FareValue>
+                              </FareInfo>
+                            </RouteFooter>
+                          )}
+                      </RouteCard>
                       ))
                     ) : routeLoadingState === 'success' ? (
                       <EmptyStateText>검색된 경로가 없습니다</EmptyStateText>
