@@ -1,0 +1,15 @@
+{
+  "data": {
+    "suggestAlternativeRoute": false,
+    "timeBenefit": 10,
+    "failedGates": {
+      "gate_1": false,
+      "gate_2": false,
+      "gate_3": true
+    },
+    "reasons": [
+      "Gate 3 실패: 환승 버스 혼잡도가 95% (심각)"
+    ]
+  }
+}
+

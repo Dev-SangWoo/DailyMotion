@@ -112,16 +112,27 @@
 
 ### C-2.2 실시간 지연 감지 (Logic 3.1) – 도로/TPEG 연동
 
-- [ ] 도로/대중교통 실시간 정보 소스 결정
+- [x] 평균 소요시간 데이터 파이프라인 정리
+  - [x] `AverageDurationDB` 기반 구간별/시간대별 평균 소요시간 스키마 확정 (`average_duration` 테이블)  
+  - [x] 서울교통공사 열차시간표 API 기반 구간 소요시간 집계 및 CSV 생성 (`build_seoul_subway_timetable.py`, `data/average_duration_stats.csv`)  
+  - [x] CSV → `AverageDurationDB` import/upsert 스크립트 추가 (`import_average_duration_from_csv.py`)
+- [x] DelayDetector ↔ 실시간 ETA 통합 (지하철/버스)
+  - [x] `PathOptimizeService.build_realtime_data_map`, `_get_api_params_by_segment_id`를 통해  
+        특정 구간 ID(`subway_7_남구로-온수`, `subway_1호선_서울역-시청_1` 등)에 대해  
+        AverageDurationDB 평균 vs 서울시 실시간 ETA를 비교하는 지연 감지 경로 구현
+  - [x] 샘플 수/신뢰도 기준(`MIN_SAMPLE_COUNT_FOR_RELIABILITY=100`) 적용 → 데이터 부족 시 실시간-only 폴백(TPEG 역할)으로 NO_ACTION 처리
+  
+- [ ] 도로/TPEG 기반 실시간 정보 소스 결정 (추가 확장)
   - [ ] TPEG/도로 속도 API 후보 (국토부, 민간 사업자 등)
-  - [ ] 버스/지하철 실시간 데이터를 평균 소요시간 대비 지연 판단에 어떻게 포함할지 설계
-- [ ] DelayDetector 확장
+  - [ ] 도로/TPEG 데이터를 AverageDuration 대비 지연 판단에 어떻게 포함할지 설계
+- [ ] DelayDetector 도로/TPEG 확장
   - [ ] `real_time_data_map`에 도로 속도/구간 지연 정보 구조 설계
-  - [ ] 평균 대비 “지연” 기준 강화 (예: +5분 or +30% 이상)
+  - [ ] 평균 대비 “지연” 기준 강화/세분화 (예: +5분 or +30% 이상, 구간 타입별 차등)
 
 **사용자가 제공/확인해 줄 것**
 - [ ] 사용할 TPEG/도로 정보 API의 샘플 응답
-- [ ] “지연”으로 간주할 기준 (분/퍼센트 기준)
+- [ ] “지연”으로 간주할 기준 (분/퍼센트 기준) (도로/TPEG 확장 버전)
+
 
 ---
 

@@ -1,0 +1,29 @@
+{
+  "data": {
+    "action": "EXCEPTION_DETECTED",
+    "totalSegments": 1,
+    "delayedCount": 1,
+    "delayedSegments": [
+      {
+        "segmentId": "subway_7_남구로-온수",
+        "segmentName": "남구로 → 온수",
+        "isDelayed": true,
+        "delayMinutes": 8,
+        "type": "DELAY_WARNING",
+        "message": "⚠️지연 감지! [남구로] 부근이 평소보다 8분 이상 늦어지고 있습니다.",
+        "priority": "HIGH",
+        "dataSource": "STATISTICAL",
+        "confidence": 0.9
+      }
+    ],
+    "mostCritical": {
+      "segmentId": "subway_7_남구로-온수",
+      "segmentName": "남구로 → 온수",
+      "delayMinutes": 8,
+      "priority": "HIGH",
+      "message": "⚠️지연 감지! [남구로] 부근이 평소보다 8분 이상 늦어지고 있습니다."
+    },
+    "hasCritical": false
+  }
+}
+

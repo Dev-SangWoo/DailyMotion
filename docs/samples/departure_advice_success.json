@@ -1,0 +1,19 @@
+{
+  "data": {
+    "alertType": "GO_NOW",
+    "message": "8:50 도착을 위해, 지금 집에서 출발하셔서 5분 후 도착하는 [7호선]을 타세요. (현재 열차 혼잡도: 보통 (55%))",
+    "totalDurationMinutes": 42,
+    "recommendedTransport": {
+      "type": "SUBWAY",
+      "name": "7호선",
+      "lineNumber": "7호선",
+      "destination": "상행",
+      "departureInMinutes": 3,
+      "transitTimeMinutes": 30,
+      "isRealtime": true,
+      "congestionLevel": "MEDIUM",
+      "congestionValue": 55.0
+    }
+  }
+}
+
