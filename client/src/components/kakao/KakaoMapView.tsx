@@ -21,8 +21,16 @@ interface MapMarker {
   color?: 'red' | 'blue' | 'yellow' | 'green'; // 마커 색상
 }
 
+interface MapPolyline {
+  name: string;
+  coords: Array<{ lat: number; lng: number }>;
+  color?: string;
+  strokeWeight?: number;
+}
+
 interface KakaoMapViewProps {
   markers: MapMarker[];
+  polylines?: MapPolyline[];
   centerLat?: number;
   centerLng?: number;
   height?: number;
@@ -49,6 +57,7 @@ const LoadingContainer = styled.View`
  */
 const generateMapHTML = (
   markers: MapMarker[],
+  polylines: MapPolyline[] | undefined,
   centerLat: number,
   centerLng: number,
   zoom: number
@@ -76,6 +85,25 @@ const generateMapHTML = (
       `;
     })
     .join(',');
+
+  // 경로선 HTML 생성
+  const polylinesHTML = polylines
+    ? polylines
+        .map((polyline) => {
+          const coordsArray = polyline.coords
+            .map((c) => `new kakao.maps.LatLng(${c.lat}, ${c.lng})`)
+            .join(',');
+          return `
+            {
+              name: '${polyline.name}',
+              coords: [${coordsArray}],
+              color: '${polyline.color || '#0066FF'}',
+              strokeWeight: ${polyline.strokeWeight || 3}
+            }
+          `;
+        })
+        .join(',')
+    : '';
 
   return `
     <!DOCTYPE html>
@@ -140,6 +168,9 @@ const generateMapHTML = (
               // 마커 데이터
               const markersData = [${markersHTML}];
 
+              // 경로선 데이터
+              const polylinesData = [${polylinesHTML}];
+
               // 마커 생성 및 지도에 추가
               markersData.forEach((data) => {
                 const marker = new kakao.maps.Marker({
@@ -165,7 +196,21 @@ const generateMapHTML = (
                 });
               });
 
-              console.log('Map initialized successfully with ' + markersData.length + ' markers');
+              // 경로선 생성 및 지도에 추가
+              polylinesData.forEach((data) => {
+                if (data.coords && data.coords.length > 0) {
+                  const polyline = new kakao.maps.Polyline({
+                    path: data.coords,
+                    strokeColor: data.color,
+                    strokeOpacity: 0.8,
+                    strokeWeight: data.strokeWeight,
+                    strokeStyle: 'solid'
+                  });
+                  polyline.setMap(map);
+                }
+              });
+
+              console.log('Map initialized successfully with ' + markersData.length + ' markers and ' + polylinesData.length + ' routes');
             } catch (error) {
               console.error('Error initializing map:', error);
             }
@@ -186,14 +231,15 @@ const generateMapHTML = (
 
 export const KakaoMapView: React.FC<KakaoMapViewProps> = ({
   markers,
+  polylines,
   centerLat = 37.5665,  // 서울시청 위도
   centerLng = 126.9780, // 서울시청 경도
   height = 300,
   zoom = 5,
 }) => {
   const mapHTML = useMemo(
-    () => generateMapHTML(markers, centerLat, centerLng, zoom),
-    [markers, centerLat, centerLng, zoom]
+    () => generateMapHTML(markers, polylines, centerLat, centerLng, zoom),
+    [markers, polylines, centerLat, centerLng, zoom]
   );
 
   return (
