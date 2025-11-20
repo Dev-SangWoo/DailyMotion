@@ -141,8 +141,38 @@ export default function SafetyGuardScreen() {
    */
   // 🆕 설정한 경로들을 polyline으로 변환
   const routePolylines = useMemo(() => {
-    if (!pathSelection.journeys || !pathSelection.selectedPaths) {
-      return [];
+    // 🔍 데이터 디버깅 로그
+    console.log('[SafetyGuard] pathSelection.journeys:', pathSelection.journeys);
+    console.log('[SafetyGuard] pathSelection.selectedPaths:', pathSelection.selectedPaths);
+
+    // 실제 데이터가 있으면 사용, 없으면 mock 데이터 사용
+    const hasRealData = pathSelection.journeys && Object.keys(pathSelection.selectedPaths || {}).length > 0;
+
+    if (!hasRealData) {
+      console.log('[SafetyGuard] Using mock polylines');
+      // Mock 경로 데이터 (테스트용)
+      return [
+        {
+          name: '집 → 회사',
+          coords: [
+            { lat: 37.4979, lng: 127.0276 },
+            { lat: 37.5050, lng: 127.0338 },
+            { lat: 37.5120, lng: 127.0400 },
+          ],
+          color: '#0066FF',
+          strokeWeight: 4,
+        },
+        {
+          name: '회사 → 집',
+          coords: [
+            { lat: 37.5120, lng: 127.0400 },
+            { lat: 37.5050, lng: 127.0338 },
+            { lat: 37.4979, lng: 127.0276 },
+          ],
+          color: '#2196F3',
+          strokeWeight: 4,
+        },
+      ];
     }
 
     const polylines: any[] = [];
@@ -165,7 +195,17 @@ export default function SafetyGuardScreen() {
       const endLat = parseFloat(arriveJourney.placeY);
       const endLng = parseFloat(arriveJourney.placeX);
 
-      if (!startLat || !startLng || !endLat || !endLng) return;
+      console.log(`[SafetyGuard] Route: ${journeyKey}`, {
+        startLat,
+        startLng,
+        endLat,
+        endLng,
+      });
+
+      if (!startLat || !startLng || !endLat || !endLng) {
+        console.warn(`[SafetyGuard] Invalid coordinates for route ${journeyKey}`);
+        return;
+      }
 
       // Polyline 데이터 생성 (시작점과 끝점으로 간단하게 표시)
       const polyline = {
@@ -183,6 +223,7 @@ export default function SafetyGuardScreen() {
       colorIndex++;
     });
 
+    console.log('[SafetyGuard] Generated polylines:', polylines);
     return polylines;
   }, [pathSelection]);
 
