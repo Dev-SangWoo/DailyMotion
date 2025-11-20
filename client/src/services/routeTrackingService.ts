@@ -146,11 +146,11 @@ export function calculateMovementSpeed(
 }
 
 /**
- * 현재 위치에서 다음 정류장까지의 거리 계산
+ * 현재 위치에서 다음 환승지까지의 거리 계산
  * @param currentPoint 현재 GPS 위치
  * @param route 경로 정보
  * @param currentSegmentIndex 현재 세그먼트 인덱스
- * @returns 다음 정류장까지의 거리 (미터)
+ * @returns 다음 환승지까지의 거리 (미터)
  */
 export function getDistanceToNextStop(
   currentPoint: GPSPoint,
@@ -164,29 +164,61 @@ export function getDistanceToNextStop(
     return 0;
   }
 
-  // 다음 세그먼트의 종료점을 정류장으로 간주
-  // ODSAY API에서는 endName을 정류장명으로 제공
-  // 정류장의 정확한 GPS 좌표는 API에서 제공하지 않으므로,
-  // 남은 거리는 현재 세그먼트의 거리로 추정
-  const currentSegment = subPath[currentSegmentIndex];
-
-  if (!currentSegment) {
-    return 0;
+  // 🆕 다음 세그먼트의 시작점(환승지)까지의 거리 계산
+  const nextSegmentIndex = currentSegmentIndex + 1;
+  
+  if (nextSegmentIndex >= subPath.length) {
+    // 마지막 세그먼트인 경우, 현재 세그먼트의 종료점까지 거리
+    const currentSegment = subPath[currentSegmentIndex];
+    if (currentSegment?.endX && currentSegment?.endY) {
+      const distance = calculateHaversineDistance(
+        currentPoint.latitude,
+        currentPoint.longitude,
+        currentSegment.endY, // ODSAY는 Y가 위도
+        currentSegment.endX  // ODSAY는 X가 경도
+      );
+      console.log('[Route Tracking] 목적지까지 거리:', {
+        distance: distance.toFixed(0),
+        endName: currentSegment.endName,
+      });
+      return distance;
+    }
+    // 좌표가 없으면 세그먼트 거리 사용
+    return currentSegment?.distance || 0;
   }
 
-  // 세그먼트의 거리 (미터)
-  const segmentDistance = currentSegment.distance || 0;
+  // 다음 세그먼트의 시작점(환승지) 좌표 사용
+  const nextSegment = subPath[nextSegmentIndex];
+  if (nextSegment?.startX && nextSegment?.startY) {
+    // ODSAY API: startX=경도, startY=위도
+    const distance = calculateHaversineDistance(
+      currentPoint.latitude,
+      currentPoint.longitude,
+      nextSegment.startY, // 위도
+      nextSegment.startX  // 경도
+    );
+    console.log('[Route Tracking] 다음 환승지까지 거리:', {
+      distance: distance.toFixed(0),
+      stopName: nextSegment.startName,
+      segment: nextSegmentIndex,
+    });
+    return distance;
+  }
 
-  console.log('[Route Tracking] 다음 정류장까지의 거리:', {
-    segment: currentSegmentIndex,
-    segmentDistance,
-    endName: currentSegment.endName,
-  });
+  // 좌표가 없으면 현재 세그먼트의 종료점까지 거리 추정
+  const currentSegment = subPath[currentSegmentIndex];
+  if (currentSegment?.endX && currentSegment?.endY) {
+    const distance = calculateHaversineDistance(
+      currentPoint.latitude,
+      currentPoint.longitude,
+      currentSegment.endY,
+      currentSegment.endX
+    );
+    return distance;
+  }
 
-  // 현재 세그먼트에서 이미 이동한 거리를 고려해야 하지만,
-  // GPS 기반 정확한 진행률을 계산하려면 더 복잡한 로직이 필요함
-  // 현재는 간단하게 세그먼트 거리 반환
-  return segmentDistance;
+  // 좌표가 전혀 없으면 세그먼트 거리 사용 (부정확)
+  return currentSegment?.distance || 0;
 }
 
 /**
@@ -224,25 +256,91 @@ export function estimateTimeToNextStop(
  * @param previousPoint 이전 GPS 위치 (속도 계산용)
  * @returns 추적 상태
  */
+/**
+ * 현재 위치가 어떤 세그먼트에 있는지 판단
+ * @param currentPoint 현재 GPS 위치
+ * @param subPath 경로 세그먼트 배열
+ * @returns 현재 세그먼트 인덱스 (없으면 -1)
+ */
+function detectCurrentSegment(
+  currentPoint: GPSPoint,
+  subPath: Array<any>
+): number {
+  if (!subPath || subPath.length === 0) {
+    return -1;
+  }
+
+  // 각 세그먼트의 시작점/종료점과 현재 위치의 거리 계산
+  let minDistance = Infinity;
+  let closestSegmentIndex = 0;
+
+  for (let i = 0; i < subPath.length; i++) {
+    const segment = subPath[i];
+    
+    // 세그먼트의 시작점과 종료점 좌표 확인
+    if (segment.startX && segment.startY && segment.endX && segment.endY) {
+      // 시작점까지의 거리
+      const distToStart = calculateHaversineDistance(
+        currentPoint.latitude,
+        currentPoint.longitude,
+        segment.startY,
+        segment.startX
+      );
+      
+      // 종료점까지의 거리
+      const distToEnd = calculateHaversineDistance(
+        currentPoint.latitude,
+        currentPoint.longitude,
+        segment.endY,
+        segment.endX
+      );
+      
+      // 세그먼트의 중간점까지의 거리 (간단한 추정)
+      const avgLat = (segment.startY + segment.endY) / 2;
+      const avgLon = (segment.startX + segment.endX) / 2;
+      const distToMid = calculateHaversineDistance(
+        currentPoint.latitude,
+        currentPoint.longitude,
+        avgLat,
+        avgLon
+      );
+      
+      // 가장 가까운 거리
+      const minDist = Math.min(distToStart, distToEnd, distToMid);
+      
+      if (minDist < minDistance) {
+        minDistance = minDist;
+        closestSegmentIndex = i;
+      }
+    }
+  }
+
+  // 300m 이내에 있으면 해당 세그먼트로 판단
+  if (minDistance <= 300) {
+    return closestSegmentIndex;
+  }
+
+  // 경로에서 벗어났으면 가장 가까운 세그먼트 반환
+  return closestSegmentIndex;
+}
+
 export function detectUserTrackingStatus(
   currentPoint: GPSPoint,
   route: RecommendedRoute,
   previousPoint?: GPSPoint
 ): TrackingState {
   let status = UserTrackingStatus.IDLE;
-  let currentSegmentIndex = 0;
   let message = '경로 추적 준비 중...';
   const subPath = route.subPath || [];
 
-  // 1. 경로 위에 있는지 확인
-  const routePoints = extractRoutePoints(route);
-  const onRoute = isOnRoute(currentPoint, routePoints, 300);
-
-  if (!onRoute) {
-    status = UserTrackingStatus.ROUTE_DEVIATION;
-    message = '⚠️ 예상 경로에서 벗어났습니다.';
-    console.warn('[Route Tracking] 경로 이탈 감지');
+  // 🆕 1. 현재 위치가 어떤 세그먼트에 있는지 판단
+  let currentSegmentIndex = detectCurrentSegment(currentPoint, subPath);
+  if (currentSegmentIndex < 0) {
+    currentSegmentIndex = 0; // 기본값
   }
+
+  const currentSegment = subPath[currentSegmentIndex];
+  const trafficType = currentSegment?.trafficType || 3; // 기본값: 도보
 
   // 2. 이동 속도 계산
   let movementSpeed = 0;
@@ -250,31 +348,55 @@ export function detectUserTrackingStatus(
     movementSpeed = calculateMovementSpeed(previousPoint, currentPoint);
   }
 
-  // 3. 이동 상태 판단
-  if (movementSpeed > 5) {
-    // 시속 5km 이상 = 이동 중 (버스, 지하철 등)
-    status = UserTrackingStatus.ON_TRANSIT;
-    message = '🚌 이동 중입니다.';
-  } else if (movementSpeed > 1 && movementSpeed <= 5) {
-    // 시속 1~5km = 도보 중
-    status = UserTrackingStatus.BOARDING;
-    message = '🚶 도보 이동 중입니다.';
-  } else if (movementSpeed > 0 && movementSpeed <= 1) {
-    // 속도 있지만 느린 상태 = 정류장 대기 중
-    status = UserTrackingStatus.WAITING_AT_STOP;
-    message = '⏱️ 정류장에서 대기 중...';
-  } else {
-    // 속도 0 = 정지 상태
-    status = UserTrackingStatus.WAITING_AT_STOP;
-    message = '⏱️ 정류장에서 대기 중...';
+  // 3. 이동 상태 판단 (세그먼트의 trafficType과 속도 기반)
+  if (trafficType === 3) {
+    // 도보 세그먼트
+    if (movementSpeed > 1) {
+      status = UserTrackingStatus.BOARDING;
+      message = '🚶 도보 이동 중입니다.';
+    } else {
+      status = UserTrackingStatus.WAITING_AT_STOP;
+      message = '⏱️ 대기 중...';
+    }
+  } else if (trafficType === 2 || trafficType === 1) {
+    // 버스/지하철 세그먼트
+    if (movementSpeed > 5) {
+      status = UserTrackingStatus.ON_TRANSIT;
+      message = trafficType === 2 ? '🚌 버스 탑승 중입니다.' : '🚇 지하철 탑승 중입니다.';
+    } else if (movementSpeed > 0) {
+      status = UserTrackingStatus.WAITING_AT_STOP;
+      message = '⏱️ 정류장/역에서 대기 중...';
+    } else {
+      status = UserTrackingStatus.WAITING_AT_STOP;
+      message = '⏱️ 정류장/역에서 대기 중...';
+    }
   }
 
-  // 4. 다음 정류장 정보
-  const distanceToNextStop = getDistanceToNextStop(currentPoint, route, currentSegmentIndex);
-  const estimatedTimeToNextStop = estimateTimeToNextStop(distanceToNextStop, movementSpeed);
+  // 4. 경로 위에 있는지 확인 (간단한 검증)
+  const routePoints = extractRoutePoints(route);
+  const onRoute = routePoints.length > 0 ? isOnRoute(currentPoint, routePoints, 500) : true;
 
-  // 5. 목적지 도착 판단
-  if (distanceToNextStop === 0 && subPath.length > 0 && currentSegmentIndex >= subPath.length - 1) {
+  if (!onRoute) {
+    status = UserTrackingStatus.ROUTE_DEVIATION;
+    message = '⚠️ 예상 경로에서 벗어났습니다.';
+    console.warn('[Route Tracking] 경로 이탈 감지');
+  }
+
+  // 5. 다음 환승지까지의 거리 계산 (정확한 좌표 기반)
+  const distanceToNextStop = getDistanceToNextStop(currentPoint, route, currentSegmentIndex);
+  
+  // 6. 예상 시간 계산 (속도 기반 또는 세그먼트 시간 기반)
+  let estimatedTimeToNextStop = 0;
+  if (movementSpeed > 0) {
+    // 현재 속도 기반 계산
+    estimatedTimeToNextStop = estimateTimeToNextStop(distanceToNextStop, movementSpeed);
+  } else if (currentSegment?.sectionTime) {
+    // 세그먼트의 예상 시간 사용 (초 단위)
+    estimatedTimeToNextStop = currentSegment.sectionTime;
+  }
+
+  // 7. 목적지 도착 판단
+  if (distanceToNextStop < 50 && currentSegmentIndex >= subPath.length - 1) {
     status = UserTrackingStatus.DESTINATION_REACHED;
     message = '🎉 목적지에 도착했습니다!';
   }
@@ -292,6 +414,8 @@ export function detectUserTrackingStatus(
 
   console.log('[Route Tracking] 추적 상태:', {
     status,
+    segment: currentSegmentIndex,
+    trafficType,
     movementSpeed: movementSpeed.toFixed(2),
     isOnRoute,
     distanceToNextStop: distanceToNextStop.toFixed(0),
@@ -315,18 +439,30 @@ function extractRoutePoints(route: RecommendedRoute): Array<{ lat: number; lon: 
     return points;
   }
 
-  // 주의: ODSAY API는 정류장의 GPS 좌표를 직접 제공하지 않음
-  // 따라서 실제 구현에서는:
-  // 1. Kakao Map API로 정류장명을 GPS로 변환
-  // 2. 또는 백엔드에서 미리 정류장 GPS 데이터 제공
-  // 여기서는 임시로 더미 포인트 반환
+  // 🆕 ODSAY API의 subPath에서 좌표 추출
+  for (const segment of subPath) {
+    // 시작점 좌표
+    if (segment.startX && segment.startY) {
+      points.push({
+        lat: segment.startY, // ODSAY: Y가 위도
+        lon: segment.startX, // ODSAY: X가 경도
+      });
+    }
+    
+    // 종료점 좌표
+    if (segment.endX && segment.endY) {
+      points.push({
+        lat: segment.endY,
+        lon: segment.endX,
+      });
+    }
+  }
 
   console.log('[Route Tracking] 주요 포인트 추출:', {
     segmentCount: subPath.length,
-    warning: 'ODSAY API는 GPS 좌표를 제공하지 않음 - 백엔드 연동 필요',
+    pointCount: points.length,
   });
 
-  // TODO: 백엔드에서 정류장 GPS 좌표 제공 필요
   return points;
 }
 

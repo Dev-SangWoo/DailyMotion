@@ -30,13 +30,6 @@ export interface LocationWithAddress extends LocationCoordinates {
  */
 export async function checkLocationPermission(): Promise<boolean> {
   try {
-    // 위치 서비스가 활성화되어 있는지 확인 (Android)
-    const servicesEnabled = await Location.hasServicesEnabledAsync();
-    if (!servicesEnabled) {
-      console.warn('[Location Service] 위치 서비스가 비활성화되어 있습니다.');
-      return false;
-    }
-
     // expo-location v19 API: getForegroundPermissionsAsync 사용
     const permissionResponse = await Location.getForegroundPermissionsAsync();
     console.log('[Location Service] 위치 권한 상태:', {
@@ -57,13 +50,6 @@ export async function checkLocationPermission(): Promise<boolean> {
 export async function requestLocationPermission(): Promise<boolean> {
   try {
     console.log('[Location Service] 위치 권한 요청 시작...');
-    
-    // 위치 서비스가 활성화되어 있는지 확인 (Android)
-    const servicesEnabled = await Location.hasServicesEnabledAsync();
-    if (!servicesEnabled) {
-      console.warn('[Location Service] 위치 서비스가 비활성화되어 있습니다. 설정에서 위치 서비스를 켜주세요.');
-      throw new Error('위치 서비스가 비활성화되어 있습니다. 설정에서 위치 서비스를 켜주세요.');
-    }
 
     // expo-location v19 API: requestForegroundPermissionsAsync 사용
     console.log('[Location Service] requestForegroundPermissionsAsync 호출 중...');
@@ -134,10 +120,38 @@ export async function getCurrentLocation(): Promise<LocationCoordinates> {
       throw new Error('위치 권한이 거부되었습니다. 설정에서 위치 접근을 허용해주세요.');
     }
 
-    // 4. 위치 정보 가져오기
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced, // 배터리와 정확도의 균형
-    });
+    // 4. 위치 서비스 활성화 상태 확인 (경고만, 실제 위치 가져오기는 시도)
+    // Expo Go 환경에서는 hasServicesEnabledAsync()가 부정확할 수 있으므로
+    // 실제 위치 가져오기를 시도하고, 실패하면 그때 에러를 던집니다.
+    try {
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        console.warn('[Location Service] 위치 서비스가 비활성화되어 있을 수 있습니다. 위치 가져오기를 시도합니다...');
+        // 경고만 하고 계속 진행 (실제 위치 가져오기 시도)
+      }
+    } catch (serviceCheckError) {
+      console.warn('[Location Service] 위치 서비스 확인 실패 (무시하고 계속 진행):', serviceCheckError);
+      // 위치 서비스 확인 실패해도 위치 가져오기는 시도
+    }
+
+    // 5. 위치 정보 가져오기 (실제 시도)
+    console.log('[Location Service] getCurrentPositionAsync 호출 중...');
+    let location;
+    try {
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced, // 배터리와 정확도의 균형
+      });
+    } catch (locationError: any) {
+      // 위치 가져오기 실패 시 명확한 에러 메시지
+      if (locationError.message && locationError.message.includes('location services are enabled')) {
+        throw new Error('위치 서비스가 비활성화되어 있습니다. 기기의 설정 > 위치 서비스에서 위치 서비스를 켜주세요.');
+      }
+      if (locationError.message && locationError.message.includes('permission')) {
+        throw new Error('위치 권한이 필요합니다. 앱 설정에서 위치 권한을 허용해주세요.');
+      }
+      // 기타 에러는 그대로 전달
+      throw locationError;
+    }
 
     const { latitude, longitude, accuracy } = location.coords;
     console.log('[Location Service] 위치 획득 성공:', {
@@ -151,8 +165,23 @@ export async function getCurrentLocation(): Promise<LocationCoordinates> {
       longitude,
       accuracy: accuracy || 0,
     };
-  } catch (error) {
-    console.error('[Location Service] 위치 가져오기 실패:', error);
+  } catch (error: any) {
+    console.error('[Location Service] 위치 가져오기 실패:', {
+      error: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    
+    // 에러 메시지 개선
+    if (error.message && error.message.includes('location services are enabled')) {
+      throw new Error('위치 서비스가 비활성화되어 있습니다. 기기의 설정 > 위치 서비스에서 위치 서비스를 켜주세요.');
+    }
+    
+    if (error.message && error.message.includes('permission')) {
+      throw new Error('위치 권한이 필요합니다. 앱 설정에서 위치 권한을 허용해주세요.');
+    }
+    
+    // 기타 에러는 원본 메시지 유지
     throw error;
   }
 }

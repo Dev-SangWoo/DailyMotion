@@ -695,13 +695,49 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
       if (routes && Array.isArray(routes)) {
         const selectedRoute = routes.find((r) => r.id === routeId);
         if (selectedRoute) {
+          // 🆕 DailyBriefingScreen과 일치하도록 journeyKey 형식으로 변환
+          // journeyId는 "home-depart-work-arrive" 형식 (하이픈으로 연결)
+          // DailyBriefingScreen에서는 "home-depart|work-arrive" 형식 (파이프로 연결)을 사용함
+          // JourneyGroup.id는 `${depart.id}-${arrive.id}` 형식이므로, 마지막 하이픈만 파이프로 변경
+          let storeKey = journeyId;
+          const lastHyphenIndex = journeyId.lastIndexOf('-');
+          if (lastHyphenIndex > 0) {
+            // 마지막 하이픈을 파이프로 변경: "home-depart-work-arrive" -> "home-depart-work|arrive"
+            // 하지만 실제로는 "home-depart|work-arrive" 형식이어야 함
+            // 더 정확하게: pathSelection.journeys에서 실제 ID 찾기
+            const journey = journeys.find((j) => j.id === journeyId);
+            if (journey) {
+              const departSegment = pathSelection.journeys?.find(
+                (seg) => seg.type === 'depart' && 
+                journey.originName === seg.placeName &&
+                journey.departTime === seg.time
+              );
+              const arriveSegment = pathSelection.journeys?.find(
+                (seg) => seg.type === 'arrive' && 
+                journey.destName === seg.placeName &&
+                journey.arriveTime === seg.time
+              );
+              
+              if (departSegment && arriveSegment) {
+                storeKey = `${departSegment.id}|${arriveSegment.id}`;
+                console.log('🔍 [GoalTimeScreen] journeyKey 변환:', {
+                  original: journeyId,
+                  converted: storeKey,
+                  departId: departSegment.id,
+                  arriveId: arriveSegment.id,
+                });
+              }
+            }
+          }
+          
           console.log('🔍 [GoalTimeScreen] 선택된 경로 데이터 저장:', {
             journeyId,
+            storeKey, // 🆕 변환된 키
             routeId,
             hasSubPath: !!selectedRoute.subPath,
             subPathLength: selectedRoute.subPath?.length ?? 0,
           });
-          actions.setSelectedPathForJourney(journeyId, selectedRoute);
+          actions.setSelectedPathForJourney(storeKey, selectedRoute);
         }
       }
       
@@ -710,7 +746,7 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         setSelectedJourneyId(null);
       }
     },
-    [selectedJourneyId, routesCache, actions]
+    [selectedJourneyId, routesCache, actions, journeys, pathSelection.journeys]
   );
 
   /**

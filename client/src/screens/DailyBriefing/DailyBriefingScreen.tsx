@@ -887,7 +887,7 @@ const DailyBriefingScreen: React.FC = () => {
   }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath, pathSelection.selectedPaths]);
 
   // 🆕 실시간 경로 추적 시작 (선택된 여정이 있으면)
-  useRealTimeTracking(selectedJourneyInfo?.selectedPath || null, {
+  useRealTimeTracking((selectedJourneyInfo?.selectedPath as any) || null, {
     enabled: !!selectedJourneyInfo?.selectedPath,
     onStatusChange: (status) => {
       console.log('[DailyBriefingScreen] 추적 상태 변경:', status.status);
@@ -1018,13 +1018,68 @@ const DailyBriefingScreen: React.FC = () => {
       return {
         stopName: selectedJourneyInfo.destinationName || '최종 목적지',
         isDestination: true,
+        trafficType: null,
+        transportInfo: null,
+        subwayLine: null,
+        subwayDirection: null,
       };
     }
 
     const nextSegment = subPath[nextSegmentIdx];
+    const trafficTypeLabel = getTrafficTypeLabel(nextSegment.trafficType);
+    
+    let transportInfo = trafficTypeLabel;
+    let subwayLine: string | null = null;
+    let subwayDirection: string | null = null;
+    let stopName = nextSegment.startName || nextSegment.endName || '다음 정류장';
+    
+    if (nextSegment.lane && nextSegment.lane[0]) {
+      const lane = nextSegment.lane[0];
+      
+      if (lane.busNo) {
+        // 버스
+        transportInfo = `${lane.busNo}번 버스`;
+      } else if (lane.subwayName || nextSegment.trafficType === 1) {
+        // 지하철
+        // 🆕 호선 정보
+        if (lane.subwayCode) {
+          subwayLine = `${lane.subwayCode}호선`;
+          transportInfo = `${lane.subwayCode}호선`;
+        } else if (lane.subwayName) {
+          subwayLine = lane.subwayName;
+          transportInfo = lane.subwayName;
+        }
+        
+        // 🆕 방향 정보 (endName이 최종 목적지 방면)
+        if (nextSegment.endName) {
+          // 역 이름에 "역" 붙이기
+          const endStationName = nextSegment.endName.endsWith('역') 
+            ? nextSegment.endName 
+            : `${nextSegment.endName}역`;
+          subwayDirection = `${endStationName} 방면`;
+        }
+        
+        // 🆕 역 이름에 "역" 붙이기
+        if (nextSegment.startName) {
+          stopName = nextSegment.startName.endsWith('역')
+            ? nextSegment.startName
+            : `${nextSegment.startName}역`;
+        } else if (nextSegment.endName) {
+          stopName = nextSegment.endName.endsWith('역')
+            ? nextSegment.endName
+            : `${nextSegment.endName}역`;
+        }
+      }
+    }
+
     return {
-      stopName: nextSegment.startName || nextSegment.endName || '다음 정류장',
+      stopName,
       isDestination: false,
+      trafficType: nextSegment.trafficType,
+      transportInfo,
+      trafficTypeLabel,
+      subwayLine,
+      subwayDirection,
     };
   };
 
@@ -1032,6 +1087,25 @@ const DailyBriefingScreen: React.FC = () => {
   const getMovementStatusMessage = (): string => {
     if (!trackingState) {
       return '준비 중...';
+    }
+
+    // 현재 세그먼트 정보를 기반으로 메시지 생성
+    const currentSegmentInfo = getCurrentSegmentInfo();
+    if (currentSegmentInfo) {
+      if (currentSegmentInfo.trafficType === 3) {
+        // WALK - 도보로 이동 중
+        const nextStopInfo = getNextStopInfo();
+        if (nextStopInfo && !nextStopInfo.isDestination) {
+          return `도보로 ${formatTime(trackingState.estimatedTimeToNextStop)} 이동!`;
+        }
+        return '도보로 이동 중...';
+      } else if (currentSegmentInfo.trafficType === 2) {
+        // BUS
+        return `${currentSegmentInfo.transportInfo} 탑승 중`;
+      } else if (currentSegmentInfo.trafficType === 1) {
+        // SUBWAY
+        return `${currentSegmentInfo.transportInfo} 탑승 중`;
+      }
     }
 
     const statusMap: Record<string, string> = {
@@ -1262,7 +1336,16 @@ const DailyBriefingScreen: React.FC = () => {
                           <CurrentLocationInfo>
                             <CurrentLocationName>
                               {trackingState && getCurrentSegmentInfo()
-                                ? getCurrentSegmentInfo()?.startName || '현재 위치'
+                                ? (() => {
+                                    const currentSegment = getCurrentSegmentInfo();
+                                    // 도보 중이면 목적지(다음 정류장/역) 표시
+                                    if (currentSegment?.trafficType === 3) {
+                                      const nextStop = getNextStopInfo();
+                                      return nextStop?.stopName || currentSegment?.endName || '다음 정류장';
+                                    }
+                                    // 버스/지하철 탑승 중이면 현재 위치(정류장/역 이름)
+                                    return currentSegment?.startName || '현재 위치';
+                                  })()
                                 : '준비 중...'}
                             </CurrentLocationName>
                             <CurrentLocationDetail>
@@ -1271,7 +1354,11 @@ const DailyBriefingScreen: React.FC = () => {
                           </CurrentLocationInfo>
 
                           <TransferInfo>
-                            <TransferLabel>다음 정류장까지</TransferLabel>
+                            <TransferLabel>
+                              {trackingState && getCurrentSegmentInfo()?.trafficType === 3
+                                ? '도착까지'
+                                : '다음 정류장까지'}
+                            </TransferLabel>
                             <TransferTime>
                               {trackingState
                                 ? formatTime(trackingState.estimatedTimeToNextStop)
@@ -1287,13 +1374,13 @@ const DailyBriefingScreen: React.FC = () => {
 
                         {/* 하단: 현재 상태 표시 */}
                         <View>
-                          <CurrentLocationDetail>
-                            {trackingState && getCurrentSegmentInfo()
-                              ? `경유 정류장: ${getCurrentSegmentInfo()?.currentStopIndex || 0}/${
-                                  getCurrentSegmentInfo()?.totalStops || 0
-                                }`
-                              : '경로 감지 중...'}
-                          </CurrentLocationDetail>
+                          {trackingState && getCurrentSegmentInfo()?.trafficType !== 3 && (
+                            <CurrentLocationDetail>
+                              {`경유 정류장: ${getCurrentSegmentInfo()?.currentStopIndex || 0}/${
+                                getCurrentSegmentInfo()?.totalStops || 0
+                              }`}
+                            </CurrentLocationDetail>
+                          )}
                           {trackingState && !trackingState.isOnRoute && (
                             <CurrentLocationDetail style={{ color: '#F44336', marginTop: 4 }}>
                               ⚠️ 경로에서 벗어났습니다
@@ -1305,7 +1392,13 @@ const DailyBriefingScreen: React.FC = () => {
                       {/* 오른쪽 구간: 다음 경유지 정보 (실시간 추적 데이터) */}
                       <NextStopSection>
                         <View>
-                          <SectionTitle>다음 경유지</SectionTitle>
+                          <SectionTitle>
+                            {trackingState && getNextStopInfo()?.isDestination
+                              ? '최종 목적지'
+                              : trackingState && getCurrentSegmentInfo()?.trafficType === 3
+                              ? '다음 탑승'
+                              : '다음 경유지'}
+                          </SectionTitle>
                           <NextStopInfo>
                             <NextStopName>
                               {trackingState && getNextStopInfo()
@@ -1313,9 +1406,25 @@ const DailyBriefingScreen: React.FC = () => {
                                 : '경로 준비 중'}
                             </NextStopName>
                             <CurrentLocationDetail>
-                              {trackingState && getCurrentSegmentInfo()
-                                ? `${getCurrentSegmentInfo()?.trafficTypeLabel} 탑승 중`
-                                : '경로 감지 중...'}
+                              {(() => {
+                                const currentSegment = getCurrentSegmentInfo();
+                                const nextStop = getNextStopInfo();
+                                
+                                // 최종 목적지까지 도보인 경우
+                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
+                                  return `${selectedJourneyInfo?.destinationName || '목적지'}까지 도보 ${formatTime(trackingState?.estimatedTimeToNextStop || 0)} 이동!`;
+                                }
+                                
+                                // 다음 세그먼트가 버스/지하철인 경우
+                                if (nextStop && !nextStop.isDestination) {
+                                  if (nextStop.trafficType === 1 && nextStop.subwayLine && nextStop.subwayDirection) {
+                                    return `${nextStop.subwayLine} ${nextStop.subwayDirection}`;
+                                  }
+                                  return `${nextStop.trafficTypeLabel || '환승'} 환승`;
+                                }
+                                
+                                return '경로 감지 중...';
+                              })()}
                             </CurrentLocationDetail>
                           </NextStopInfo>
 
@@ -1328,21 +1437,66 @@ const DailyBriefingScreen: React.FC = () => {
                                 : '준비 중'}
                             </NextTransportLabel>
                             <NextTransportNumber>
-                              {trackingState && getCurrentSegmentInfo()
-                                ? getCurrentSegmentInfo()?.transportInfo || '이동'
-                                : '--'}
+                              {(() => {
+                                const currentSegment = getCurrentSegmentInfo();
+                                const nextStop = getNextStopInfo();
+                                
+                                // 최종 목적지까지 도보인 경우
+                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
+                                  return '도보';
+                                }
+                                
+                                // 다음 세그먼트가 버스/지하철인 경우
+                                if (nextStop && !nextStop.isDestination) {
+                                  if (nextStop.trafficType === 1 && nextStop.subwayLine) {
+                                    return nextStop.subwayLine; // 지하철: "2호선"
+                                  }
+                                  return nextStop.transportInfo || '환승';
+                                }
+                                
+                                return '--';
+                              })()}
                             </NextTransportNumber>
                             <NextTransportArrival>
-                              {trackingState
-                                ? `${formatTime(
-                                    trackingState.estimatedTimeToNextStop
-                                  )} 후 도착`
-                                : '--'}
+                              {(() => {
+                                const currentSegment = getCurrentSegmentInfo();
+                                const nextStop = getNextStopInfo();
+                                
+                                // 최종 목적지까지 도보인 경우
+                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
+                                  return `도착 예정: ${selectedJourneyInfo?.arriveTime || '--:--'}`;
+                                }
+                                
+                                // 다음 세그먼트가 버스/지하철인 경우 - 실시간 도착 정보 표시
+                                if (nextStop && !nextStop.isDestination && trackingState) {
+                                  return `${formatTime(trackingState.estimatedTimeToNextStop)} 후 도착`;
+                                }
+                                
+                                return '--';
+                              })()}
                             </NextTransportArrival>
                             <NextTransportDetail>
-                              {trackingState
-                                ? `속도: ${trackingState.movementSpeed.toFixed(1)} km/h`
-                                : '--'}
+                              {(() => {
+                                const currentSegment = getCurrentSegmentInfo();
+                                const nextStop = getNextStopInfo();
+                                
+                                // 최종 목적지까지 도보인 경우
+                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
+                                  return `최종 도착시간 ${selectedJourneyInfo?.arriveTime || '--:--'} 예상`;
+                                }
+                                
+                                // 다음 세그먼트가 지하철인 경우 - 방면 정보
+                                if (nextStop && !nextStop.isDestination && nextStop.trafficType === 1 && nextStop.subwayDirection) {
+                                  return nextStop.subwayDirection; // "강남역 방면"
+                                }
+                                
+                                // 다음 세그먼트가 버스인 경우
+                                if (nextStop && !nextStop.isDestination && nextStop.trafficType === 2 && trackingState) {
+                                  return `다음 버스 ${formatTime(trackingState.estimatedTimeToNextStop)} 후`;
+                                }
+                                
+                                return '--';
+                              })()}
                             </NextTransportDetail>
                           </NextTransportBox>
                         </View>

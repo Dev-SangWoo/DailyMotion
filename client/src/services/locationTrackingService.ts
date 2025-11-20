@@ -114,6 +114,16 @@ class LocationTrackingManager {
         throw new Error('위치 권한이 필요합니다.');
       }
 
+      // 위치 서비스 활성화 확인 (경고만, 실제 추적은 시도)
+      try {
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          console.warn('[Location Tracking] 위치 서비스가 비활성화되어 있을 수 있습니다. 추적을 시도합니다...');
+        }
+      } catch (serviceCheckError) {
+        console.warn('[Location Tracking] 위치 서비스 확인 실패 (무시하고 계속 진행):', serviceCheckError);
+      }
+
       // 기존 구독 취소
       if (this.foregroundSubscription) {
         this.foregroundSubscription.remove();
