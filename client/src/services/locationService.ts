@@ -30,9 +30,21 @@ export interface LocationWithAddress extends LocationCoordinates {
  */
 export async function checkLocationPermission(): Promise<boolean> {
   try {
-    const { status } = await Location.getForegroundPermissionAsync();
-    console.log('[Location Service] 위치 권한 상태:', status);
-    return status === 'granted';
+    // 위치 서비스가 활성화되어 있는지 확인 (Android)
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!servicesEnabled) {
+      console.warn('[Location Service] 위치 서비스가 비활성화되어 있습니다.');
+      return false;
+    }
+
+    // expo-location v19 API: getForegroundPermissionsAsync 사용
+    const permissionResponse = await Location.getForegroundPermissionsAsync();
+    console.log('[Location Service] 위치 권한 상태:', {
+      status: permissionResponse.status,
+      canAskAgain: permissionResponse.canAskAgain,
+      granted: permissionResponse.status === 'granted',
+    });
+    return permissionResponse.status === 'granted';
   } catch (error) {
     console.error('[Location Service] 위치 권한 확인 실패:', error);
     return false;
@@ -44,11 +56,46 @@ export async function checkLocationPermission(): Promise<boolean> {
  */
 export async function requestLocationPermission(): Promise<boolean> {
   try {
-    const { status } = await Location.requestForegroundPermissionAsync();
-    console.log('[Location Service] 위치 권한 요청 결과:', status);
-    return status === 'granted';
-  } catch (error) {
-    console.error('[Location Service] 위치 권한 요청 실패:', error);
+    console.log('[Location Service] 위치 권한 요청 시작...');
+    
+    // 위치 서비스가 활성화되어 있는지 확인 (Android)
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!servicesEnabled) {
+      console.warn('[Location Service] 위치 서비스가 비활성화되어 있습니다. 설정에서 위치 서비스를 켜주세요.');
+      throw new Error('위치 서비스가 비활성화되어 있습니다. 설정에서 위치 서비스를 켜주세요.');
+    }
+
+    // expo-location v19 API: requestForegroundPermissionsAsync 사용
+    console.log('[Location Service] requestForegroundPermissionsAsync 호출 중...');
+    const permissionResponse = await Location.requestForegroundPermissionsAsync();
+    console.log('[Location Service] 위치 권한 요청 결과:', {
+      status: permissionResponse.status,
+      canAskAgain: permissionResponse.canAskAgain,
+      granted: permissionResponse.status === 'granted',
+    });
+    
+    if (permissionResponse.status === 'granted') {
+      console.log('[Location Service] ✅ 위치 권한 허용됨');
+      return true;
+    } else if (permissionResponse.status === 'denied') {
+      console.warn('[Location Service] ⚠️ 위치 권한 거부됨');
+      return false;
+    } else {
+      console.warn('[Location Service] ⚠️ 위치 권한 상태:', permissionResponse.status);
+      return false;
+    }
+  } catch (error: any) {
+    console.error('[Location Service] 위치 권한 요청 실패:', {
+      error: error.message,
+      stack: error.stack,
+      errorType: error.constructor?.name,
+    });
+    
+    // 에러 메시지가 있으면 그대로 전달
+    if (error.message) {
+      throw error;
+    }
+    
     return false;
   }
 }
@@ -69,7 +116,17 @@ export async function getCurrentLocation(): Promise<LocationCoordinates> {
     // 2. 권한이 없으면 요청
     if (!hasPermission) {
       console.log('[Location Service] 위치 권한 없음 - 요청 중...');
-      hasPermission = await requestLocationPermission();
+      try {
+        hasPermission = await requestLocationPermission();
+        console.log('[Location Service] 권한 요청 후 상태:', hasPermission);
+      } catch (permissionError: any) {
+        console.error('[Location Service] 권한 요청 중 에러:', permissionError);
+        // 권한 요청 실패 시 더 명확한 에러 메시지
+        throw new Error(
+          permissionError.message || 
+          '위치 권한 요청에 실패했습니다. Expo Go에서는 일부 기능이 제한될 수 있습니다. 설정에서 위치 권한을 수동으로 허용해주세요.'
+        );
+      }
     }
 
     // 3. 권한 확인 실패
@@ -80,7 +137,6 @@ export async function getCurrentLocation(): Promise<LocationCoordinates> {
     // 4. 위치 정보 가져오기
     const location = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced, // 배터리와 정확도의 균형
-      timeout: 10000, // 10초 timeout
     });
 
     const { latitude, longitude, accuracy } = location.coords;

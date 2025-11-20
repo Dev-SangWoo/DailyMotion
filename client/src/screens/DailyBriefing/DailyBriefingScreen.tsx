@@ -22,8 +22,12 @@ import { useAmbientFeedbackStore, type AmbientFeedbackStatus } from '../../store
 import { useAppModeStore, type AppMode } from '../../stores/useAppModeStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useOnboardingData } from '../Onboarding/stores/useOnboardingStore';
-import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards, OfflineBanner } from './components';
+import { JourneySelector, HeroCard, WeatherCard, AlternativePathCard, Carousel, StepCards, OfflineBanner, RealtimeTrackingCard } from './components';
 import { BusIcon } from '../../components/icons/BusIcon';
+import useRealTimeTracking from '../../hooks/useRealTimeTracking';
+import { useTrackingState, useTrackingActions } from '../../stores/useTrackingStore';
+import { defineLocationTrackingTask } from '../../services/locationTrackingService';
+import { formatTime } from '../../services/routeTrackingService';
 
 // Styled-components: IntelligentDashboard 디자인 패턴 적용
 // 헌법 제2장 준수: 의미론적 이름, theme 기반 스타일링
@@ -256,60 +260,127 @@ const CardText = styled.Text`
   line-height: ${theme.fonts.sizes.sm * 1.5}px;
 `;
 
-// Departure Card 전용 스타일
-const DepartureInfoContainer = styled.View`
-  flex: 1;
-  justify-content: center;
-  align-items: flex-start;
-  gap: ${theme.spacing.sm}px;
-  padding-left: 0;
+// Departure Card 전용 스타일 - 리디자인: 두 구간 레이아웃
+const DepartureCardContainer = styled.View`
+  width: 100%;
+  height: 100%;
+  flex-direction: row;
+  gap: ${theme.spacing.md}px;
 `;
 
-// 박스 스타일
-const InfoBox = styled.View`
+// 왼쪽 구간: 현재 이동 정보
+const CurrentMovementSection = styled.View`
+  flex: 1;
+  justify-content: space-between;
+  padding-right: ${theme.spacing.sm}px;
+`;
+
+const SectionTitle = styled.Text`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: ${theme.spacing.xs}px;
+`;
+
+const CurrentLocationInfo = styled.View`
+  margin-bottom: ${theme.spacing.md}px;
+`;
+
+const CurrentLocationName = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.lg}px;
+  font-weight: 700;
+  margin-bottom: ${theme.spacing.xs}px;
+`;
+
+const CurrentLocationDetail = styled.Text`
+  color: rgba(255, 255, 255, 0.8);
+  font-size: ${theme.fonts.sizes.sm}px;
+  font-weight: 500;
+`;
+
+const TransferInfo = styled.View`
   background-color: rgba(255, 255, 255, 0.15);
   border-radius: ${theme.borderRadius.md}px;
-  padding: 2px ${theme.spacing.md}px;
-  align-self: flex-start;
-  margin-left: -${theme.spacing.md}px;
-`;
-
-const StationBusInfo = styled.Text`
-  color: white;
-  font-size: ${theme.fonts.sizes.md + 3}px;
-  font-weight: 600;
-  text-align: left;
-`;
-
-const ArrivalInfo = styled.Text`
-  color: white;
-  font-size: ${(theme.fonts.sizes.xxl || 32) + 3}px;
-  font-weight: 800;
-  line-height: ${((theme.fonts.sizes.xxl || 32) + 3) * 1.15}px;
-  text-align: left;
-`;
-
-const NextBusInfo = styled.Text`
-  color: rgba(255, 255, 255, 0.8);
-  font-size: ${theme.fonts.sizes.sm + 3}px;
-  font-weight: 500;
-  text-align: left;
-  margin-top: 2px;
-`;
-
-const DepartureAlertBox = styled.View`
-  background-color: rgba(255, 255, 255, 0.25);
-  border-radius: ${theme.borderRadius.md}px;
   padding: ${theme.spacing.sm}px ${theme.spacing.md}px;
-  align-self: flex-start;
-  margin-top: ${theme.spacing.xs}px;
+  margin-top: ${theme.spacing.sm}px;
 `;
 
-const DepartureAlert = styled.Text`
+const TransferLabel = styled.Text`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 600;
+  margin-bottom: 4px;
+`;
+
+const TransferTime = styled.Text`
   color: white;
-  font-size: ${theme.fonts.sizes.sm + 3}px;
+  font-size: ${theme.fonts.sizes.xxl || 32}px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+`;
+
+const TransferDestination = styled.Text`
+  color: rgba(255, 255, 255, 0.8);
+  font-size: ${theme.fonts.sizes.sm}px;
+  font-weight: 500;
+  margin-top: 4px;
+`;
+
+// 오른쪽 구간: 다음 경유지 정보
+const NextStopSection = styled.View`
+  flex: 1;
+  justify-content: space-between;
+  padding-left: ${theme.spacing.sm}px;
+  border-left-width: 1px;
+  border-left-color: rgba(255, 255, 255, 0.2);
+`;
+
+const NextStopInfo = styled.View`
+  margin-bottom: ${theme.spacing.md}px;
+`;
+
+const NextStopName = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.lg}px;
   font-weight: 700;
-  text-align: left;
+  margin-bottom: ${theme.spacing.xs}px;
+`;
+
+const NextTransportBox = styled.View`
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: ${theme.borderRadius.md}px;
+  padding: ${theme.spacing.md}px;
+  margin-top: ${theme.spacing.sm}px;
+`;
+
+const NextTransportLabel = styled.Text`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 600;
+  margin-bottom: 4px;
+`;
+
+const NextTransportNumber = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.xl}px;
+  font-weight: 800;
+  margin-bottom: ${theme.spacing.xs}px;
+`;
+
+const NextTransportArrival = styled.Text`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: ${theme.fonts.sizes.md}px;
+  font-weight: 600;
+`;
+
+const NextTransportDetail = styled.Text`
+  color: rgba(255, 255, 255, 0.7);
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 500;
+  margin-top: 4px;
 `;
 
 const CardBadge = styled.View`
@@ -455,39 +526,43 @@ const DailyBriefingScreen: React.FC = () => {
   const [destination, setDestination] = useState('');
   const [selectedJourneyIndex, setSelectedJourneyIndex] = useState(0); // 현재 선택된 여정 인덱스
 
-  // Bus 애니메이션 (화면 밖에서 현재 위치까지)
-  const busTranslateX = useRef(new Animated.Value(200)).current; // 화면 밖 오른쪽에서 시작
-  const busTranslateY = useRef(new Animated.Value(-100)).current; // 화면 밖 위에서 시작
+  // Bus 애니메이션 주석 처리 (나중에 추가 예정)
+  // const busTranslateX = useRef(new Animated.Value(200)).current; // 화면 밖 오른쪽에서 시작
+  // const busTranslateY = useRef(new Animated.Value(-100)).current; // 화면 밖 위에서 시작
 
-  useEffect(() => {
-    // 무한 반복 애니메이션
-    const animateBus = () => {
-      // 초기 위치로 리셋 (화면 밖)
-      busTranslateX.setValue(200);
-      busTranslateY.setValue(-100);
+  // useEffect(() => {
+  //   // 무한 반복 애니메이션
+  //   const animateBus = () => {
+  //     // 초기 위치로 리셋 (화면 밖)
+  //     busTranslateX.setValue(200);
+  //     busTranslateY.setValue(-100);
 
-      Animated.parallel([
-        Animated.timing(busTranslateX, {
-          toValue: 0, // 현재 위치로 이동
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(busTranslateY, {
-          toValue: 0, // 현재 위치로 이동
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        // 애니메이션 완료 후 즉시 다시 시작
-        animateBus();
-      });
-    };
+  //     Animated.parallel([
+  //       Animated.timing(busTranslateX, {
+  //         toValue: 0, // 현재 위치로 이동
+  //         duration: 3000,
+  //         useNativeDriver: true,
+  //       }),
+  //       Animated.timing(busTranslateY, {
+  //         toValue: 0, // 현재 위치로 이동
+  //         duration: 3000,
+  //         useNativeDriver: true,
+  //       }),
+  //     ]).start(() => {
+  //       // 애니메이션 완료 후 즉시 다시 시작
+  //       animateBus();
+  //     });
+  //   };
 
-    animateBus();
-  }, []);
+  //   animateBus();
+  // }, []);
 
   // 온보딩에서 설정한 장소 데이터 가져오기
   const { places, pathSelection, schedule } = useOnboardingData();
+
+  // 실시간 추적 상태 가져오기
+  const trackingState = useTrackingState();
+  const trackingActions = useTrackingActions();
 
   // 🐛 DEBUG: pathSelection 데이터 확인
   React.useEffect(() => {
@@ -495,6 +570,19 @@ const DailyBriefingScreen: React.FC = () => {
     console.log('🔍 [DailyBriefingScreen] places:', places);
     console.log('🔍 [DailyBriefingScreen] schedule:', schedule);
   }, [pathSelection.journeys, places, schedule]);
+
+  // 백그라운드 위치 추적 태스크 초기화 (앱 시작 시 한 번만)
+  React.useEffect(() => {
+    const initializeTracking = async () => {
+      try {
+        console.log('[DailyBriefingScreen] 위치 추적 태스크 초기화...');
+        await defineLocationTrackingTask();
+      } catch (error) {
+        console.error('[DailyBriefingScreen] 위치 추적 태스크 초기화 실패:', error);
+      }
+    };
+    initializeTracking();
+  }, []);
 
   // 현재 요일 가져오기 (MON, TUE, WED, THU, FRI, SAT, SUN)
   const getCurrentDayOfWeek = (): string => {
@@ -781,13 +869,28 @@ const DailyBriefingScreen: React.FC = () => {
     return result;
   }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath]);
 
-  // 선택된 여정이 바뀔 때 검색창 업데이트
+  // 🆕 실시간 경로 추적 시작 (선택된 여정이 있으면)
+  useRealTimeTracking(selectedJourneyInfo?.selectedPath || null, {
+    enabled: !!selectedJourneyInfo?.selectedPath,
+    onStatusChange: (status) => {
+      console.log('[DailyBriefingScreen] 추적 상태 변경:', status.status);
+      trackingActions.updateTrackingState(status);
+    },
+  });
+
+  // 선택된 여정이 바뀔 때 검색창 업데이트 및 추적 시작
   React.useEffect(() => {
     if (selectedJourneyInfo) {
       setOrigin(selectedJourneyInfo.originName);
       setDestination(selectedJourneyInfo.destinationName);
+
+      // 새로운 여정 선택 시 추적 시작
+      console.log('[DailyBriefingScreen] 새로운 여정 선택됨:', selectedJourneyInfo.selectedPath?.id);
+      if (selectedJourneyInfo.selectedPath) {
+        trackingActions.startTracking(selectedJourneyInfo.selectedPath.id || '');
+      }
     }
-  }, [selectedJourneyInfo]);
+  }, [selectedJourneyInfo, trackingActions]);
 
   // 여정 선택기 핸들러
   const handleExpandPress = () => {
@@ -836,6 +939,95 @@ const DailyBriefingScreen: React.FC = () => {
     return typeMap[segmentType] || '🚌';
   };
 
+  // 🆕 trafficType 숫자를 문자로 변환 (ODSAY API)
+  const getTrafficTypeLabel = (trafficType: number): string => {
+    const typeMap: Record<number, string> = {
+      1: '지하철',
+      2: '버스',
+      3: '도보',
+      4: '택시',
+      5: '열차',
+    };
+    return typeMap[trafficType] || '이동';
+  };
+
+  // 🆕 현재 세그먼트 정보 가져오기
+  const getCurrentSegmentInfo = () => {
+    if (!selectedJourneyInfo?.selectedPath?.subPath || !trackingState) {
+      return null;
+    }
+
+    const subPath = selectedJourneyInfo.selectedPath.subPath;
+    const currentSegmentIdx = trackingState.currentSegmentIndex;
+
+    if (currentSegmentIdx >= subPath.length) {
+      return null;
+    }
+
+    const currentSegment = subPath[currentSegmentIdx];
+    const trafficTypeLabel = getTrafficTypeLabel(currentSegment.trafficType);
+
+    let transportInfo = trafficTypeLabel;
+    if (currentSegment.lane && currentSegment.lane[0]) {
+      if (currentSegment.lane[0].busNo) {
+        transportInfo = `${currentSegment.lane[0].busNo}번`;
+      } else if (currentSegment.lane[0].subwayName) {
+        transportInfo = currentSegment.lane[0].subwayName;
+      }
+    }
+
+    return {
+      trafficType: currentSegment.trafficType,
+      trafficTypeLabel,
+      transportInfo,
+      startName: currentSegment.startName || '출발지',
+      endName: currentSegment.endName || '도착지',
+      totalStops: subPath.length,
+      currentStopIndex: currentSegmentIdx + 1,
+    };
+  };
+
+  // 🆕 다음 정류장 정보 가져오기
+  const getNextStopInfo = () => {
+    if (!selectedJourneyInfo?.selectedPath?.subPath || !trackingState) {
+      return null;
+    }
+
+    const subPath = selectedJourneyInfo.selectedPath.subPath;
+    const currentSegmentIdx = trackingState.currentSegmentIndex;
+    const nextSegmentIdx = currentSegmentIdx + 1;
+
+    if (nextSegmentIdx >= subPath.length) {
+      return {
+        stopName: selectedJourneyInfo.destinationName || '최종 목적지',
+        isDestination: true,
+      };
+    }
+
+    const nextSegment = subPath[nextSegmentIdx];
+    return {
+      stopName: nextSegment.startName || nextSegment.endName || '다음 정류장',
+      isDestination: false,
+    };
+  };
+
+  // 🆕 현재 이동 상태에 따른 메시지 생성
+  const getMovementStatusMessage = (): string => {
+    if (!trackingState) {
+      return '준비 중...';
+    }
+
+    const statusMap: Record<string, string> = {
+      'on_transit': '🚌 이동 중',
+      'waiting_at_stop': '⏱️ 정류장 대기',
+      'boarding': '🚶 도보 이동',
+      'route_deviation': '⚠️ 경로 이탈',
+      'destination_reached': '🎉 목적지 도착',
+      'idle': '준비 중...',
+    };
+
+    return statusMap[trackingState.status] || '이동 중';
+  };
 
   // 로딩 상태
   if (isLoading) {
@@ -1020,6 +1212,11 @@ const DailyBriefingScreen: React.FC = () => {
             )}
           </SearchBarContainer>
 
+          {/* 🆕 Phase 8.1.5: 실시간 경로 추적 카드 */}
+          {trackingState && (
+            <RealtimeTrackingCard trackingState={trackingState} />
+          )}
+
           {/* Phase 8.2: CTA Cards Carousel (그래디언트 카드) */}
           <ScrollView
             horizontal
@@ -1039,28 +1236,111 @@ const DailyBriefingScreen: React.FC = () => {
               <View key={card.id} style={{ width: cardWidth }}>
                 <CardBase bgGradient={card.bgGradient}>
                   {card.id === 'departure' ? (
-                    /* 출발 정보 + Bus Icon */
-                    <View style={{ width: '100%', height: '100%', flexDirection: 'row', alignItems: 'center', paddingRight: theme.spacing.lg, marginLeft: -theme.spacing.md, paddingLeft: theme.spacing.md }}>
-                      {/* 왼쪽: 정보 영역 (70%) */}
-                      <DepartureInfoContainer>
-                        {/* 역삼역 3번 출구 (박스 없음) */}
-                        <StationBusInfo>역삼역 3번 출구</StationBusInfo>
+                    /* 리디자인: 두 구간 레이아웃 */
+                    <DepartureCardContainer>
+                      {/* 왼쪽 구간: 현재 이동 정보 (실시간 추적 데이터) */}
+                      <CurrentMovementSection>
+                        <View>
+                          <SectionTitle>{trackingState ? '현재 이동 중' : '경로 준비 중'}</SectionTitle>
+                          <CurrentLocationInfo>
+                            <CurrentLocationName>
+                              {trackingState && getCurrentSegmentInfo()
+                                ? getCurrentSegmentInfo()?.startName || '현재 위치'
+                                : '준비 중...'}
+                            </CurrentLocationName>
+                            <CurrentLocationDetail>
+                              {trackingState ? getMovementStatusMessage() : '데이터 없음'}
+                            </CurrentLocationDetail>
+                          </CurrentLocationInfo>
 
-                        {/* 박스: 146번 버스, 5분 후 도착, 다음 버스 15분 후 */}
-                        <InfoBox>
-                          <StationBusInfo>146번 버스</StationBusInfo>
-                          <ArrivalInfo>5분 후 도착</ArrivalInfo>
-                          <NextBusInfo>다음 버스 15분 후</NextBusInfo>
-                        </InfoBox>
+                          <TransferInfo>
+                            <TransferLabel>다음 정류장까지</TransferLabel>
+                            <TransferTime>
+                              {trackingState
+                                ? formatTime(trackingState.estimatedTimeToNextStop)
+                                : '--'}
+                            </TransferTime>
+                            <TransferDestination>
+                              {trackingState && getNextStopInfo()
+                                ? getNextStopInfo()?.stopName || '도착지'
+                                : '경로 준비 중'}
+                            </TransferDestination>
+                          </TransferInfo>
+                        </View>
 
-                        {/* 지금 출발해야합니다 (박스 없음) */}
-                        <DepartureAlert>지금 출발해야합니다</DepartureAlert>
-                      </DepartureInfoContainer>
+                        {/* 하단: 현재 상태 표시 */}
+                        <View>
+                          <CurrentLocationDetail>
+                            {trackingState && getCurrentSegmentInfo()
+                              ? `경유 정류장: ${getCurrentSegmentInfo()?.currentStopIndex || 0}/${
+                                  getCurrentSegmentInfo()?.totalStops || 0
+                                }`
+                              : '경로 감지 중...'}
+                          </CurrentLocationDetail>
+                          {trackingState && !trackingState.isOnRoute && (
+                            <CurrentLocationDetail style={{ color: '#F44336', marginTop: 4 }}>
+                              ⚠️ 경로에서 벗어났습니다
+                            </CurrentLocationDetail>
+                          )}
+                        </View>
+                      </CurrentMovementSection>
                       
-                      {/* 오른쪽: Bus Icon + 배경 (30%) */}
+                      {/* 오른쪽 구간: 다음 경유지 정보 (실시간 추적 데이터) */}
+                      <NextStopSection>
+                        <View>
+                          <SectionTitle>다음 경유지</SectionTitle>
+                          <NextStopInfo>
+                            <NextStopName>
+                              {trackingState && getNextStopInfo()
+                                ? getNextStopInfo()?.stopName || '도착지'
+                                : '경로 준비 중'}
+                            </NextStopName>
+                            <CurrentLocationDetail>
+                              {trackingState && getCurrentSegmentInfo()
+                                ? `${getCurrentSegmentInfo()?.trafficTypeLabel} 탑승 중`
+                                : '경로 감지 중...'}
+                            </CurrentLocationDetail>
+                          </NextStopInfo>
+
+                          <NextTransportBox>
+                            <NextTransportLabel>
+                              {trackingState
+                                ? getNextStopInfo()?.isDestination
+                                  ? '최종 목적지'
+                                  : '다음 탑승'
+                                : '준비 중'}
+                            </NextTransportLabel>
+                            <NextTransportNumber>
+                              {trackingState && getCurrentSegmentInfo()
+                                ? getCurrentSegmentInfo()?.transportInfo || '이동'
+                                : '--'}
+                            </NextTransportNumber>
+                            <NextTransportArrival>
+                              {trackingState
+                                ? `${formatTime(
+                                    trackingState.estimatedTimeToNextStop
+                                  )} 후 도착`
+                                : '--'}
+                            </NextTransportArrival>
+                            <NextTransportDetail>
+                              {trackingState
+                                ? `속도: ${trackingState.movementSpeed.toFixed(1)} km/h`
+                                : '--'}
+                            </NextTransportDetail>
+                          </NextTransportBox>
+                        </View>
+
+                        {/* 하단: 예상 도착 시간 */}
+                        <View>
+                          <CurrentLocationDetail>
+                            도착 예정: {selectedJourneyInfo?.arriveTime || '--:--'}
+                          </CurrentLocationDetail>
+                        </View>
+                      </NextStopSection>
+                      
+                      {/* 이미지/애니메이션 주석 처리 (나중에 추가 예정) */}
+                      {/* 
                       <View style={{ width: '30%', height: '100%', alignItems: 'flex-end', justifyContent: 'center', position: 'relative', paddingRight: theme.spacing.sm }}>
-                        {/* 배경: Road (버스 밑) - 길이 연장 */}
-                        
                         <View style={{ position: 'absolute', top:29, right: -120, width: 420, height: 180, zIndex: 2 }}>
                           <Image 
                             source={require('../../assets/Road.png')} 
@@ -1075,8 +1355,6 @@ const DailyBriefingScreen: React.FC = () => {
                             resizeMode="contain"
                           />
                         </View>
-                        
-                        {/* 배경: BusStop (첫 번째 도로 위) */}
                         <View style={{ position: 'absolute', top: -50, right: -20, width: 250, height: 250, zIndex: 2 }}>
                           <Image 
                             source={require('../../assets/BusStop.png')} 
@@ -1084,8 +1362,6 @@ const DailyBriefingScreen: React.FC = () => {
                             resizeMode="contain"
                           />
                         </View>
-                        
-                        {/* Bus Icon (앞쪽) - 애니메이션 */}
                         <Animated.View 
                           style={{ 
                             zIndex: 3,
@@ -1103,7 +1379,8 @@ const DailyBriefingScreen: React.FC = () => {
                           />
                         </Animated.View>
                       </View>
-                    </View>
+                      */}
+                    </DepartureCardContainer>
                   ) : (
                     <>
                   <CardHeader>
