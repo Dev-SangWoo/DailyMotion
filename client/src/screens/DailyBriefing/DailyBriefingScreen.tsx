@@ -564,12 +564,21 @@ const DailyBriefingScreen: React.FC = () => {
   const trackingState = useTrackingState();
   const trackingActions = useTrackingActions();
 
-  // 🐛 DEBUG: pathSelection 데이터 확인
+  // 🐛 DEBUG: 온보딩 데이터 전체 확인
   React.useEffect(() => {
-    console.log('🔍 [DailyBriefingScreen] pathSelection.journeys:', pathSelection.journeys);
-    console.log('🔍 [DailyBriefingScreen] places:', places);
-    console.log('🔍 [DailyBriefingScreen] schedule:', schedule);
-  }, [pathSelection.journeys, places, schedule]);
+    console.log('\n=== 🔍 데일리브리핑 온보딩 데이터 디버그 ===');
+    console.log('📍 pathSelection.journeys 데이터:', {
+      count: pathSelection.journeys?.length || 0,
+      data: pathSelection.journeys,
+    });
+    console.log('🛣️ pathSelection.selectedPaths:', {
+      keys: pathSelection.selectedPaths ? Object.keys(pathSelection.selectedPaths) : [],
+      data: pathSelection.selectedPaths,
+    });
+    console.log('📅 schedule:', schedule);
+    console.log('🏠 places:', places);
+    console.log('====================================\n');
+  }, [pathSelection, places, schedule]);
 
   // 백그라운드 위치 추적 태스크 초기화 (앱 시작 시 한 번만)
   React.useEffect(() => {
@@ -592,38 +601,36 @@ const DailyBriefingScreen: React.FC = () => {
 
   // 온보딩에서 설정한 여정들을 요일별로 필터링하여 탭으로 변환
   const journeyTabs = React.useMemo(() => {
+    console.log('\n📱 [journeyTabs] 탭 생성 시작');
+
     if (!pathSelection.journeys || pathSelection.journeys.length === 0) {
-      console.log('🔍 [journeyTabs] No journeys found');
+      console.log('❌ [journeyTabs] 여정 데이터 없음');
       return [];
     }
 
     const currentDay = getCurrentDayOfWeek();
     const scheduledDays = schedule.daysOfWeek || [];
 
-    console.log('🔍 [journeyTabs] currentDay:', currentDay, 'scheduledDays:', scheduledDays);
+    console.log(`📅 [journeyTabs] 현재 요일: ${currentDay}, 예약된 요일: ${JSON.stringify(scheduledDays)}`);
 
     // 오늘 요일이 스케줄에 포함되어 있지 않으면 빈 배열 반환
     if (!scheduledDays.includes(currentDay)) {
-      console.log('🔍 [journeyTabs] Current day not in schedule');
+      console.log('⏭️ [journeyTabs] 오늘은 예약된 여정이 없음');
       return [];
     }
 
     const tabs: Array<{ id: string; label: string; icon: string }> = [];
     const segments = pathSelection.journeys;
 
-    console.log('🔍 [journeyTabs] Creating tabs from', segments.length, 'journeys');
+    console.log(`📊 [journeyTabs] 전체 ${segments.length}개 여정 처리 시작`);
+    console.log('📋 [journeyTabs] 여정 목록:', segments.map(s => ({ id: s.id, name: s.placeName, type: s.type, time: s.time })));
 
     // segments를 2개씩 묶어서 (출발 -> 도착) 여정 그룹으로 변환
     for (let i = 0; i < segments.length; i += 2) {
       const depart = segments[i];
       const arrive = segments[i + 1];
 
-      console.log(`🔍 [journeyTabs] Processing pair ${i}:`, {
-        departId: depart?.id,
-        departType: depart?.type,
-        arriveId: arrive?.id,
-        arriveType: arrive?.type,
-      });
+      console.log(`\n  🔗 쌍 ${Math.floor(i / 2)}: [${depart?.id}(${depart?.type})] -> [${arrive?.id}(${arrive?.type})]`);
 
       if (depart && arrive && depart.type === 'depart' && arrive.type === 'arrive') {
         // 출발지와 도착지 이름 가져오기
@@ -641,16 +648,23 @@ const DailyBriefingScreen: React.FC = () => {
 
         // 여정 라벨: "집->회사" 형식
         const label = `${originName}→${destName}`;
+        const tabId = `${depart.id}|${arrive.id}`;
+
+        console.log(`  ✅ 유효한 여정: "${label}" (ID: ${tabId})`);
 
         tabs.push({
-          id: `${depart.id}|${arrive.id}`, // Use pipe (|) as delimiter to avoid conflicts with hyphenated IDs like "home-depart"
+          id: tabId,
           label,
           icon: depart.placeIcon || '📍',
         });
+      } else {
+        console.log(`  ⚠️ 유효하지 않은 쌍`);
       }
     }
 
-    console.log('🔍 [journeyTabs] Created tabs:', tabs);
+    console.log(`\n✨ [journeyTabs] 최종 탭 생성 완료: ${tabs.length}개`);
+    console.log('📌 탭 목록:', tabs);
+    console.log('');
     return tabs;
   }, [pathSelection.journeys, schedule.daysOfWeek]);
 
@@ -776,49 +790,52 @@ const DailyBriefingScreen: React.FC = () => {
 
   // 선택된 여정의 상세 정보 추출 (출발지/목적지 + 경로 데이터)
   const selectedJourneyInfo = React.useMemo(() => {
-    console.log('🔍 [selectedJourneyInfo] selectedJourneyIndex:', selectedJourneyIndex, 'journeyTabs.length:', journeyTabs.length);
+    console.log(`\n🎯 [selectedJourneyInfo] 선택 여정 정보 계산 시작`);
+    console.log(`   📌 선택 인덱스: ${selectedJourneyIndex}, 전체 탭: ${journeyTabs.length}`);
 
     if (journeyTabs.length === 0 || !pathSelection.journeys || pathSelection.journeys.length === 0) {
-      console.log('🔍 [selectedJourneyInfo] No tabs or journeys available');
+      console.log('❌ [selectedJourneyInfo] 여정 데이터 없음');
       return null;
     }
 
     const selectedTab = journeyTabs[selectedJourneyIndex];
-    console.log('🔍 [selectedJourneyInfo] selectedTab:', selectedTab);
-    if (!selectedTab) return null;
+    console.log(`✅ [selectedJourneyInfo] 선택된 탭: "${selectedTab.label}" (ID: ${selectedTab.id})`);
+    if (!selectedTab) {
+      console.log('❌ [selectedJourneyInfo] 탭을 찾을 수 없음');
+      return null;
+    }
 
     // 선택된 탭의 id에서 depart-id와 arrive-id 추출 (pipe delimiter 사용)
     const [departId, arriveId] = selectedTab.id.split('|');
-    console.log('🔍 [selectedJourneyInfo] departId:', departId, 'arriveId:', arriveId);
+    console.log(`   🔗 분해: departId="${departId}" | arriveId="${arriveId}"`);
 
     // pathSelection.journeys에서 해당 여정 찾기
     const departJourney = pathSelection.journeys.find(j => j.id === departId);
     const arriveJourney = pathSelection.journeys.find(j => j.id === arriveId);
 
-    console.log('🔍 [selectedJourneyInfo] departJourney:', departJourney);
-    console.log('🔍 [selectedJourneyInfo] arriveJourney:', arriveJourney);
+    console.log(`   🏠 출발: ${departJourney?.placeName}(${departId}) @${departJourney?.time}`);
+    console.log(`   🏢 도착: ${arriveJourney?.placeName}(${arriveId})`);
 
     if (!departJourney || !arriveJourney) {
-      console.log('🔍 [selectedJourneyInfo] Could not find depart or arrive journey');
+      console.log('❌ [selectedJourneyInfo] 여정을 찾을 수 없음');
       return null;
     }
 
     // 🆕 저장된 경로 데이터 가져오기 (여정별로 저장된 경로 우선 사용)
-    // GoalTimeScreen에서 저장할 때 journey.id (depart-id)를 키로 사용
+    // GoalTimeScreen에서 저장할 때 여정 키를 사용
     // 여러 키를 시도: journeyKey (depart|arrive), departId, selectedPath (하위 호환성)
     const journeyKey = `${departId}|${arriveId}`;
-    const selectedPath = pathSelection.selectedPaths?.[journeyKey] || 
-                         pathSelection.selectedPaths?.[departId] || 
+    const selectedPath = pathSelection.selectedPaths?.[journeyKey] ||
+                         pathSelection.selectedPaths?.[departId] ||
                          pathSelection.selectedPath;  // 하위 호환성
-    console.log('🔍 [selectedJourneyInfo] selectedPath 조회:', {
-      journeyKey,
-      departId,
-      hasSelectedPaths: !!pathSelection.selectedPaths,
-      pathKeys: pathSelection.selectedPaths ? Object.keys(pathSelection.selectedPaths) : [],
-      foundPath: !!selectedPath,
-      hasSubPath: !!selectedPath?.subPath,
-      subPathLength: selectedPath?.subPath?.length ?? 0,
-    });
+
+    console.log(`\n   🛣️ 경로 데이터 조회:`);
+    console.log(`      저장된 여정 키들: ${JSON.stringify(Object.keys(pathSelection.selectedPaths || {}))}`);
+    console.log(`      조회 시도 순서:`);
+    console.log(`        1️⃣ [${journeyKey}] - ${pathSelection.selectedPaths?.[journeyKey] ? '✅ 발견' : '❌'}`);
+    console.log(`        2️⃣ [${departId}] - ${pathSelection.selectedPaths?.[departId] ? '✅ 발견' : '❌'}`);
+    console.log(`        3️⃣ [selectedPath] 하위호환 - ${pathSelection.selectedPath ? '✅ 발견' : '❌'}`);
+    console.log(`      최종 경로: ${selectedPath ? `✅ 있음 (${selectedPath.subPath?.length ?? 0}개 세그먼트)` : '❌ 없음'}`);
 
     // 🆕 selectedPath 상세 검증
     if (selectedPath) {
@@ -867,7 +884,7 @@ const DailyBriefingScreen: React.FC = () => {
     };
     console.log('🔍 [selectedJourneyInfo] Result:', result);
     return result;
-  }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath]);
+  }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath, pathSelection.selectedPaths]);
 
   // 🆕 실시간 경로 추적 시작 (선택된 여정이 있으면)
   useRealTimeTracking(selectedJourneyInfo?.selectedPath || null, {
