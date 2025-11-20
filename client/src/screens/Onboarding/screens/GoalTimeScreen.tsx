@@ -690,12 +690,27 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
         [journeyId]: routeId,
       }));
       
+      // 🆕 선택된 경로 데이터를 Store에 저장
+      const routes = routesCache[journeyId];
+      if (routes && Array.isArray(routes)) {
+        const selectedRoute = routes.find((r) => r.id === routeId);
+        if (selectedRoute) {
+          console.log('🔍 [GoalTimeScreen] 선택된 경로 데이터 저장:', {
+            journeyId,
+            routeId,
+            hasSubPath: !!selectedRoute.subPath,
+            subPathLength: selectedRoute.subPath?.length ?? 0,
+          });
+          actions.setSelectedPathForJourney(journeyId, selectedRoute);
+        }
+      }
+      
       // 경로 선택 후 해당 여정 창 자동 축소
       if (selectedJourneyId === journeyId) {
         setSelectedJourneyId(null);
       }
     },
-    [selectedJourneyId]
+    [selectedJourneyId, routesCache, actions]
   );
 
   /**

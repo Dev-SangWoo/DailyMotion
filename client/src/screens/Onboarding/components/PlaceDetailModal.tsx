@@ -10,11 +10,12 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Modal, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { Modal, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, View } from 'react-native';
 import styled from 'styled-components/native';
 import { theme } from '../../../styles/theme';
 import { OnboardingButton } from './OnboardingButton';
 import { searchAddress, searchPlace, AddressSearchResult, PlaceSearchResult } from '../../../services/kakaoMapService';
+import { getCurrentLocationWithAddress } from '../../../services/locationService';
 
 /**
  * 통합 검색 결과 타입 (주소 또는 지명)
@@ -125,6 +126,38 @@ const ButtonContainer = styled.View`
   gap: ${theme.spacing.md}px;
 `;
 
+const CurrentLocationButtonContainer = styled.View`
+  margin-bottom: ${theme.spacing.lg}px;
+  flex-direction: row;
+  gap: ${theme.spacing.sm}px;
+`;
+
+const CurrentLocationButton = styled.TouchableOpacity<{ isLoading?: boolean }>`
+  flex: 1;
+  flex-direction: row;
+  padding: ${theme.spacing.md}px;
+  background-color: ${theme.colors.primary};
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  opacity: ${(props) => (props.isLoading ? 0.7 : 1)};
+`;
+
+const CurrentLocationButtonText = styled.Text`
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: ${theme.spacing.xs}px;
+`;
+
+const CurrentLocationIcon = styled.Text`
+  font-size: 16px;
+`;
+
+const LocationLoadingSpinner = styled.ActivityIndicator`
+  margin-right: ${theme.spacing.xs}px;
+`;
+
 /**
  * 검색 결과 리스트 관련 styled components
  */
@@ -204,6 +237,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -312,6 +346,38 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     onCancel();
   }, [onCancel]);
 
+  /**
+   * 현재 위치 사용 버튼 클릭
+   */
+  const handleUseCurrentLocation = useCallback(async () => {
+    try {
+      setIsLocationLoading(true);
+      setError(null);
+
+      console.log('[PlaceDetailModal] 현재 위치 조회 시작...');
+      const locationData = await getCurrentLocationWithAddress();
+
+      console.log('[PlaceDetailModal] 위치 조회 성공:', locationData);
+
+      // 위치 정보를 검색 결과로 변환
+      const locationResult: SearchResult = {
+        type: 'address' as const,
+        address_name: locationData.address,
+        x: locationData.longitude.toString(),
+        y: locationData.latitude.toString(),
+      };
+
+      setSelectedResult(locationResult);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (err: any) {
+      console.error('[PlaceDetailModal] 위치 조회 실패:', err);
+      setError(err.message || '현재 위치를 가져올 수 없습니다.');
+    } finally {
+      setIsLocationLoading(false);
+    }
+  }, []);
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <ModalOverlay>
@@ -341,6 +407,27 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                 </SelectedAddressText>
               </SelectedAddressBox>
             )}
+
+            {/* 현재 위치 사용 버튼 */}
+            <CurrentLocationButtonContainer>
+              <CurrentLocationButton
+                onPress={handleUseCurrentLocation}
+                disabled={isLocationLoading}
+                isLoading={isLocationLoading}
+              >
+                {isLocationLoading ? (
+                  <>
+                    <ActivityIndicator size="small" color="white" />
+                    <CurrentLocationButtonText>위치 조회 중...</CurrentLocationButtonText>
+                  </>
+                ) : (
+                  <>
+                    <CurrentLocationIcon>📍</CurrentLocationIcon>
+                    <CurrentLocationButtonText>내 위치 사용</CurrentLocationButtonText>
+                  </>
+                )}
+              </CurrentLocationButton>
+            </CurrentLocationButtonContainer>
 
             {/* 주소/지명 검색 입력 */}
             <AddressLabel>주소 또는 지명 검색</AddressLabel>

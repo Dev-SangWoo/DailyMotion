@@ -46,8 +46,8 @@ export interface OnboardingState {
       type: 'depart' | 'arrive';
       time: string;
     }>;
-    // 🆕 선택된 경로의 ODSAY 세부 정보
-    selectedPath?: {
+    // 🆕 선택된 경로의 ODSAY 세부 정보 (각 여정별로 저장)
+    selectedPaths?: Record<string, {  // journeyId -> 경로 데이터
       id?: string;              // RecommendedRoute.id
       pathId?: string;
       totalTime?: number;        // 초 단위
@@ -80,6 +80,17 @@ export interface OnboardingState {
         endTime?: string;
         [key: string]: any;     // 기타 필드
       }>;
+    }>;
+    // 🆕 하위 호환성을 위한 단일 경로 (deprecated, selectedPaths 사용 권장)
+    selectedPath?: {
+      id?: string;
+      pathId?: string;
+      totalTime?: number;
+      totalDistance?: number;
+      transferCount?: number;
+      fare?: number | null;
+      segments?: Array<any>;
+      subPath?: Array<any>;
     };
   };
 
@@ -130,23 +141,8 @@ export interface OnboardingState {
       type: 'depart' | 'arrive';
       time: string;
     }>) => void;
-    setSelectedPath: (path: {
-      pathId: string;
-      totalTime: number;
-      totalDistance: number;
-      transferCount: number;
-      fare: number | null;
-      segments: Array<{
-        type: string;
-        line: string;
-        direction?: string;
-        startStation: string;
-        endStation: string;
-        startTime: string;
-        endTime: string;
-        duration: number;
-      }>;
-    }) => void;
+    setSelectedPath: (path: any) => void;  // 하위 호환성 유지
+    setSelectedPathForJourney: (journeyId: string, path: any) => void;  // 🆕 여정별 경로 저장
 
     // 목표 시간
     updateArrivalTime: (time: string) => void;
@@ -288,8 +284,25 @@ export const useOnboardingStore = create<OnboardingState>()(
         },
 
         setSelectedPath: (path: any) => {
-          console.log('🔍 [useOnboardingStore] setSelectedPath 호출됨:', {
+          // 하위 호환성: 단일 경로 저장 (deprecated)
+          console.log('🔍 [useOnboardingStore] setSelectedPath 호출됨 (deprecated):', {
             id: path.id,
+            totalTime: path.totalTime,
+            subPathCount: path.subPath?.length ?? 0,
+          });
+
+          set((state) => ({
+            pathSelection: {
+              ...state.pathSelection,
+              selectedPath: path,
+            },
+          }));
+        },
+
+        setSelectedPathForJourney: (journeyId: string, path: any) => {
+          console.log('🔍 [useOnboardingStore] setSelectedPathForJourney 호출됨:', {
+            journeyId,
+            pathId: path.id,
             totalTime: path.totalTime,
             subPathCount: path.subPath?.length ?? 0,
             hasSubPath: !!path.subPath,
@@ -309,14 +322,21 @@ export const useOnboardingStore = create<OnboardingState>()(
           set((state) => ({
             pathSelection: {
               ...state.pathSelection,
+              selectedPaths: {
+                ...(state.pathSelection.selectedPaths || {}),
+                [journeyId]: path,
+              },
+              // 하위 호환성: 마지막 선택된 경로도 selectedPath에 저장
               selectedPath: path,
             },
           }));
 
           // 🆕 저장 후 검증
           const storeState = get();
-          const savedPath = storeState.pathSelection.selectedPath;
+          const savedPaths = storeState.pathSelection.selectedPaths;
+          const savedPath = savedPaths?.[journeyId];
           console.log('🔍 [useOnboardingStore] 저장된 경로 검증:', {
+            journeyId,
             savedId: savedPath?.id,
             savedSubPathCount: savedPath?.subPath?.length ?? 0,
             saved: !!savedPath,
@@ -324,7 +344,7 @@ export const useOnboardingStore = create<OnboardingState>()(
           if (savedPath?.subPath?.length) {
             console.log('🔍 [useOnboardingStore] 저장된 subPath:', JSON.stringify(savedPath.subPath, null, 2));
           }
-          console.log('🔍 [useOnboardingStore] setSelectedPath 저장 완료');
+          console.log('🔍 [useOnboardingStore] setSelectedPathForJourney 저장 완료');
         },
 
         // 목표 시간

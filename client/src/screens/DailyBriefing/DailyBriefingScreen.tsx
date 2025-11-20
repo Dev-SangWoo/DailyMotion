@@ -715,9 +715,22 @@ const DailyBriefingScreen: React.FC = () => {
       return null;
     }
 
-    // 🆕 저장된 경로 데이터 가져오기
-    const selectedPath = pathSelection.selectedPath;
-    console.log('🔍 [selectedJourneyInfo] selectedPath:', selectedPath);
+    // 🆕 저장된 경로 데이터 가져오기 (여정별로 저장된 경로 우선 사용)
+    // GoalTimeScreen에서 저장할 때 journey.id (depart-id)를 키로 사용
+    // 여러 키를 시도: journeyKey (depart|arrive), departId, selectedPath (하위 호환성)
+    const journeyKey = `${departId}|${arriveId}`;
+    const selectedPath = pathSelection.selectedPaths?.[journeyKey] || 
+                         pathSelection.selectedPaths?.[departId] || 
+                         pathSelection.selectedPath;  // 하위 호환성
+    console.log('🔍 [selectedJourneyInfo] selectedPath 조회:', {
+      journeyKey,
+      departId,
+      hasSelectedPaths: !!pathSelection.selectedPaths,
+      pathKeys: pathSelection.selectedPaths ? Object.keys(pathSelection.selectedPaths) : [],
+      foundPath: !!selectedPath,
+      hasSubPath: !!selectedPath?.subPath,
+      subPathLength: selectedPath?.subPath?.length ?? 0,
+    });
 
     // 🆕 selectedPath 상세 검증
     if (selectedPath) {
@@ -1196,22 +1209,75 @@ const DailyBriefingScreen: React.FC = () => {
                       });
 
                       const type = trafficTypeMap[segment.trafficType] || 'OTHER';
-                      const duration = segment.sectionTime ? Math.round(segment.sectionTime / 60) : 0;
-
-                      // 노선 정보 추출
-                      let lineName = '';
-                      if (segment.lane && Array.isArray(segment.lane) && segment.lane.length > 0) {
-                        const laneInfo = segment.lane[0];
-                        lineName = laneInfo.subwayName || laneInfo.busNo || '';
+                      
+                      // 시간 변환: sectionTime은 초 단위이므로 분으로 변환
+                      // parseSegments 함수와 동일한 로직 사용
+                      let duration = 0;
+                      if (segment.sectionTime) {
+                        // sectionTime이 초 단위인지 분 단위인지 확인
+                        // ODSAY API 문서에 따르면 sectionTime은 초 단위
+                        // 하지만 값이 작으면(예: 5, 31) 이미 분 단위일 수도 있음
+                        // 일반적으로 버스/지하철은 30분 이상이므로, 60보다 작으면 분 단위로 간주
+                        if (segment.sectionTime < 60) {
+                          // 이미 분 단위로 추정
+                          duration = Math.round(segment.sectionTime);
+                        } else {
+                          // 초 단위로 추정 (분으로 변환)
+                          const minutes = segment.sectionTime / 60;
+                          duration = Math.round(minutes);
+                        }
+                        // 최소 1분 표시 (0분이면 표시되지 않음)
+                        if (duration === 0 && segment.sectionTime > 0) {
+                          duration = 1;
+                        }
                       }
 
-                      console.log(`🔍 [DailyBriefing] Processed segment ${idx}: type=${type}, duration=${duration}, lineName=${lineName}`);
+                      // 노선 정보 추출 및 제목 생성
+                      let title = '';
+                      if (type === 'WALK') {
+                        title = '도보';
+                      } else if (type === 'BUS') {
+                        if (segment.lane && Array.isArray(segment.lane) && segment.lane.length > 0) {
+                          const busNo = segment.lane[0].busNo;
+                          title = busNo ? `${busNo}번 버스` : '버스';
+                        } else {
+                          title = '버스';
+                        }
+                      } else if (type === 'SUBWAY') {
+                        if (segment.lane && Array.isArray(segment.lane) && segment.lane.length > 0) {
+                          const subwayName = segment.lane[0].subwayName;
+                          title = subwayName ? `${subwayName}` : '지하철';
+                        } else {
+                          title = '지하철';
+                        }
+                      } else {
+                        title = type;
+                      }
 
-                      // 도보도 항상 표시 (duration이 0이어도)
+                      // 설명 생성 (startName과 endName이 있을 때만)
+                      let description = '';
+                      if (segment.startName && segment.endName) {
+                        description = `${segment.startName} → ${segment.endName}`;
+                      } else if (segment.startName) {
+                        description = `${segment.startName}에서 출발`;
+                      } else if (segment.endName) {
+                        description = `${segment.endName}까지`;
+                      } else {
+                        description = type === 'WALK' ? '도보 이동' : '대중교통 이용';
+                      }
+
+                      // 버스의 경우 정류장 개수 정보 추가
+                      if (type === 'BUS' && segment.stationCount) {
+                        description += ` (${segment.stationCount}개 정류장)`;
+                      }
+
+                      console.log(`🔍 [DailyBriefing] Processed segment ${idx}: type=${type}, duration=${duration}, title=${title}`);
+
+                      // 모든 세그먼트 표시 (duration이 0이어도)
                       steps.push({
                         icon: getSegmentIcon(type),
-                        title: `${lineName || type}`,
-                        description: `${segment.startName} → ${segment.endName}`,
+                        title: title,
+                        description: description,
                         duration: duration,
                         type: type,
                       });
@@ -1250,12 +1316,18 @@ const DailyBriefingScreen: React.FC = () => {
                       <StepTitle>{step.title}</StepTitle>
                       <StepDescription>{step.description}</StepDescription>
                     </StepContentBox>
-                    {step.duration > 0 && (
+                    {step.duration > 0 ? (
                       <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
                         <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>{step.duration}</CardTitle>
                         <StepDescription>분</StepDescription>
                       </View>
-                    )}
+                    ) : step.type === 'WALK' ? (
+                      // 도보는 시간이 짧아도 표시
+                      <View style={{ justifyContent: 'center', alignItems: 'center', minWidth: 50 }}>
+                        <CardTitle style={{ fontSize: 24, color: '#0066FF' }}>1</CardTitle>
+                        <StepDescription>분</StepDescription>
+                      </View>
+                    ) : null}
                   </StepItem>
                   ));
                 })()
