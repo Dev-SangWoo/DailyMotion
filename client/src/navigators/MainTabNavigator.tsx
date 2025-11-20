@@ -13,8 +13,8 @@ import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { theme } from '../styles/theme';
 
-// 스크린 import
-import HomeScreen from '../screens/Home/HomeScreen';
+// 스크린 & 네비게이터 import
+import HomeNavigator from '../screens/Home/HomeNavigator';
 import SafetyGuardScreen from '../screens/SafetyGuard/SafetyGuardScreen';
 import RiskReportScreen from '../screens/RiskReport/RiskReportScreen';
 import NewJourneyScreen from '../screens/NewJourney/NewJourneyScreen';
@@ -59,7 +59,7 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeNavigator}
         options={{
           title: '홈',
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,

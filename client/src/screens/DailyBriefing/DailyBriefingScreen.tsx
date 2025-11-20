@@ -15,6 +15,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScrollView, TouchableOpacity, View, TextInput, Dimensions, Image, Animated } from 'react-native';
 import styled from 'styled-components/native';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import apiClient from '../../services/api';
 import { theme } from '../../styles/theme';
 import { useJourneySelectorStore } from '../../stores/useJourneySelectorStore';
@@ -519,6 +521,8 @@ interface CommuteBriefingResponse {
 }
 
 const DailyBriefingScreen: React.FC = () => {
+  const navigation = useNavigation<StackNavigationProp<any>>();
+
   // Phase 8.0: 로컬 상태 관리 (IntelligentDashboard 패턴)
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isSearchBarExpanded, setIsSearchBarExpanded] = useState(false);
@@ -564,6 +568,150 @@ const DailyBriefingScreen: React.FC = () => {
   const trackingState = useTrackingState();
   const trackingActions = useTrackingActions();
 
+  // 🎭 발표용 목업 데이터 생성 함수들
+  const createMockJourneys = () => {
+    return [
+      {
+        id: 'mock-depart-home',
+        placeId: 'home',
+        placeName: '집',
+        placeIcon: '🏠',
+        placeAddress: '고암길 251',
+        placeX: '127.072042',
+        placeY: '37.837996',
+        type: 'depart' as const,
+        time: '09:00',
+      },
+      {
+        id: 'mock-arrive-work',
+        placeId: 'work',
+        placeName: '회사',
+        placeIcon: '🏢',
+        placeAddress: '의정부 CGV',
+        placeX: '127.045076',
+        placeY: '37.774827',
+        type: 'arrive' as const,
+        time: '10:00',
+      },
+      {
+        id: 'mock-depart-work',
+        placeId: 'work',
+        placeName: '회사',
+        placeIcon: '🏢',
+        placeAddress: '의정부 CGV',
+        placeX: '127.045076',
+        placeY: '37.774827',
+        type: 'depart' as const,
+        time: '18:00',
+      },
+      {
+        id: 'mock-arrive-home',
+        placeId: 'home',
+        placeName: '집',
+        placeIcon: '🏠',
+        placeAddress: '고암길 251',
+        placeX: '127.072042',
+        placeY: '37.837996',
+        type: 'arrive' as const,
+        time: '19:00',
+      },
+    ];
+  };
+
+  const createMockPath = (isHomeToWork: boolean) => {
+    // 집->회사: 도보 -> 버스 -> 도보
+    // 회사->집: 도보 -> 지하철 -> 도보
+    if (isHomeToWork) {
+      return {
+        id: 'mock-path-home-work',
+        totalTime: 3600, // 60분
+        totalTimeMinutes: 60,
+        totalDistance: 15000, // 15km
+        totalDistanceKm: '15.0',
+        transferCount: 0,
+        fare: 1500,
+        subPath: [
+          {
+            trafficType: 3, // 도보
+            distance: 500,
+            sectionTime: 360, // 6분
+            startName: '고암길 251',
+            endName: '덕정고.한국병원',
+          },
+          {
+            trafficType: 2, // 버스
+            distance: 14000,
+            sectionTime: 3000, // 50분
+            stationCount: 30,
+            lane: [{ busNo: '80', type: 1 }],
+            startName: '덕정고.한국병원',
+            endName: '의정부 CGV',
+          },
+          {
+            trafficType: 3, // 도보
+            distance: 500,
+            sectionTime: 240, // 4분
+            startName: '의정부 CGV',
+            endName: '의정부 CGV',
+          },
+        ],
+      };
+    } else {
+      return {
+        id: 'mock-path-work-home',
+        totalTime: 3300, // 55분
+        totalTimeMinutes: 55,
+        totalDistance: 14000, // 14km
+        totalDistanceKm: '14.0',
+        transferCount: 0,
+        fare: 1500,
+        subPath: [
+          {
+            trafficType: 3, // 도보
+            distance: 400,
+            sectionTime: 300, // 5분
+            startName: '의정부 CGV',
+            endName: '의정부역',
+          },
+          {
+            trafficType: 1, // 지하철
+            distance: 13000,
+            sectionTime: 2700, // 45분
+            stationCount: 20,
+            lane: [{ subwayName: '1호선', subwayCode: 1 }],
+            startName: '의정부역',
+            endName: '덕정역',
+          },
+          {
+            trafficType: 3, // 도보
+            distance: 600,
+            sectionTime: 300, // 5분
+            startName: '덕정역',
+            endName: '고암길 251',
+          },
+        ],
+      };
+    }
+  };
+
+  const createMockJourneyTabs = () => {
+    return [
+      {
+        id: 'mock-depart-home|mock-arrive-work',
+        label: '집→회사',
+        icon: '🏠',
+      },
+      {
+        id: 'mock-depart-work|mock-arrive-home',
+        label: '회사→집',
+        icon: '🏢',
+      },
+    ];
+  };
+
+  // 🎭 발표용 목업 데이터 사용 여부 결정
+  const USE_MOCK_DATA = true; // 발표용: true, 실제 사용: false
+
   // 🐛 DEBUG: 온보딩 데이터 전체 확인
   React.useEffect(() => {
     console.log('\n=== 🔍 데일리브리핑 온보딩 데이터 디버그 ===');
@@ -603,7 +751,11 @@ const DailyBriefingScreen: React.FC = () => {
   const journeyTabs = React.useMemo(() => {
     console.log('\n📱 [journeyTabs] 탭 생성 시작');
 
-    if (!pathSelection.journeys || pathSelection.journeys.length === 0) {
+    const journeysToUse = USE_MOCK_DATA && (!pathSelection.journeys || pathSelection.journeys.length === 0)
+      ? createMockJourneys()
+      : pathSelection.journeys;
+
+    if (!journeysToUse || journeysToUse.length === 0) {
       console.log('❌ [journeyTabs] 여정 데이터 없음');
       return [];
     }
@@ -613,14 +765,15 @@ const DailyBriefingScreen: React.FC = () => {
 
     console.log(`📅 [journeyTabs] 현재 요일: ${currentDay}, 예약된 요일: ${JSON.stringify(scheduledDays)}`);
 
+    // 🎭 목업 데이터 사용 시 스케줄 체크 건너뛰기
     // 오늘 요일이 스케줄에 포함되어 있지 않으면 빈 배열 반환
-    if (!scheduledDays.includes(currentDay)) {
+    if (!USE_MOCK_DATA && !scheduledDays.includes(currentDay)) {
       console.log('⏭️ [journeyTabs] 오늘은 예약된 여정이 없음');
       return [];
     }
 
     const tabs: Array<{ id: string; label: string; icon: string }> = [];
-    const segments = pathSelection.journeys;
+    const segments = journeysToUse;
 
     console.log(`📊 [journeyTabs] 전체 ${segments.length}개 여정 처리 시작`);
     console.log('📋 [journeyTabs] 여정 목록:', segments.map(s => ({ id: s.id, name: s.placeName, type: s.type, time: s.time })));
@@ -666,7 +819,7 @@ const DailyBriefingScreen: React.FC = () => {
     console.log('📌 탭 목록:', tabs);
     console.log('');
     return tabs;
-  }, [pathSelection.journeys, schedule.daysOfWeek]);
+  }, [pathSelection.journeys, schedule.daysOfWeek, USE_MOCK_DATA]);
 
   // 즐겨찾기 목록: 온보딩에서 설정한 장소들 (집 주소 + 자주 가는 장소들)
   const favorites = React.useMemo(() => {
@@ -791,14 +944,25 @@ const DailyBriefingScreen: React.FC = () => {
   // 선택된 여정의 상세 정보 추출 (출발지/목적지 + 경로 데이터)
   const selectedJourneyInfo = React.useMemo(() => {
     console.log(`\n🎯 [selectedJourneyInfo] 선택 여정 정보 계산 시작`);
-    console.log(`   📌 선택 인덱스: ${selectedJourneyIndex}, 전체 탭: ${journeyTabs.length}`);
+    const tabsToUseForLog = USE_MOCK_DATA && journeyTabs.length === 0
+      ? createMockJourneyTabs()
+      : journeyTabs;
+    console.log(`   📌 선택 인덱스: ${selectedJourneyIndex}, 전체 탭: ${tabsToUseForLog.length}`);
 
-    if (journeyTabs.length === 0 || !pathSelection.journeys || pathSelection.journeys.length === 0) {
+    const journeysToUse = USE_MOCK_DATA && (!pathSelection.journeys || pathSelection.journeys.length === 0)
+      ? createMockJourneys()
+      : pathSelection.journeys;
+
+    const tabsToUse = USE_MOCK_DATA && journeyTabs.length === 0
+      ? createMockJourneyTabs()
+      : journeyTabs;
+
+    if (tabsToUse.length === 0 || !journeysToUse || journeysToUse.length === 0) {
       console.log('❌ [selectedJourneyInfo] 여정 데이터 없음');
       return null;
     }
 
-    const selectedTab = journeyTabs[selectedJourneyIndex];
+    const selectedTab = tabsToUse[selectedJourneyIndex];
     console.log(`✅ [selectedJourneyInfo] 선택된 탭: "${selectedTab.label}" (ID: ${selectedTab.id})`);
     if (!selectedTab) {
       console.log('❌ [selectedJourneyInfo] 탭을 찾을 수 없음');
@@ -809,9 +973,9 @@ const DailyBriefingScreen: React.FC = () => {
     const [departId, arriveId] = selectedTab.id.split('|');
     console.log(`   🔗 분해: departId="${departId}" | arriveId="${arriveId}"`);
 
-    // pathSelection.journeys에서 해당 여정 찾기
-    const departJourney = pathSelection.journeys.find(j => j.id === departId);
-    const arriveJourney = pathSelection.journeys.find(j => j.id === arriveId);
+    // journeysToUse에서 해당 여정 찾기
+    const departJourney = journeysToUse.find(j => j.id === departId);
+    const arriveJourney = journeysToUse.find(j => j.id === arriveId);
 
     console.log(`   🏠 출발: ${departJourney?.placeName}(${departId}) @${departJourney?.time}`);
     console.log(`   🏢 도착: ${arriveJourney?.placeName}(${arriveId})`);
@@ -825,15 +989,19 @@ const DailyBriefingScreen: React.FC = () => {
     // GoalTimeScreen에서 저장할 때 여정 키를 사용
     // 여러 키를 시도: journeyKey (depart|arrive), departId, selectedPath (하위 호환성)
     const journeyKey = `${departId}|${arriveId}`;
-    const selectedPath = pathSelection.selectedPaths?.[journeyKey] ||
-                         pathSelection.selectedPaths?.[departId] ||
+    const selectedPathsToUse = USE_MOCK_DATA && (!pathSelection.selectedPaths || Object.keys(pathSelection.selectedPaths).length === 0)
+      ? mockSelectedPaths
+      : pathSelection.selectedPaths || {};
+    
+    const selectedPath = selectedPathsToUse[journeyKey] ||
+                         selectedPathsToUse[departId] ||
                          pathSelection.selectedPath;  // 하위 호환성
 
     console.log(`\n   🛣️ 경로 데이터 조회:`);
-    console.log(`      저장된 여정 키들: ${JSON.stringify(Object.keys(pathSelection.selectedPaths || {}))}`);
+    console.log(`      저장된 여정 키들: ${JSON.stringify(Object.keys(selectedPathsToUse))}`);
     console.log(`      조회 시도 순서:`);
-    console.log(`        1️⃣ [${journeyKey}] - ${pathSelection.selectedPaths?.[journeyKey] ? '✅ 발견' : '❌'}`);
-    console.log(`        2️⃣ [${departId}] - ${pathSelection.selectedPaths?.[departId] ? '✅ 발견' : '❌'}`);
+    console.log(`        1️⃣ [${journeyKey}] - ${selectedPathsToUse[journeyKey] ? '✅ 발견' : '❌'}`);
+    console.log(`        2️⃣ [${departId}] - ${selectedPathsToUse[departId] ? '✅ 발견' : '❌'}`);
     console.log(`        3️⃣ [selectedPath] 하위호환 - ${pathSelection.selectedPath ? '✅ 발견' : '❌'}`);
     console.log(`      최종 경로: ${selectedPath ? `✅ 있음 (${selectedPath.subPath?.length ?? 0}개 세그먼트)` : '❌ 없음'}`);
 
@@ -884,7 +1052,51 @@ const DailyBriefingScreen: React.FC = () => {
     };
     console.log('🔍 [selectedJourneyInfo] Result:', result);
     return result;
-  }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath, pathSelection.selectedPaths]);
+  }, [selectedJourneyIndex, journeyTabs, pathSelection.journeys, pathSelection.selectedPath, pathSelection.selectedPaths, USE_MOCK_DATA]);
+
+  // 🎭 목업 데이터 변수들 (selectedJourneyInfo 이후)
+  const mockSelectedPaths: Record<string, any> = USE_MOCK_DATA && (!pathSelection.selectedPaths || Object.keys(pathSelection.selectedPaths).length === 0)
+    ? {
+        'mock-depart-home|mock-arrive-work': createMockPath(true),
+        'mock-depart-work|mock-arrive-home': createMockPath(false),
+      }
+    : pathSelection.selectedPaths || {};
+
+  const createMockTrackingState = (): any => {
+    if (!selectedJourneyInfo?.selectedPath?.subPath) return null;
+    
+    const subPath = selectedJourneyInfo.selectedPath.subPath;
+    // 첫 번째 세그먼트가 도보인 경우를 가정
+    const firstSegment = subPath[0];
+    const isWalking = firstSegment?.trafficType === 3;
+    
+    // 목업 GPS 좌표 (서울 강남역 근처)
+    const mockLocation = {
+      latitude: 37.4979,
+      longitude: 127.0276,
+      timestamp: Date.now(),
+      accuracy: 10,
+    };
+    
+    return {
+      status: isWalking ? 'walking' : 'on_transit',
+      currentSegmentIndex: 0,
+      currentLocation: mockLocation,
+      distanceToNextStop: isWalking ? 250 : 1200, // 미터
+      estimatedTimeToNextStop: isWalking ? 180 : 300, // 초
+      movementSpeed: isWalking ? 4.3 : 54, // km/h
+      isOnRoute: true,
+      message: isWalking ? '도보로 이동 중' : '버스 탑승 중',
+    };
+  };
+
+  const displayTrackingState = USE_MOCK_DATA && !trackingState 
+    ? createMockTrackingState() 
+    : trackingState;
+
+  const mockJourneyTabs = USE_MOCK_DATA && journeyTabs.length === 0
+    ? createMockJourneyTabs()
+    : journeyTabs;
 
   // 🆕 실시간 경로 추적 시작 (선택된 여정이 있으면)
   useRealTimeTracking((selectedJourneyInfo?.selectedPath as any) || null, {
@@ -943,6 +1155,44 @@ const DailyBriefingScreen: React.FC = () => {
     console.log('위험 확인 버튼 클릭');
   };
 
+  // 🆕 CTA 카드 핸들러들
+  const handleDepartureCardPress = () => {
+    // 파란색 출발 카드: 실시간 경로 추적 맵 화면으로 이동
+    if (selectedJourneyInfo?.selectedPath) {
+      navigation.navigate('RealtimeNavigation', {
+        originName: selectedJourneyInfo.originName,
+        destinationName: selectedJourneyInfo.destinationName,
+        selectedPath: selectedJourneyInfo.selectedPath,
+      });
+    } else {
+      console.warn('[DailyBriefingScreen] 선택된 경로가 없습니다');
+    }
+  };
+
+  const handleHazardCardPress = () => {
+    // 빨간색 위험 카드: SafetyGuard 화면으로 이동
+    navigation.navigate('SafetyGuard');
+  };
+
+  const handleWeatherCardPress = () => {
+    // 파란색 날씨 카드: 날씨 상세 정보 모달 표시
+    navigation.navigate('WeatherDetail');
+  };
+
+  const handleTrafficCardPress = () => {
+    // 보라색 교통 카드: 대체 경로 모달 표시
+    if (selectedJourneyInfo?.selectedPath) {
+      navigation.navigate('AlternativeRoutes', {
+        currentRouteDuration: selectedJourneyInfo.estimatedDurationMinutes,
+        currentRouteDistance: selectedJourneyInfo.selectedPath.totalDistanceKm
+          ? parseFloat(selectedJourneyInfo.selectedPath.totalDistanceKm)
+          : selectedJourneyInfo.selectedPath.totalDistance / 1000,
+      });
+    } else {
+      console.warn('[DailyBriefingScreen] 선택된 경로가 없습니다');
+    }
+  };
+
   // 🆕 세그먼트 타입에 따른 아이콘 반환
   const getSegmentIcon = (segmentType: string): string => {
     const typeMap: Record<string, string> = {
@@ -970,12 +1220,12 @@ const DailyBriefingScreen: React.FC = () => {
 
   // 🆕 현재 세그먼트 정보 가져오기
   const getCurrentSegmentInfo = () => {
-    if (!selectedJourneyInfo?.selectedPath?.subPath || !trackingState) {
+    if (!selectedJourneyInfo?.selectedPath?.subPath || !displayTrackingState) {
       return null;
     }
 
     const subPath = selectedJourneyInfo.selectedPath.subPath;
-    const currentSegmentIdx = trackingState.currentSegmentIndex;
+    const currentSegmentIdx = displayTrackingState.currentSegmentIndex;
 
     if (currentSegmentIdx >= subPath.length) {
       return null;
@@ -1006,12 +1256,12 @@ const DailyBriefingScreen: React.FC = () => {
 
   // 🆕 다음 정류장 정보 가져오기
   const getNextStopInfo = () => {
-    if (!selectedJourneyInfo?.selectedPath?.subPath || !trackingState) {
+    if (!selectedJourneyInfo?.selectedPath?.subPath || !displayTrackingState) {
       return null;
     }
 
     const subPath = selectedJourneyInfo.selectedPath.subPath;
-    const currentSegmentIdx = trackingState.currentSegmentIndex;
+    const currentSegmentIdx = displayTrackingState.currentSegmentIndex;
     const nextSegmentIdx = currentSegmentIdx + 1;
 
     if (nextSegmentIdx >= subPath.length) {
@@ -1085,7 +1335,7 @@ const DailyBriefingScreen: React.FC = () => {
 
   // 🆕 현재 이동 상태에 따른 메시지 생성
   const getMovementStatusMessage = (): string => {
-    if (!trackingState) {
+    if (!displayTrackingState) {
       return '준비 중...';
     }
 
@@ -1096,7 +1346,7 @@ const DailyBriefingScreen: React.FC = () => {
         // WALK - 도보로 이동 중
         const nextStopInfo = getNextStopInfo();
         if (nextStopInfo && !nextStopInfo.isDestination) {
-          return `도보로 ${formatTime(trackingState.estimatedTimeToNextStop)} 이동!`;
+          return `도보로 ${formatTime(displayTrackingState.estimatedTimeToNextStop)} 이동!`;
         }
         return '도보로 이동 중...';
       } else if (currentSegmentInfo.trafficType === 2) {
@@ -1112,12 +1362,13 @@ const DailyBriefingScreen: React.FC = () => {
       'on_transit': '🚌 이동 중',
       'waiting_at_stop': '⏱️ 정류장 대기',
       'boarding': '🚶 도보 이동',
+      'walking': '🚶 도보 이동',
       'route_deviation': '⚠️ 경로 이탈',
       'destination_reached': '🎉 목적지 도착',
       'idle': '준비 중...',
     };
 
-    return statusMap[trackingState.status] || '이동 중';
+    return statusMap[displayTrackingState.status] || '이동 중';
   };
 
   // 로딩 상태
@@ -1304,8 +1555,8 @@ const DailyBriefingScreen: React.FC = () => {
           </SearchBarContainer>
 
           {/* 🆕 Phase 8.1.5: 실시간 경로 추적 카드 */}
-          {trackingState && (
-            <RealtimeTrackingCard trackingState={trackingState} />
+          {displayTrackingState && (
+            <RealtimeTrackingCard trackingState={displayTrackingState} />
           )}
 
           {/* Phase 8.2: CTA Cards Carousel (그래디언트 카드) */}
@@ -1323,16 +1574,38 @@ const DailyBriefingScreen: React.FC = () => {
             }}
             testID="cta-carousel"
           >
-            {cards.map((card) => (
+            {cards.map((card) => {
+              // CTA 카드별 onPress 핸들러 선택
+              const getCardPressHandler = () => {
+                switch (card.id) {
+                  case 'departure':
+                    return handleDepartureCardPress;
+                  case 'hazard':
+                    return handleHazardCardPress;
+                  case 'weather':
+                    return handleWeatherCardPress;
+                  case 'traffic':
+                    return handleTrafficCardPress;
+                  default:
+                    return () => {};
+                }
+              };
+
+              return (
               <View key={card.id} style={{ width: cardWidth }}>
-                <CardBase bgGradient={card.bgGradient}>
+                <TouchableOpacity
+                  onPress={getCardPressHandler()}
+                  activeOpacity={0.85}
+                  style={{ flex: 1 }}
+                >
+                  <CardBase bgGradient={card.bgGradient}>
                   {card.id === 'departure' ? (
                     /* 리디자인: 두 구간 레이아웃 */
                     <DepartureCardContainer>
                       {/* 왼쪽 구간: 현재 이동 정보 (실시간 추적 데이터) */}
                       <CurrentMovementSection>
                         <View>
-                          <SectionTitle>{trackingState ? '현재 이동 중' : '경로 준비 중'}</SectionTitle>
+                          <SectionTitle>{displayTrackingState ? '현재 이동 중' : '경로 준비 중'}</SectionTitle>
                           <CurrentLocationInfo>
                             <CurrentLocationName>
                               {trackingState && getCurrentSegmentInfo()
@@ -1349,23 +1622,23 @@ const DailyBriefingScreen: React.FC = () => {
                                 : '준비 중...'}
                             </CurrentLocationName>
                             <CurrentLocationDetail>
-                              {trackingState ? getMovementStatusMessage() : '데이터 없음'}
+                              {displayTrackingState ? getMovementStatusMessage() : '데이터 없음'}
                             </CurrentLocationDetail>
                           </CurrentLocationInfo>
 
                           <TransferInfo>
                             <TransferLabel>
-                              {trackingState && getCurrentSegmentInfo()?.trafficType === 3
+                              {displayTrackingState && getCurrentSegmentInfo()?.trafficType === 3
                                 ? '도착까지'
                                 : '다음 정류장까지'}
                             </TransferLabel>
                             <TransferTime>
-                              {trackingState
-                                ? formatTime(trackingState.estimatedTimeToNextStop)
+                              {displayTrackingState
+                                ? formatTime(displayTrackingState.estimatedTimeToNextStop)
                                 : '--'}
                             </TransferTime>
                             <TransferDestination>
-                              {trackingState && getNextStopInfo()
+                              {displayTrackingState && getNextStopInfo()
                                 ? getNextStopInfo()?.stopName || '도착지'
                                 : '경로 준비 중'}
                             </TransferDestination>
@@ -1374,14 +1647,14 @@ const DailyBriefingScreen: React.FC = () => {
 
                         {/* 하단: 현재 상태 표시 */}
                         <View>
-                          {trackingState && getCurrentSegmentInfo()?.trafficType !== 3 && (
+                          {displayTrackingState && getCurrentSegmentInfo()?.trafficType !== 3 && (
                             <CurrentLocationDetail>
                               {`경유 정류장: ${getCurrentSegmentInfo()?.currentStopIndex || 0}/${
                                 getCurrentSegmentInfo()?.totalStops || 0
                               }`}
                             </CurrentLocationDetail>
                           )}
-                          {trackingState && !trackingState.isOnRoute && (
+                          {displayTrackingState && !displayTrackingState.isOnRoute && (
                             <CurrentLocationDetail style={{ color: '#F44336', marginTop: 4 }}>
                               ⚠️ 경로에서 벗어났습니다
                             </CurrentLocationDetail>
@@ -1393,15 +1666,15 @@ const DailyBriefingScreen: React.FC = () => {
                       <NextStopSection>
                         <View>
                           <SectionTitle>
-                            {trackingState && getNextStopInfo()?.isDestination
+                            {displayTrackingState && getNextStopInfo()?.isDestination
                               ? '최종 목적지'
-                              : trackingState && getCurrentSegmentInfo()?.trafficType === 3
+                              : displayTrackingState && getCurrentSegmentInfo()?.trafficType === 3
                               ? '다음 탑승'
                               : '다음 경유지'}
                           </SectionTitle>
                           <NextStopInfo>
                             <NextStopName>
-                              {trackingState && getNextStopInfo()
+                              {displayTrackingState && getNextStopInfo()
                                 ? getNextStopInfo()?.stopName || '도착지'
                                 : '경로 준비 중'}
                             </NextStopName>
@@ -1412,7 +1685,7 @@ const DailyBriefingScreen: React.FC = () => {
                                 
                                 // 최종 목적지까지 도보인 경우
                                 if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
-                                  return `${selectedJourneyInfo?.destinationName || '목적지'}까지 도보 ${formatTime(trackingState?.estimatedTimeToNextStop || 0)} 이동!`;
+                                  return `${selectedJourneyInfo?.destinationName || '목적지'}까지 도보 ${formatTime(displayTrackingState?.estimatedTimeToNextStop || 0)} 이동!`;
                                 }
                                 
                                 // 다음 세그먼트가 버스/지하철인 경우
@@ -1430,7 +1703,7 @@ const DailyBriefingScreen: React.FC = () => {
 
                           <NextTransportBox>
                             <NextTransportLabel>
-                              {trackingState
+                              {displayTrackingState
                                 ? getNextStopInfo()?.isDestination
                                   ? '최종 목적지'
                                   : '다음 탑승'
@@ -1468,8 +1741,8 @@ const DailyBriefingScreen: React.FC = () => {
                                 }
                                 
                                 // 다음 세그먼트가 버스/지하철인 경우 - 실시간 도착 정보 표시
-                                if (nextStop && !nextStop.isDestination && trackingState) {
-                                  return `${formatTime(trackingState.estimatedTimeToNextStop)} 후 도착`;
+                                if (nextStop && !nextStop.isDestination && displayTrackingState) {
+                                  return `${formatTime(displayTrackingState.estimatedTimeToNextStop)} 후 도착`;
                                 }
                                 
                                 return '--';
@@ -1491,8 +1764,8 @@ const DailyBriefingScreen: React.FC = () => {
                                 }
                                 
                                 // 다음 세그먼트가 버스인 경우
-                                if (nextStop && !nextStop.isDestination && nextStop.trafficType === 2 && trackingState) {
-                                  return `다음 버스 ${formatTime(trackingState.estimatedTimeToNextStop)} 후`;
+                                if (nextStop && !nextStop.isDestination && nextStop.trafficType === 2 && displayTrackingState) {
+                                  return `다음 버스 ${formatTime(displayTrackingState.estimatedTimeToNextStop)} 후`;
                                 }
                                 
                                 return '--';
@@ -1590,9 +1863,11 @@ const DailyBriefingScreen: React.FC = () => {
                       />
                     ))}
                   </View>
-                </CardBase>
+                  </CardBase>
+                </TouchableOpacity>
               </View>
-            ))}
+            );
+            })}
           </ScrollView>
 
           {/* Phase 8.3: Journey Details Card */}
