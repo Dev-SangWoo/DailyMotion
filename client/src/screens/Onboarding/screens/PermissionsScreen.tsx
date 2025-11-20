@@ -16,6 +16,7 @@ import { onboardingTheme } from '../styles/onboardingTheme';
 import { useOnboardingActions } from '../stores/useOnboardingStore';
 import { OnboardingCard } from '../components/OnboardingCard';
 import { OnboardingButton } from '../components/OnboardingButton';
+import { requestLocationPermission } from '../../../services/locationService';
 
 interface PermissionsScreenProps {
   navigation: {
@@ -120,10 +121,18 @@ export const PermissionsScreen: React.FC<PermissionsScreenProps> = ({
     setLoading(true);
 
     try {
-      // 실제 환경에서는 react-native-permissions 사용
-      // 현재는 시뮬레이션
+      // 🆕 GPS 위치 권한 요청 (실제 권한)
+      const locationGranted = await requestLocationPermission();
+
+      console.log('[PermissionsScreen] 위치 권한 요청 결과:', locationGranted);
+
+      // 권한 상태 저장
+      if (locationGranted) {
+        actions.grantLocationPermission();
+      }
+
+      // 알림 권한 시뮬레이션 (실제 앱에서는 react-native-notifee 등 사용)
       actions.grantNotificationPermission();
-      actions.grantLocationPermission();
 
       // 짧은 지연 후 다음 화면으로
       setTimeout(() => {
@@ -133,7 +142,27 @@ export const PermissionsScreen: React.FC<PermissionsScreenProps> = ({
       }, 500);
     } catch (error) {
       setLoading(false);
-      Alert.alert('권한 요청 실패', '다시 시도해주세요.');
+      console.error('[PermissionsScreen] 권한 요청 중 오류:', error);
+
+      // 사용자가 권한을 거부한 경우
+      Alert.alert(
+        '위치 권한 필요',
+        '앱이 정상적으로 작동하려면 위치 권한이 필요합니다. 설정에서 위치 접근을 허용해주세요.',
+        [
+          {
+            text: '다시 시도',
+            onPress: handleRequestPermissions,
+          },
+          {
+            text: '나중에',
+            onPress: () => {
+              // 권한 없이 계속 진행
+              actions.completeOnboarding();
+              navigation.navigate('Completion');
+            },
+          },
+        ]
+      );
     }
   };
 
