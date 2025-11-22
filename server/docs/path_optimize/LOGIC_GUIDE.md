@@ -44,6 +44,16 @@ DailyMotion의 경로 최적화 모듈은 **9가지 핵심 Logic**으로 구성�
 - Logic 3.1: 지연 감지
 - Logic 4.3: 스마트 폴링 빈도 최적화
 
+### Frontend 계약 검증 현황 (테스트 기준: `test_e2e_commute_flow.py`)
+
+- Logic 1.1 / 1.2: 부분 검증 (alertType/필드 스키마 E2E 확인, 시간 경계/메시지 포맷/실제 DOOR-TO-DOOR 로직 미검증)
+- Logic 2.1: 부분 검증 (응답 스키마 E2E 확인, 상태 전환/거리·속도 경계 미검증)
+- Logic 2.2: 부분 검증 (COMMUTE/RETREAT 스키마 E2E 확인, Gate별 임계/실제 계산·사유 구조 미검증)
+- Logic 2.3: 부분 검증 (응답 스키마 E2E 확인, 혼잡도·환승 동작/ETA 임계 미검증)
+- Logic 3.1: 부분 검증 (응답 스키마 E2E 확인, 5분 임계/다구간 지연 계산·실시간 부재 처리가 실제 로직과 일치하는지 미검증)
+- Logic 3.2: 부분 검증 (COMMUTE/RETREAT 스키마 E2E 확인, 지각 판단·요금/ETA 계산 로직 미검증)
+- Logic 4.x: 미검증 (퇴근 목표/스마트 폴링 테스트 없음)
+
 ---
 
 ## Logic 1.1: 능동적 출발 알림

@@ -35,6 +35,406 @@ class TestE2ECommuteFlow:
         return "test_e2e_commute_flow_user"
 
     # ======================================================================
+    # Task 0. 프론트 계약 스키마 – Logic 2.1 / 2.3
+    # ======================================================================
+
+    def test_00_commute_briefing_contract_e2e(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        [프론트 계약] Logic 1.1/1.2 출근 브리핑 응답 스키마 검증
+        """
+
+        def fake_get_commute_settings(cls, user_id: str) -> Dict[str, Any]:
+            return {
+                "homeAddress": "서울특별시 강남구 역삼동 123",
+                "workAddress": "서울특별시 중구 을지로 456",
+                "targetArrivalTime": datetime.now().time(),
+                "firstMileDefaultDuration": 5,
+                "lastMileDefaultDuration": 7,
+            }
+
+        def fake_commute_briefing(
+            self,
+            commute_settings: Dict[str, Any],
+            current_time: datetime,
+            routes_data: Dict[str, Any] | None = None,
+        ) -> Dict[str, Any]:
+            return {
+                "data": {
+                    "alertType": "GO_NOW",
+                    "message": "8:50 도착을 위해, 지금 출발하세요.",
+                    "totalDurationMinutes": 42,
+                    "recommendedTransport": {
+                        "type": "BUS",
+                        "name": "123번",
+                        "departureInMinutes": 5,
+                        "lineNumber": "123",
+                        "destination": "강남역",
+                    },
+                }
+            }
+
+        monkeypatch.setattr(
+            "app.modules.path_optimize.mock_user_db.MockUserDB.get_commute_settings",
+            classmethod(fake_get_commute_settings),
+        )
+        monkeypatch.setattr(
+            "app.modules.path_optimize.service.PathOptimizeService.get_commute_briefing",
+            fake_commute_briefing,
+        )
+
+        resp = client.get(
+            "/api/v1/briefings/commute",
+            params={"userId": "frontend_contract_user"},
+        )
+        assert resp.status_code == 200, resp.text
+
+        data = resp.json()["data"]
+        assert data["alertType"] in ["GO_NOW", "LAST_CHANCE", "NO_ACTION"]
+        assert isinstance(data["message"], str) and data["message"]
+        assert data["totalDurationMinutes"] > 0
+        transport = data["recommendedTransport"]
+        assert transport["type"] in ["BUS", "SUBWAY", "WALK", "TAXI"]
+        assert isinstance(transport["departureInMinutes"], int)
+
+    def test_0_auto_mode_switch_contract_e2e(
+        self,
+        client: TestClient,
+        test_user_id: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        [프론트 계약] Logic 2.1 자동 모드 전환 응답 스키마 검증
+        """
+
+        def fake_auto_mode_switch(self, user_context: Dict[str, Any]) -> Dict[str, Any]:
+            return {
+                "data": {
+                    "action": "AUTO_SWITCH_TO_ETA",
+                    "state": "ON_TRIP",
+                    "destinationArrivalTime": "08:45:00",
+                    "estimatedMinutes": 15,
+                    "currentLocation": {
+                        "latitude": user_context["currentGPS"]["latitude"],
+                        "longitude": user_context["currentGPS"]["longitude"],
+                    },
+                    "destination": {
+                        "address": "서울특별시 중구 을지로 456",
+                        "latitude": 37.5662,
+                        "longitude": 126.9784,
+                    },
+                    "message": "탑승 감지! 직장 도착까지 약 15분 남았습니다.",
+                }
+            }
+
+        monkeypatch.setattr(
+            "app.modules.path_optimize.service.PathOptimizeService.get_auto_mode_switch_action",
+            fake_auto_mode_switch,
+        )
+        monkeypatch.setattr(
+            "app.modules.path_optimize.mock_user_db.MockUserDB.get_commute_settings",
+            classmethod(
+                lambda cls, user_id: {
+                    "homeAddress": "서울특별시 강남구 역삼동 123",
+                    "workAddress": "서울특별시 중구 을지로 456",
+                    "targetArrivalTime": datetime.now().time(),
+                    "firstMileDefaultDuration": 5,
+                    "lastMileDefaultDuration": 7,
+                    "homeLatitude": 37.4979,
+                    "homeLongitude": 127.0276,
+                    "workLatitude": 37.5662,
+                    "workLongitude": 126.9784,
+                }
+            ),
+        )
+
+        resp = client.get(
+            "/api/v1/context/mode-switch",
+            params={
+                "userId": test_user_id,
+                "currentLatitude": 37.4979,
+                "currentLongitude": 127.0276,
+                "mode": "COMMUTE",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+
+        data = resp.json()["data"]
+        assert data["action"] == "AUTO_SWITCH_TO_ETA"
+        assert data["state"] == "ON_TRIP"
+        assert data["destinationArrivalTime"] == "08:45:00"
+        assert data["estimatedMinutes"] == 15
+        assert "message" in data and data["message"]
+        assert data["currentLocation"]["latitude"] == 37.4979
+        assert data["currentLocation"]["longitude"] == 127.0276
+        assert data["destination"]["address"]
+
+    def test_0_seating_optimization_contract_e2e(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        [프론트 계약] Logic 2.3 탑승/환승 최적화 응답 스키마 검증
+        """
+
+        def fake_seating_optimization(
+            self,
+            guidance_type: str,
+            transfer_station: str | None = None,
+            transfer_line: str | None = None,
+            exit_location: str | None = None,
+            **kwargs,
+        ) -> Dict[str, Any]:
+            assert guidance_type == "TRANSFER"
+            return {
+                "data": {
+                    "action": "SEATING_OPTIMIZATION",
+                    "type": "TRANSFER_GUIDANCE",
+                    "optimalCar": "4-2",
+                    "message": f"{transfer_station} {transfer_line} 환승을 위해 4-2칸에 대기하세요.",
+                    "priority": "HIGH",
+                    "availableCars": [
+                        {"car": "3-1", "congestion": 25, "seatsAvailable": True}
+                    ],
+                    "steps": [
+                        {
+                            "title": f"{transfer_station} 환승",
+                            "car": "4-2",
+                            "door": "LEFT",
+                            "distanceMeters": 30,
+                        }
+                    ],
+                }
+            }
+
+        monkeypatch.setattr(
+            "app.modules.path_optimize.service.PathOptimizeService.get_seating_optimization",
+            fake_seating_optimization,
+        )
+
+        resp = client.get(
+            "/api/v1/context/seating/optimize",
+            params={
+                "guidanceType": "TRANSFER",
+                "transferStation": "온수",
+                "transferLine": "7호선 급행",
+                "exitLocation": "FRONT",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+
+        data = resp.json()["data"]
+        assert data["action"] == "SEATING_OPTIMIZATION"
+        assert data["type"] == "TRANSFER_GUIDANCE"
+        assert data["optimalCar"] == "4-2"
+        assert data["priority"] == "HIGH"
+        assert "steps" in data and data["steps"]
+        assert data["availableCars"][0]["congestion"] == 25
+
+    def test_0_alternative_route_contract_retreat_e2e(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        [프론트 계약] Logic 2.2 RETREAT 모드 대안 경로 응답 스키마 검증
+        """
+
+        def fake_alternative_route(self, **kwargs) -> Dict[str, Any]:
+            return {
+                "data": {
+                    "suggestAlternativeRoute": True,
+                    "timeBenefit": 12,
+                    "transferTime": 4,
+                    "serverRealtimeTransferMinutes": 9,
+                    "message": "퇴근길 더 빠른 경로 발견. 환승 4분 여유.",
+                    "failedGates": {"gate_1": False, "gate_2": False, "gate_3": False},
+                    "reasons": [],
+                }
+            }
+
+        monkeypatch.setattr(
+            "app.modules.path_optimize.service.PathOptimizeService.get_alternative_route_suggestion",
+            fake_alternative_route,
+        )
+
+        payload = {
+            "currentRouteTime": 50,
+            "alternativeRouteTime": 38,
+            "mode": "RETREAT",
+            "currentBusArrivalMinutes": 2,
+            "currentBusDurationMinutes": 2,
+            "transferBusArrivalMinutes": 9,
+            "transferBusCongestion": 50,
+            "transferLocation": "신도림",
+            "transferLine": "2호선",
+        }
+
+        resp = client.post("/api/v1/context/routes/alternative", json=payload)
+        assert resp.status_code == 200, resp.text
+
+        data = resp.json()["data"]
+        assert data["suggestAlternativeRoute"] is True
+        assert data["timeBenefit"] == 12
+        assert data["transferTime"] == 4
+        assert data["serverRealtimeTransferMinutes"] == 9
+        assert "message" in data and data["message"]
+
+    def test_0_delay_detection_contract_e2e(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        [프론트 계약] Logic 3.1 지연 감지 응답 스키마 검증 (다구간)
+        """
+
+        def fake_delay_detection(
+            self,
+            segments: list[Dict[str, Any]],
+            current_hour: int,
+            current_day_of_week: int,
+            statistical_data_map: Dict[str, Dict[str, Any]] | None = None,
+            real_time_data_map: Dict[str, Dict[str, Any]] | None = None,
+        ) -> Dict[str, Any]:
+            return {
+                "data": {
+                    "action": "EXCEPTION_DETECTED",
+                    "totalSegments": 2,
+                    "delayedCount": 1,
+                    "delayedSegments": [
+                        {
+                            "segmentId": "subway_7_남구로-온수",
+                            "segmentName": "남구로 → 온수",
+                            "isDelayed": True,
+                            "delayMinutes": 8,
+                            "type": "DELAY_WARNING",
+                            "message": "평소보다 8분 지연",
+                        }
+                    ],
+                    "mostSevere": {
+                        "segmentId": "subway_7_남구로-온수",
+                        "delayMinutes": 8,
+                        "reason": "실시간 ETA 지연",
+                    },
+                }
+            }
+
+        # 통계/실시간 조회를 우회
+        monkeypatch.setattr(
+            path_optimize_router_module,
+            "get_average_duration_map_for_segments",
+            lambda *args, **kwargs: {},
+        )
+        monkeypatch.setattr(
+            "app.modules.path_optimize.service.PathOptimizeService.get_exception_alert",
+            fake_delay_detection,
+        )
+
+        payload = {
+            "segments": [
+                {
+                    "segmentId": "subway_7_남구로-온수",
+                    "segmentName": "남구로 → 온수",
+                    "fromStation": "남구로",
+                    "toStation": "온수",
+                },
+                {
+                    "segmentId": "subway_1_온수-구일",
+                    "segmentName": "온수 → 구일",
+                    "fromStation": "온수",
+                    "toStation": "구일",
+                },
+            ],
+            "currentHour": 8,
+            "currentDayOfWeek": 2,
+        }
+
+        resp = client.post("/api/v1/context/exceptions/delays", json=payload)
+        assert resp.status_code == 200, resp.text
+
+        data = resp.json()["data"]
+        assert data["action"] == "EXCEPTION_DETECTED"
+        assert data["totalSegments"] == 2
+        assert data["delayedCount"] == 1
+        assert data["delayedSegments"][0]["isDelayed"] is True
+        assert data["delayedSegments"][0]["delayMinutes"] >= 0
+        assert data["mostSevere"]["segmentId"] == "subway_7_남구로-온수"
+
+    def test_0_taxi_contract_commute_and_retreat_e2e(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        [프론트 계약] Logic 3.2 택시 제안 - 출근 제안 / 퇴근 거부 스키마 검증
+        """
+
+        def fake_taxi_suggestion(
+            self,
+            mode,
+            current_time,
+            target_arrival_time,
+            transit_arrival_time,
+            taxi_arrival_time: datetime | None = None,
+            fare_estimate: float | None = None,
+            **kwargs,
+        ) -> Dict[str, Any]:
+            if str(mode) == "SystemMode.RETREAT":
+                return {
+                    "data": {
+                        "action": "NO_ACTION",
+                        "type": "TAXI_NOT_ALLOWED_RETREAT",
+                        "message": "퇴근 모드에서는 택시 제안이 제공되지 않습니다.",
+                    }
+                }
+            return {
+                "data": {
+                    "action": "TAXI_SUGGESTED",
+                    "type": "TAXI_COMMUTE_LATENESS_CONFIRMED",
+                    "message": "지각 확정, 택시 호출 권장",
+                    "priority": "CRITICAL",
+                    "estimatedFare": fare_estimate or 18000,
+                    "ctaButton": {"action": "CALL_TAXI", "label": "택시 호출"},
+                }
+            }
+
+        monkeypatch.setattr(
+            "app.modules.path_optimize.service.PathOptimizeService.get_taxi_suggestion",
+            fake_taxi_suggestion,
+        )
+
+        # COMMUTE 택시 제안
+        commute_payload = {
+            "mode": "COMMUTE",
+            "currentTime": datetime(2025, 11, 12, 8, 20, 0).isoformat(),
+            "targetArrivalTime": datetime(2025, 11, 12, 9, 0, 0).isoformat(),
+            "transitArrivalTime": datetime(2025, 11, 12, 9, 5, 0).isoformat(),
+            "taxiArrivalTime": datetime(2025, 11, 12, 8, 40, 0).isoformat(),
+        }
+        resp = client.post("/api/v1/context/taxi/suggest", json=commute_payload)
+        assert resp.status_code == 200, resp.text
+        commute_data = resp.json()["data"]
+        assert commute_data["action"] == "TAXI_SUGGESTED"
+        assert commute_data["priority"] == "CRITICAL"
+        assert "ctaButton" in commute_data
+
+        # RETREAT 모드 거부
+        retreat_payload = {
+            **commute_payload,
+            "mode": "RETREAT",
+        }
+        resp_retreat = client.post("/api/v1/context/taxi/suggest", json=retreat_payload)
+        assert resp_retreat.status_code == 200, resp_retreat.text
+        retreat_data = resp_retreat.json()["data"]
+        assert retreat_data["action"] == "NO_ACTION"
+        assert retreat_data["type"] == "TAXI_NOT_ALLOWED_RETREAT"
+
+    # ======================================================================
     # Task 1. 출발 전 – Logic 1.1/1.2 + 혼잡도 (C-1)
     # ======================================================================
 

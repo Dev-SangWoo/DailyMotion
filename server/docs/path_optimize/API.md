@@ -242,37 +242,40 @@ def get_auto_mode_switch_action(
 
 #### Returns
 
-**탑승 감지 시:**
-
 ```json
 {
   "data": {
-    "action": "AUTO_SWITCH_TO_ETA",
+    "action": "AUTO_SWITCH_TO_ETA" | "NO_ACTION",
+    "state": "WAITING" | "WALKING" | "ON_TRIP",
     "destinationArrivalTime": "08:45:00",
     "estimatedMinutes": 15,
-    "currentLocation": {
-      "latitude": 37.4979,
-      "longitude": 127.0276
-    },
-    "destination": {
-      "address": "서울 중구 을지로",
-      "latitude": 37.5662,
-      "longitude": 126.9778
+    "currentLocation": { "latitude": 37.4979, "longitude": 127.0276 },
+    "destination": { "address": "서울 중구 을지로", "latitude": 37.5662, "longitude": 126.9778 },
+    "message": "탑승 감지! 직장 도착까지 약 15분 남았습니다."
+  }
+}
+```
+
+#### Frontend Contract
+
+- Request: `GET /api/v1/context/mode-switch?userId=...&currentLatitude=...&currentLongitude=...&mode=COMMUTE` (`currentAccuracy` 선택)
+- Response:
+  - `data.action`: `AUTO_SWITCH_TO_ETA` → ETA 화면 전환, `NO_ACTION` → 화면 유지
+  - `data.state`: `WAITING` / `WALKING` / `ON_TRIP` (프론트 상태 표시/로그용)
+  - `destinationArrivalTime`, `estimatedMinutes`, `message`는 `AUTO_SWITCH_TO_ETA` 시 필수 표시 필드
+  - Envelope 패턴 `{ "data": { ... } }` 유지, 에러 시 `{ "error": { "code", "message" } }`
+- Example:
+  ```json
+  {
+    "data": {
+      "action": "AUTO_SWITCH_TO_ETA",
+      "state": "ON_TRIP",
+      "destinationArrivalTime": "08:45:00",
+      "estimatedMinutes": 15,
+      "message": "탑승 감지! 직장 도착까지 약 15분 남았습니다."
     }
   }
-}
-```
-
-**대기 중:**
-
-```json
-{
-  "data": {
-    "detectedState": "WAITING",
-    "message": "집 근처에서 대기 중입니다."
-  }
-}
-```
+  ```
 
 #### Logic Flow
 
@@ -378,8 +381,14 @@ def get_alternative_route_suggestion(
 ```python
 def get_seating_optimization(
     self,
-    route_info: Dict[str, Any],
-    user_preferences: Dict[str, Any]
+    guidance_type: str,
+    current_vehicle: Optional[TransportType] = None,
+    transfer_station: Optional[str] = None,
+    transfer_line: Optional[str] = None,
+    exit_location: Optional[str] = None,
+    congestion_data: Optional[Dict[str, int]] = None,
+    transfer_steps: Optional[List[Dict[str, Any]]] = None,
+    has_transfer: bool = False
 ) -> Dict[str, Any]
 ```
 
@@ -387,33 +396,46 @@ def get_seating_optimization(
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `route_info` | `Dict[str, Any]` | Yes | 경로 정보 |
-| `route_info.stationName` | `str` | Yes | 역/정류장 이름 |
-| `route_info.lineNumber` | `str` | Yes | 노선 번호 |
-| `route_info.direction` | `str` | Yes | 방향 |
-| `user_preferences` | `Dict[str, Any]` | Yes | 사용자 선호도 |
-| `user_preferences.seatingPriority` | `bool` | Yes | 착석 우선 여부 |
+| `guidance_type` | `str` | Yes | TRANSFER / COMFORTABLE / EXIT / MULTI_TRANSFER / 기타 |
+| `transfer_station` | `str` | No | 환승/하차 역 이름 |
+| `transfer_line` | `str` | No | 환승 노선 |
+| `exit_location` | `str` | No | 출구 위치 (FRONT/CENTER/REAR 등) |
+| `congestion_data` | `Dict[str, int]` | No | 칸별 혼잡도 데이터 |
+| `transfer_steps` | `List[Dict[str, Any]]` | No | 멀티 환승 단계 데이터 |
 
 #### Returns
 
 ```json
 {
   "data": {
-    "boardingGuide": {
-      "recommendedCar": 3,
-      "recommendedDoor": "2번 출입문",
-      "waitingPosition": "계단 옆",
-      "reason": "다음 역 하차객이 많아 착석 확률이 높습니다."
-    },
-    "alternativeOptions": [
-      {
-        "car": 5,
-        "reason": "환승 시 이동 거리가 짧습니다."
-      }
+    "action": "SEATING_OPTIMIZATION",
+    "type": "TRANSFER_GUIDANCE",
+    "optimalCar": "4-2",
+    "message": "온수역 7호선 환승을 위해 4-2칸에 대기하세요.",
+    "priority": "HIGH",
+    "availableCars": [
+      { "car": "3-1", "congestion": 25, "seatsAvailable": true }
+    ],
+    "steps": [
+      { "title": "온수역 7호선 환승", "car": "4-2", "door": "LEFT", "distanceMeters": 30 }
     ]
   }
 }
 ```
+
+#### Frontend Contract
+
+- Request: `GET /api/v1/context/seating/optimize` + `guidanceType` 필수, 필요한 경우 `transferStation`/`transferLine`/`exitLocation` 쿼리 포함
+- Response 공통 필드:
+  - `data.action`: 항상 `SEATING_OPTIMIZATION`
+  - `data.type`: TRANSFER_GUIDANCE | CONGESTION_BASED_GUIDANCE | EXIT_GUIDANCE | MULTI_TRANSFER_GUIDANCE | OPTIMIZATION_SCORE
+  - `message`: 사용자용 문구
+  - `priority`: HIGH/MEDIUM/LOW
+  - TRANSFER_GUIDANCE → `optimalCar` 필수, `steps` 가능
+  - CONGESTION_BASED_GUIDANCE → `availableCars` 배열(칸, 혼잡도, 좌석여부)
+  - MULTI_TRANSFER_GUIDANCE → `steps`, `totalSteps`
+  - OPTIMIZATION_SCORE → `optimizationScore`, `priority`
+- Envelope 패턴 `{ "data": { ... } }`, 에러 시 `{ "error": { "code", "message" } }`
 
 ---
 

@@ -5,6 +5,10 @@ pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
+# HTTP 클라이언트
+requests>=2.31.0
+aiohttp>=3.9.0
+
 # 데이터베이스 (PostgreSQL/PostGIS)
 sqlalchemy>=2.0.0
 alembic>=1.12.0
@@ -22,4 +26,3 @@ passlib[bcrypt]>=1.7.4
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 httpx>=0.25.0
-
