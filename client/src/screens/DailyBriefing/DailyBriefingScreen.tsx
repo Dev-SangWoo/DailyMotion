@@ -1397,6 +1397,30 @@ const DailyBriefingScreen: React.FC = () => {
     return statusMap[displayTrackingState.status] || '이동 중';
   };
 
+  // 🆕 날씨 데이터 조회 (현재 위치 기반) - Early return 전에 호출!
+  const weatherLocation = React.useMemo(() => {
+    if (selectedJourneyInfo?.originY && selectedJourneyInfo?.originX) {
+      return {
+        latitude: parseFloat(selectedJourneyInfo.originY),
+        longitude: parseFloat(selectedJourneyInfo.originX),
+      };
+    }
+    // Fallback: 집 주소
+    if (typeof places.homeAddress === 'object' && places.homeAddress) {
+      return {
+        latitude: parseFloat(places.homeAddress.y || '37.4979'),
+        longitude: parseFloat(places.homeAddress.x || '127.0276'),
+      };
+    }
+    // 기본값: 강남역
+    return { latitude: 37.4979, longitude: 127.0276 };
+  }, [selectedJourneyInfo, places]);
+
+  const { data: weatherData, isLoading: weatherLoading } = useGetWeatherQuery(
+    weatherLocation.latitude,
+    weatherLocation.longitude
+  );
+
   // 로딩 상태
   if (isLoading) {
     return (
@@ -1420,30 +1444,6 @@ const DailyBriefingScreen: React.FC = () => {
   }
 
   const briefingData = data.data;
-
-  // 🆕 날씨 데이터 조회 (현재 위치 기반)
-  const weatherLocation = React.useMemo(() => {
-    if (selectedJourneyInfo?.originY && selectedJourneyInfo?.originX) {
-      return {
-        latitude: parseFloat(selectedJourneyInfo.originY),
-        longitude: parseFloat(selectedJourneyInfo.originX),
-      };
-    }
-    // Fallback: 집 주소
-    if (typeof places.homeAddress === 'object' && places.homeAddress) {
-      return {
-        latitude: parseFloat(places.homeAddress.y || '37.4979'),
-        longitude: parseFloat(places.homeAddress.x || '127.0276'),
-      };
-    }
-    // 기본값: 강남역
-    return { latitude: 37.4979, longitude: 127.0276 };
-  }, [selectedJourneyInfo, places]);
-
-  const { data: weatherData, isLoading: weatherLoading } = useGetWeatherQuery(
-    weatherLocation.latitude,
-    weatherLocation.longitude
-  );
 
   // Phase 8.0: IntelligentDashboard 카드 데이터 (날씨 포함)
   const cards = React.useMemo(() => {
