@@ -30,6 +30,7 @@ import useRealTimeTracking from '../../hooks/useRealTimeTracking';
 import { useTrackingState, useTrackingActions } from '../../stores/useTrackingStore';
 import { defineLocationTrackingTask } from '../../services/locationTrackingService';
 import { formatTime } from '../../services/routeTrackingService';
+import { useGetWeatherQuery, getWeatherDescription, getWeatherRecommendations } from '../../hooks/queries/useGetWeatherQuery';
 
 // Styled-components: IntelligentDashboard 디자인 패턴 적용
 // 헌법 제2장 준수: 의미론적 이름, theme 기반 스타일링
@@ -1420,41 +1421,81 @@ const DailyBriefingScreen: React.FC = () => {
 
   const briefingData = data.data;
 
-  // Phase 8.0: IntelligentDashboard 카드 데이터
-  const cards = [
-    {
-      id: 'departure',
-      icon: '🚀',
-      title: '지금 출발하세요!',
-      bgGradient: '#0066FF',
-      content: `${briefingData.recommendedTransport?.departureInMinutes || 5}분 뒤 ${briefingData.recommendedTransport?.name || '버스'} 도착`,
-      badges: ['쾌적한 출근길', '정시 도착 예상'],
-    },
-    {
-      id: 'hazard',
-      icon: '⚠️',
-      title: '출발 전 확인!',
-      bgGradient: '#FF5722',
-      content: '내 경로에 2건의 위험이 감지되었습니다',
-      badges: ['🚧 도로 공사', '🚗 교통사고'],
-    },
-    {
-      id: 'weather',
-      icon: '🌧️',
-      title: '날씨 체크!',
-      bgGradient: '#40B0FF',
-      content: '오늘 오후 비 예보 · 강수확률 80% · 18°C',
-      badges: ['☂️ 우산을 챙기세요'],
-    },
-    {
-      id: 'traffic',
-      icon: '📈',
-      title: '실시간 교통정보',
-      bgGradient: '#9C27B0',
-      content: '강남대로 보통 · 평소보다 5분 더 소요',
-      badges: ['출근 시간 45분', '도착 예정 9:15'],
-    },
-  ];
+  // 🆕 날씨 데이터 조회 (현재 위치 기반)
+  const weatherLocation = React.useMemo(() => {
+    if (selectedJourneyInfo?.originY && selectedJourneyInfo?.originX) {
+      return {
+        latitude: parseFloat(selectedJourneyInfo.originY),
+        longitude: parseFloat(selectedJourneyInfo.originX),
+      };
+    }
+    // Fallback: 집 주소
+    if (typeof places.homeAddress === 'object' && places.homeAddress) {
+      return {
+        latitude: parseFloat(places.homeAddress.y || '37.4979'),
+        longitude: parseFloat(places.homeAddress.x || '127.0276'),
+      };
+    }
+    // 기본값: 강남역
+    return { latitude: 37.4979, longitude: 127.0276 };
+  }, [selectedJourneyInfo, places]);
+
+  const { data: weatherData, isLoading: weatherLoading } = useGetWeatherQuery(
+    weatherLocation.latitude,
+    weatherLocation.longitude
+  );
+
+  // Phase 8.0: IntelligentDashboard 카드 데이터 (날씨 포함)
+  const cards = React.useMemo(() => {
+    const baseCards = [
+      {
+        id: 'departure',
+        icon: '🚀',
+        title: '지금 출발하세요!',
+        bgGradient: '#0066FF',
+        content: `${briefingData.recommendedTransport?.departureInMinutes || 5}분 뒤 ${briefingData.recommendedTransport?.name || '버스'} 도착`,
+        badges: ['쾌적한 출근길', '정시 도착 예상'],
+      },
+      {
+        id: 'hazard',
+        icon: '⚠️',
+        title: '출발 전 확인!',
+        bgGradient: '#FF5722',
+        content: '내 경로에 2건의 위험이 감지되었습니다',
+        badges: ['🚧 도로 공사', '🚗 교통사고'],
+      },
+      {
+        id: 'weather',
+        icon: weatherData ? '🔲 WEATHER_ICON' : '🌧️', // 아이콘 자리 (나중에 실제 아이콘으로 대체)
+        title: '날씨 체크!',
+        bgGradient: '#40B0FF',
+        content: weatherData
+          ? getWeatherDescription(
+              weatherData.condition,
+              weatherData.precipitation,
+              weatherData.feelsLike
+            )
+          : '오늘 오후 비 예보 · 강수확률 80% · 18°C',
+        badges: weatherData
+          ? getWeatherRecommendations(
+              weatherData.condition,
+              weatherData.temperature,
+              weatherData.humidity,
+              weatherData.uvIndex
+            )
+          : ['☂️ 우산을 챙기세요'],
+      },
+      {
+        id: 'traffic',
+        icon: '📈',
+        title: '실시간 교통정보',
+        bgGradient: '#9C27B0',
+        content: '강남대로 보통 · 평소보다 5분 더 소요',
+        badges: ['출근 시간 45분', '도착 예정 9:15'],
+      },
+    ];
+    return baseCards;
+  }, [briefingData, weatherData]);
 
   return (
     <OuterContainer ambientStatus={ambientStatus}>
