@@ -263,6 +263,19 @@ const CardText = styled.Text`
   line-height: ${theme.fonts.sizes.sm * 1.5}px;
 `;
 
+const CardBadge = styled.View`
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: ${theme.spacing.sm}px;
+  padding-horizontal: ${theme.spacing.xs}px;
+  padding-vertical: ${theme.spacing.xs / 2}px;
+`;
+
+const CardBadgeText = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.xs}px;
+  font-weight: 600;
+`;
+
 // Departure Card 전용 스타일 - 3-Layer 리디자인 (CTAGuide.md 기반)
 // Layer 1: 헤더 (20%) - 목적지 + 도착 시간
 // Layer 2: 타임라인 (45%) - 진행 상황 + 버스 아이콘
