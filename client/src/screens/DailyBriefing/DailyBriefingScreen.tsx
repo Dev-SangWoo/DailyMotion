@@ -262,22 +262,36 @@ const CardText = styled.Text`
   line-height: ${theme.fonts.sizes.sm * 1.5}px;
 `;
 
-// Departure Card 전용 스타일 - 리디자인: 두 구간 레이아웃
+// Departure Card 전용 스타일 - 3-Layer 리디자인 (CTAGuide.md 기반)
+// Layer 1: 헤더 (20%) - 목적지 + 도착 시간
+// Layer 2: 타임라인 (45%) - 진행 상황 + 버스 아이콘
+// Layer 3: 넥스트 액션 (35%) - 다음 환승 정보
+
 const DepartureCardContainer = styled.View`
   width: 100%;
   height: 100%;
-  flex-direction: row;
-  gap: ${theme.spacing.md}px;
-`;
-
-// 왼쪽 구간: 현재 이동 정보
-const CurrentMovementSection = styled.View`
-  flex: 1;
+  flex-direction: column;
   justify-content: space-between;
-  padding-right: ${theme.spacing.sm}px;
 `;
 
-const SectionTitle = styled.Text`
+// ========== Layer 1: Header (20%) ==========
+const Layer1Header = styled.View`
+  flex: 0;
+  height: 20%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: ${theme.spacing.md}px;
+  border-bottom-width: 1px;
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+`;
+
+const Layer1GoalSection = styled.View`
+  flex: 1;
+  justify-content: center;
+`;
+
+const Layer1GoalLabel = styled.Text`
   color: rgba(255, 255, 255, 0.9);
   font-size: ${theme.fonts.sizes.xs}px;
   font-weight: 600;
@@ -286,116 +300,127 @@ const SectionTitle = styled.Text`
   margin-bottom: ${theme.spacing.xs}px;
 `;
 
-const CurrentLocationInfo = styled.View`
-  margin-bottom: ${theme.spacing.md}px;
-`;
-
-const CurrentLocationName = styled.Text`
+const Layer1GoalName = styled.Text`
   color: white;
   font-size: ${theme.fonts.sizes.lg}px;
   font-weight: 700;
-  margin-bottom: ${theme.spacing.xs}px;
 `;
 
-const CurrentLocationDetail = styled.Text`
-  color: rgba(255, 255, 255, 0.8);
-  font-size: ${theme.fonts.sizes.sm}px;
-  font-weight: 500;
+const Layer1TimeSection = styled.View`
+  align-items: flex-end;
+  justify-content: center;
 `;
 
-const TransferInfo = styled.View`
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: ${theme.borderRadius.md}px;
-  padding: ${theme.spacing.sm}px ${theme.spacing.md}px;
-  margin-top: ${theme.spacing.sm}px;
-`;
-
-const TransferLabel = styled.Text`
-  color: rgba(255, 255, 255, 0.9);
-  font-size: ${theme.fonts.sizes.xs}px;
-  font-weight: 600;
-  margin-bottom: 4px;
-`;
-
-const TransferTime = styled.Text`
+const Layer1ArrivalTime = styled.Text`
   color: white;
-  font-size: ${theme.fonts.sizes.xxl || 32}px;
+  font-size: ${theme.fonts.sizes.xl}px;
   font-weight: 800;
   letter-spacing: -0.5px;
 `;
 
-const TransferDestination = styled.Text`
+const Layer1ArrivalLabel = styled.Text`
   color: rgba(255, 255, 255, 0.8);
-  font-size: ${theme.fonts.sizes.sm}px;
+  font-size: ${theme.fonts.sizes.xs}px;
   font-weight: 500;
-  margin-top: 4px;
+  margin-top: ${theme.spacing.xs}px;
 `;
 
-// 오른쪽 구간: 다음 경유지 정보
-const NextStopSection = styled.View`
-  flex: 1;
-  justify-content: space-between;
-  padding-left: ${theme.spacing.sm}px;
-  border-left-width: 1px;
-  border-left-color: rgba(255, 255, 255, 0.2);
+// ========== Layer 2: Timeline (45%) ==========
+const Layer2Timeline = styled.View`
+  flex: 0;
+  height: 45%;
+  justify-content: center;
+  align-items: center;
+  padding: ${theme.spacing.lg}px ${theme.spacing.md}px;
+  gap: ${theme.spacing.md}px;
 `;
 
-const NextStopInfo = styled.View`
+const ProgressBarContainer = styled.View`
+  width: 100%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
   margin-bottom: ${theme.spacing.md}px;
 `;
 
-const NextStopName = styled.Text`
-  color: white;
-  font-size: ${theme.fonts.sizes.lg}px;
-  font-weight: 700;
-  margin-bottom: ${theme.spacing.xs}px;
+interface ProgressBarProps {
+  progress: number; // 0-100
+}
+
+const ProgressBar = styled.View<ProgressBarProps>`
+  height: 100%;
+  width: ${(props) => props.progress}%;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
 `;
 
-const NextTransportBox = styled.View`
-  background-color: rgba(255, 255, 255, 0.2);
+const BusIconWrapper = styled.View`
+  align-items: center;
+  margin-bottom: ${theme.spacing.md}px;
+`;
+
+const Layer2ProgressText = styled.Text`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: ${theme.fonts.sizes.md}px;
+  font-weight: 600;
+  text-align: center;
+  margin-top: ${theme.spacing.md}px;
+`;
+
+// ========== Layer 3: Next Action (35%) ==========
+const Layer3NextAction = styled.View`
+  flex: 0;
+  height: 35%;
+  background-color: rgba(255, 255, 255, 0.1);
   border-radius: ${theme.borderRadius.md}px;
   padding: ${theme.spacing.md}px;
-  margin-top: ${theme.spacing.sm}px;
+  margin: ${theme.spacing.sm}px;
+  justify-content: center;
 `;
 
-const NextTransportLabel = styled.Text`
+const Layer3Title = styled.Text`
   color: rgba(255, 255, 255, 0.9);
   font-size: ${theme.fonts.sizes.xs}px;
   font-weight: 600;
-  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: ${theme.spacing.sm}px;
 `;
 
-const NextTransportNumber = styled.Text`
-  color: white;
+const Layer3Content = styled.View`
+  gap: ${theme.spacing.sm}px;
+`;
+
+const Layer3TransitInfo = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const Layer3TransitIcon = styled.Text`
   font-size: ${theme.fonts.sizes.xl}px;
-  font-weight: 800;
-  margin-bottom: ${theme.spacing.xs}px;
+  margin-right: ${theme.spacing.sm}px;
 `;
 
-const NextTransportArrival = styled.Text`
+const Layer3TransitNumber = styled.Text`
+  color: white;
+  font-size: ${theme.fonts.sizes.lg}px;
+  font-weight: 700;
+  flex: 1;
+`;
+
+const Layer3TransitTime = styled.Text`
   color: rgba(255, 255, 255, 0.9);
   font-size: ${theme.fonts.sizes.md}px;
   font-weight: 600;
 `;
 
-const NextTransportDetail = styled.Text`
+const Layer3TransitDetail = styled.Text`
   color: rgba(255, 255, 255, 0.7);
   font-size: ${theme.fonts.sizes.xs}px;
   font-weight: 500;
-  margin-top: 4px;
-`;
-
-const CardBadge = styled.View`
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: ${theme.borderRadius.md}px;
-  padding: ${theme.spacing.sm}px ${theme.spacing.md}px;
-  align-self: flex-start;
-`;
-
-const CardBadgeText = styled.Text`
-  color: white;
-  font-size: ${theme.fonts.sizes.xs}px;
-  font-weight: 600;
+  margin-top: ${theme.spacing.xs}px;
 `;
 
 // Phase 8.3: 여정 세부 사항 카드
@@ -1600,230 +1625,146 @@ const DailyBriefingScreen: React.FC = () => {
                 >
                   <CardBase bgGradient={card.bgGradient}>
                   {card.id === 'departure' ? (
-                    /* 리디자인: 두 구간 레이아웃 */
+                    /* 3-Layer 리디자인: CTAGuide.md 기반 */
                     <DepartureCardContainer>
-                      {/* 왼쪽 구간: 현재 이동 정보 (실시간 추적 데이터) */}
-                      <CurrentMovementSection>
-                        <View>
-                          <SectionTitle>{displayTrackingState ? '현재 이동 중' : '경로 준비 중'}</SectionTitle>
-                          <CurrentLocationInfo>
-                            <CurrentLocationName>
-                              {trackingState && getCurrentSegmentInfo()
-                                ? (() => {
-                                    const currentSegment = getCurrentSegmentInfo();
-                                    // 도보 중이면 목적지(다음 정류장/역) 표시
-                                    if (currentSegment?.trafficType === 3) {
-                                      const nextStop = getNextStopInfo();
-                                      return nextStop?.stopName || currentSegment?.endName || '다음 정류장';
-                                    }
-                                    // 버스/지하철 탑승 중이면 현재 위치(정류장/역 이름)
-                                    return currentSegment?.startName || '현재 위치';
-                                  })()
-                                : '준비 중...'}
-                            </CurrentLocationName>
-                            <CurrentLocationDetail>
-                              {displayTrackingState ? getMovementStatusMessage() : '데이터 없음'}
-                            </CurrentLocationDetail>
-                          </CurrentLocationInfo>
+                      {/* ========== Layer 1: Header (20%) - 목표 + 도착시간 ========== */}
+                      <Layer1Header>
+                        <Layer1GoalSection>
+                          <Layer1GoalLabel>🏁 목적지</Layer1GoalLabel>
+                          <Layer1GoalName>
+                            {selectedJourneyInfo?.destinationName || '목적지 준비 중'}
+                          </Layer1GoalName>
+                        </Layer1GoalSection>
+                        <Layer1TimeSection>
+                          <Layer1ArrivalTime>
+                            {selectedJourneyInfo?.arriveTime || '--:--'}
+                          </Layer1ArrivalTime>
+                          <Layer1ArrivalLabel>도착 예정</Layer1ArrivalLabel>
+                        </Layer1TimeSection>
+                      </Layer1Header>
 
-                          <TransferInfo>
-                            <TransferLabel>
-                              {displayTrackingState && getCurrentSegmentInfo()?.trafficType === 3
-                                ? '도착까지'
-                                : '다음 정류장까지'}
-                            </TransferLabel>
-                            <TransferTime>
-                              {displayTrackingState
-                                ? formatTime(displayTrackingState.estimatedTimeToNextStop)
-                                : '--'}
-                            </TransferTime>
-                            <TransferDestination>
-                              {displayTrackingState && getNextStopInfo()
-                                ? getNextStopInfo()?.stopName || '도착지'
-                                : '경로 준비 중'}
-                            </TransferDestination>
-                          </TransferInfo>
-                        </View>
+                      {/* ========== Layer 2: Timeline (45%) - 진행 상황 + 버스 아이콘 ========== */}
+                      <Layer2Timeline>
+                        <ProgressBarContainer>
+                          <ProgressBar
+                            progress={
+                              displayTrackingState && getCurrentSegmentInfo()
+                                ? Math.min(
+                                    100,
+                                    ((getCurrentSegmentInfo()?.currentStopIndex || 0) /
+                                      Math.max(1, getCurrentSegmentInfo()?.totalStops || 1)) *
+                                      100
+                                  )
+                                : 0
+                            }
+                          />
+                        </ProgressBarContainer>
 
-                        {/* 하단: 현재 상태 표시 */}
-                        <View>
-                          {displayTrackingState && getCurrentSegmentInfo()?.trafficType !== 3 && (
-                            <CurrentLocationDetail>
-                              {`경유 정류장: ${getCurrentSegmentInfo()?.currentStopIndex || 0}/${
-                                getCurrentSegmentInfo()?.totalStops || 0
-                              }`}
-                            </CurrentLocationDetail>
-                          )}
-                          {displayTrackingState && !displayTrackingState.isOnRoute && (
-                            <CurrentLocationDetail style={{ color: '#F44336', marginTop: 4 }}>
-                              ⚠️ 경로에서 벗어났습니다
-                            </CurrentLocationDetail>
-                          )}
-                        </View>
-                      </CurrentMovementSection>
-                      
-                      {/* 오른쪽 구간: 다음 경유지 정보 (실시간 추적 데이터) */}
-                      <NextStopSection>
-                        <View>
-                          <SectionTitle>
-                            {displayTrackingState && getNextStopInfo()?.isDestination
-                              ? '최종 목적지'
-                              : displayTrackingState && getCurrentSegmentInfo()?.trafficType === 3
-                              ? '다음 탑승'
-                              : '다음 경유지'}
-                          </SectionTitle>
-                          <NextStopInfo>
-                            <NextStopName>
-                              {displayTrackingState && getNextStopInfo()
-                                ? getNextStopInfo()?.stopName || '도착지'
-                                : '경로 준비 중'}
-                            </NextStopName>
-                            <CurrentLocationDetail>
+                        <BusIconWrapper>
+                          <Image
+                            source={require('../../assets/BUS3DLeft.png')}
+                            style={{ width: 80, height: 60 }}
+                            resizeMode="contain"
+                          />
+                        </BusIconWrapper>
+
+                        <Layer2ProgressText>
+                          {trackingState && getCurrentSegmentInfo()
+                            ? (() => {
+                                const currentSegment = getCurrentSegmentInfo();
+                                // 도보 중이면 목적지(다음 정류장/역) 표시
+                                if (currentSegment?.trafficType === 3) {
+                                  const nextStop = getNextStopInfo();
+                                  return nextStop?.stopName || currentSegment?.endName || '다음 정류장';
+                                }
+                                // 버스/지하철 탑승 중이면 현재 위치(정류장/역 이름)
+                                return currentSegment?.startName || '현재 위치';
+                              })()
+                            : '경로 준비 중...'}
+                        </Layer2ProgressText>
+                      </Layer2Timeline>
+
+                      {/* ========== Layer 3: Next Action (35%) - 다음 환승 정보 ========== */}
+                      <Layer3NextAction>
+                        <Layer3Title>
+                          {displayTrackingState && getNextStopInfo()?.isDestination
+                            ? '최종 목적지'
+                            : displayTrackingState && getCurrentSegmentInfo()?.trafficType === 3
+                            ? '다음 탑승'
+                            : '다음 환승'}
+                        </Layer3Title>
+                        <Layer3Content>
+                          <Layer3TransitInfo>
+                            <Layer3TransitNumber>
                               {(() => {
                                 const currentSegment = getCurrentSegmentInfo();
                                 const nextStop = getNextStopInfo();
-                                
-                                // 최종 목적지까지 도보인 경우
-                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
-                                  return `${selectedJourneyInfo?.destinationName || '목적지'}까지 도보 ${formatTime(displayTrackingState?.estimatedTimeToNextStop || 0)} 이동!`;
-                                }
-                                
-                                // 다음 세그먼트가 버스/지하철인 경우
-                                if (nextStop && !nextStop.isDestination) {
-                                  if (nextStop.trafficType === 1 && nextStop.subwayLine && nextStop.subwayDirection) {
-                                    return `${nextStop.subwayLine} ${nextStop.subwayDirection}`;
-                                  }
-                                  return `${nextStop.trafficTypeLabel || '환승'} 환승`;
-                                }
-                                
-                                return '경로 감지 중...';
-                              })()}
-                            </CurrentLocationDetail>
-                          </NextStopInfo>
 
-                          <NextTransportBox>
-                            <NextTransportLabel>
-                              {displayTrackingState
-                                ? getNextStopInfo()?.isDestination
-                                  ? '최종 목적지'
-                                  : '다음 탑승'
-                                : '준비 중'}
-                            </NextTransportLabel>
-                            <NextTransportNumber>
-                              {(() => {
-                                const currentSegment = getCurrentSegmentInfo();
-                                const nextStop = getNextStopInfo();
-                                
                                 // 최종 목적지까지 도보인 경우
                                 if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
-                                  return '도보';
+                                  return '🚶 도보';
                                 }
-                                
+
                                 // 다음 세그먼트가 버스/지하철인 경우
                                 if (nextStop && !nextStop.isDestination) {
                                   if (nextStop.trafficType === 1 && nextStop.subwayLine) {
-                                    return nextStop.subwayLine; // 지하철: "2호선"
+                                    return `🚇 ${nextStop.subwayLine}`; // 지하철: "🚇 2호선"
                                   }
-                                  return nextStop.transportInfo || '환승';
+                                  return `🚌 ${nextStop.transportInfo || '환승'}`;
                                 }
-                                
-                                return '--';
-                              })()}
-                            </NextTransportNumber>
-                            <NextTransportArrival>
-                              {(() => {
-                                const currentSegment = getCurrentSegmentInfo();
-                                const nextStop = getNextStopInfo();
-                                
-                                // 최종 목적지까지 도보인 경우
-                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
-                                  return `도착 예정: ${selectedJourneyInfo?.arriveTime || '--:--'}`;
-                                }
-                                
-                                // 다음 세그먼트가 버스/지하철인 경우 - 실시간 도착 정보 표시
-                                if (nextStop && !nextStop.isDestination && displayTrackingState) {
-                                  return `${formatTime(displayTrackingState.estimatedTimeToNextStop)} 후 도착`;
-                                }
-                                
-                                return '--';
-                              })()}
-                            </NextTransportArrival>
-                            <NextTransportDetail>
-                              {(() => {
-                                const currentSegment = getCurrentSegmentInfo();
-                                const nextStop = getNextStopInfo();
-                                
-                                // 최종 목적지까지 도보인 경우
-                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
-                                  return `최종 도착시간 ${selectedJourneyInfo?.arriveTime || '--:--'} 예상`;
-                                }
-                                
-                                // 다음 세그먼트가 지하철인 경우 - 방면 정보
-                                if (nextStop && !nextStop.isDestination && nextStop.trafficType === 1 && nextStop.subwayDirection) {
-                                  return nextStop.subwayDirection; // "강남역 방면"
-                                }
-                                
-                                // 다음 세그먼트가 버스인 경우
-                                if (nextStop && !nextStop.isDestination && nextStop.trafficType === 2 && displayTrackingState) {
-                                  return `다음 버스 ${formatTime(displayTrackingState.estimatedTimeToNextStop)} 후`;
-                                }
-                                
-                                return '--';
-                              })()}
-                            </NextTransportDetail>
-                          </NextTransportBox>
-                        </View>
 
-                        {/* 하단: 예상 도착 시간 */}
-                        <View>
-                          <CurrentLocationDetail>
-                            도착 예정: {selectedJourneyInfo?.arriveTime || '--:--'}
-                          </CurrentLocationDetail>
-                        </View>
-                      </NextStopSection>
-                      
-                      {/* 이미지/애니메이션 주석 처리 (나중에 추가 예정) */}
-                      {/* 
-                      <View style={{ width: '30%', height: '100%', alignItems: 'flex-end', justifyContent: 'center', position: 'relative', paddingRight: theme.spacing.sm }}>
-                        <View style={{ position: 'absolute', top:29, right: -120, width: 420, height: 180, zIndex: 2 }}>
-                          <Image 
-                            source={require('../../assets/Road.png')} 
-                            style={{ width: '100%', height: '100%' }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <View style={{ position: 'absolute', bottom: 25, right: -200, width: 420, height: 180, zIndex: 1 }}>
-                          <Image 
-                            source={require('../../assets/Road.png')} 
-                            style={{ width: '100%', height: '100%' }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <View style={{ position: 'absolute', top: -50, right: -20, width: 250, height: 250, zIndex: 2 }}>
-                          <Image 
-                            source={require('../../assets/BusStop.png')} 
-                            style={{ width: '100%', height: '100%', transform: [{ scaleX: -1 }] }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <Animated.View 
-                          style={{ 
-                            zIndex: 3,
-                            transform: [
-                              { translateX: busTranslateX },
-                              { translateY: busTranslateY },
-                              { scaleX: -1 }
-                            ]
-                          }}
-                        >
-                          <Image 
-                            source={require('../../assets/BusIcon.png')} 
-                            style={{ left: 15, bottom: -5, width: 120, height: 120 }}
-                            resizeMode="contain"
-                          />
-                        </Animated.View>
-                      </View>
-                      */}
+                                return '준비 중...';
+                              })()}
+                            </Layer3TransitNumber>
+                            <Layer3TransitTime>
+                              {(() => {
+                                const currentSegment = getCurrentSegmentInfo();
+                                const nextStop = getNextStopInfo();
+
+                                // 최종 목적지까지 도보인 경우
+                                if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
+                                  return `${selectedJourneyInfo?.arriveTime || '--:--'}`;
+                                }
+
+                                // 다음 세그먼트가 버스/지하철인 경우
+                                if (nextStop && !nextStop.isDestination && displayTrackingState) {
+                                  return `${formatTime(displayTrackingState.estimatedTimeToNextStop)}`;
+                                }
+
+                                return '--';
+                              })()}
+                            </Layer3TransitTime>
+                          </Layer3TransitInfo>
+                          <Layer3TransitDetail>
+                            {(() => {
+                              const currentSegment = getCurrentSegmentInfo();
+                              const nextStop = getNextStopInfo();
+
+                              // 최종 목적지까지 도보인 경우
+                              if (nextStop?.isDestination && currentSegment?.trafficType === 3) {
+                                return `${nextStop?.stopName || '목적지'} 도착 예정`;
+                              }
+
+                              // 다음 세그먼트가 지하철인 경우 - 방면 정보
+                              if (
+                                nextStop &&
+                                !nextStop.isDestination &&
+                                nextStop.trafficType === 1 &&
+                                nextStop.subwayDirection
+                              ) {
+                                return nextStop.subwayDirection; // "강남역 방면"
+                              }
+
+                              // 다음 세그먼트가 버스인 경우
+                              if (nextStop && !nextStop.isDestination && nextStop.trafficType === 2 && displayTrackingState) {
+                                return `${nextStop?.stopName || '정류장'} 도착`;
+                              }
+
+                              return '경로 감지 중...';
+                            })()}
+                          </Layer3TransitDetail>
+                        </Layer3Content>
+                      </Layer3NextAction>
                     </DepartureCardContainer>
                   ) : (
                     <>
