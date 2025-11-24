@@ -352,8 +352,8 @@ export function detectUserTrackingStatus(
   if (trafficType === 3) {
     // 도보 세그먼트
     if (movementSpeed > 1) {
-      status = UserTrackingStatus.BOARDING;
-      message = '🚶 도보 이동 중입니다.';
+    status = UserTrackingStatus.BOARDING;
+    message = '🚶 도보 이동 중입니다.';
     } else {
       status = UserTrackingStatus.WAITING_AT_STOP;
       message = '⏱️ 대기 중...';
@@ -364,10 +364,10 @@ export function detectUserTrackingStatus(
       status = UserTrackingStatus.ON_TRANSIT;
       message = trafficType === 2 ? '🚌 버스 탑승 중입니다.' : '🚇 지하철 탑승 중입니다.';
     } else if (movementSpeed > 0) {
-      status = UserTrackingStatus.WAITING_AT_STOP;
+    status = UserTrackingStatus.WAITING_AT_STOP;
       message = '⏱️ 정류장/역에서 대기 중...';
-    } else {
-      status = UserTrackingStatus.WAITING_AT_STOP;
+  } else {
+    status = UserTrackingStatus.WAITING_AT_STOP;
       message = '⏱️ 정류장/역에서 대기 중...';
     }
   }
@@ -388,11 +388,19 @@ export function detectUserTrackingStatus(
   // 6. 예상 시간 계산 (속도 기반 또는 세그먼트 시간 기반)
   let estimatedTimeToNextStop = 0;
   if (movementSpeed > 0) {
-    // 현재 속도 기반 계산
+    // 현재 속도 기반 계산 (초 단위 반환)
     estimatedTimeToNextStop = estimateTimeToNextStop(distanceToNextStop, movementSpeed);
   } else if (currentSegment?.sectionTime) {
-    // 세그먼트의 예상 시간 사용 (초 단위)
-    estimatedTimeToNextStop = currentSegment.sectionTime;
+    // 세그먼트의 예상 시간 사용
+    // sectionTime의 단위 확인: 60보다 작으면 분 단위, 아니면 초 단위
+    const sectionTime = currentSegment.sectionTime;
+    if (sectionTime < 60) {
+      // 분 단위로 추정 → 초로 변환
+      estimatedTimeToNextStop = sectionTime * 60;
+    } else {
+      // 초 단위로 추정
+      estimatedTimeToNextStop = sectionTime;
+    }
   }
 
   // 7. 목적지 도착 판단

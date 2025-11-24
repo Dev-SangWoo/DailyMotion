@@ -10,10 +10,11 @@
  * - CLAUDE.md: 온보딩 통합 가이드
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import * as Notifications from 'expo-notifications';
 
 // 스크린 & 네비게이터 import
 import OnboardingStack from '../screens/Onboarding/OnboardingScreen';
@@ -21,6 +22,7 @@ import MainTabNavigator from './MainTabNavigator';
 
 // Zustand Store
 import { useOnboardingStore } from '../screens/Onboarding/stores/useOnboardingStore';
+import { useNotificationActionStore } from '../stores/useNotificationActionStore';
 
 const Stack = createStackNavigator();
 
@@ -33,6 +35,8 @@ const Stack = createStackNavigator();
 export default function RootNavigator() {
   const isOnboarded = useOnboardingStore((state) => state.isOnboarded);
   const [isReady, setIsReady] = useState(false);
+  const navigationRef = useRef<NavigationContainerRef<any>>(null);
+  const setPendingAction = useNotificationActionStore((state) => state.setPendingAction);
 
   /**
    * 초기화: AsyncStorage에서 온보딩 상태 복원
@@ -47,6 +51,49 @@ export default function RootNavigator() {
     return () => clearTimeout(timer);
   }, []);
 
+  /**
+   * 알림 클릭 이벤트 처리
+   * 각 시나리오별로 적절한 화면으로 네비게이션 수행
+   */
+  useEffect(() => {
+    if (!isOnboarded) return; // 온보딩 완료 후에만 알림 처리
+
+    // 알림 응답 리스너 (알림 클릭 시)
+    const notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        const action = data?.action;
+
+        console.log('[RootNavigator] 알림 클릭:', action, data);
+
+        if (!navigationRef.current) {
+          console.warn('[RootNavigator] 네비게이션 레퍼런스가 아직 준비되지 않았습니다.');
+          return;
+        }
+
+        // 홈 탭으로 이동 (모든 액션은 홈에서 처리)
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Home',
+        });
+
+        // 액션을 스토어에 저장 (DailyBriefingScreen에서 처리)
+        setPendingAction(action);
+      }
+    );
+
+    // 알림 수신 리스너 (알림이 표시될 때, 선택사항)
+    const notificationReceivedSubscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log('[RootNavigator] 알림 수신:', notification);
+      }
+    );
+
+    return () => {
+      notificationResponseSubscription.remove();
+      notificationReceivedSubscription.remove();
+    };
+  }, [isOnboarded]);
+
   // 초기 로딩 중 표시
   if (!isReady) {
     return (
@@ -57,7 +104,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {/* @ts-ignore - React Navigation typing is overly strict for conditional navigator */}
       <Stack.Navigator
         screenOptions={{

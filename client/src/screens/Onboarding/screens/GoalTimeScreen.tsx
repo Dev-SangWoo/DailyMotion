@@ -52,7 +52,7 @@ type RouteLoadingState = 'idle' | 'loading' | 'success' | 'error';
  */
 const OuterContainer = styled.SafeAreaView`
   flex: 1;
-  background-color: #F0F4FF;
+  background-color: ${onboardingTheme.colors.ambientNormal};
 `;
 
 /**
@@ -85,14 +85,17 @@ const HeadlineText = styled.Text`
  * JourneyGroupCard - 여정 그룹 카드
  */
 const JourneyGroupCard = styled(TouchableOpacity)<{ isSelected: boolean }>`
-  background-color: white;
-  border-radius: 12px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
   padding: ${theme.spacing.md}px;
   margin-bottom: ${theme.spacing.md}px;
   border-width: 2px;
-  border-color: ${(props) => props.isSelected ? theme.colors.primary : '#e0e0e0'};
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  elevation: 2;
+  border-color: ${(props) => props.isSelected ? theme.colors.primary : theme.colors.border};
+  shadow-color: ${onboardingTheme.shadows.soft.shadowColor};
+  shadow-offset: ${onboardingTheme.shadows.soft.shadowOffset.width}px ${onboardingTheme.shadows.soft.shadowOffset.height}px;
+  shadow-opacity: ${onboardingTheme.shadows.soft.shadowOpacity};
+  shadow-radius: ${onboardingTheme.shadows.soft.shadowRadius}px;
+  elevation: ${onboardingTheme.shadows.soft.elevation};
 `;
 
 /**
@@ -152,7 +155,7 @@ const TimeInfo = styled.View`
  */
 const TimeBox = styled.View`
   background-color: ${theme.colors.background};
-  border-radius: 8px;
+  border-radius: ${onboardingTheme.borderRadius.md}px;
   padding: ${theme.spacing.xs}px ${theme.spacing.sm}px;
   align-items: center;
 `;
@@ -161,8 +164,8 @@ const TimeBox = styled.View`
  * TimeText
  */
 const TimeText = styled.Text`
-  font-size: 16px;
-  font-weight: 700;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
+  font-weight: ${theme.fonts.weights.bold};
   color: ${theme.colors.primary};
 `;
 
@@ -177,8 +180,8 @@ const RouteSection = styled.View`
  * RouteSectionTitle
  */
 const RouteSectionTitle = styled.Text`
-  font-size: 15px;
-  font-weight: 700;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
+  font-weight: ${theme.fonts.weights.bold};
   color: ${theme.colors.text};
   margin-bottom: ${theme.spacing.md}px;
 `;
@@ -187,16 +190,19 @@ const RouteSectionTitle = styled.Text`
  * RouteCard (네이버 지도 스타일 - 패딩 없음, 전체 공간 활용)
  */
 const RouteCard = styled(TouchableOpacity)<{ isSelected: boolean }>`
-  background-color: white;
-  border-radius: 12px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
   padding: 0px;
   margin-bottom: ${theme.spacing.md}px;
   border-width: ${(props) => props.isSelected ? '2px' : '0px'};
   border-color: ${(props) => props.isSelected ? theme.colors.primary : 'transparent'};
-  box-shadow: ${(props) => props.isSelected ? '0 4px 12px rgba(0, 122, 255, 0.2)' : '0 2px 6px rgba(0, 0, 0, 0.08)'};
-  elevation: ${(props) => props.isSelected ? 5 : 2};
+  shadow-color: ${(props) => props.isSelected ? theme.colors.primary : onboardingTheme.shadows.soft.shadowColor};
+  shadow-offset: ${(props) => props.isSelected ? '0px 4px' : `${onboardingTheme.shadows.soft.shadowOffset.width}px ${onboardingTheme.shadows.soft.shadowOffset.height}px`};
+  shadow-opacity: ${(props) => props.isSelected ? 0.2 : onboardingTheme.shadows.soft.shadowOpacity};
+  shadow-radius: ${(props) => props.isSelected ? '12px' : `${onboardingTheme.shadows.soft.shadowRadius}px`};
+  elevation: ${(props) => props.isSelected ? 5 : onboardingTheme.shadows.soft.elevation};
   border-bottom-width: 1px;
-  border-bottom-color: #e0e0e0;
+  border-bottom-color: ${theme.colors.border};
 `;
 
 /**
@@ -769,7 +775,7 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
     if (allRoutesSelected) {
       // 여정과 경로 저장 로직 (추후 구현)
       actions.nextStep();
-      navigation.navigate('ScheduleSetup');
+      navigation.navigate('Permissions');
     }
   };
 
@@ -843,7 +849,7 @@ export const GoalTimeScreen: React.FC<GoalTimeScreenProps> = ({
                         key={route.id}
                           isSelected={selectedRoutes[journey.id] === route.id}
                           onPress={() => handleSelectRoute(journey.id, route.id)}
-                        >
+                      >
                           {/* 상단: 최적 라벨 + 총 시간 + 시간 범위 + 요금 */}
                           <RouteHeader>
                             <RouteHeaderTop>

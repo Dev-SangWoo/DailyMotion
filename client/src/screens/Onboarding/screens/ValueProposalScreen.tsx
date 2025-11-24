@@ -43,7 +43,7 @@ interface ValueProposalScreenProps {
  */
 const OuterContainer = styled.View`
   flex: 1;
-  background-color: #F0F4FF;
+  background-color: ${onboardingTheme.colors.ambientNormal};
 `;
 
 /**

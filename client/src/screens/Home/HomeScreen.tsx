@@ -5,7 +5,7 @@
  * AppHeader를 추가하여 DailyMotion 로고를 표시합니다.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components/native';
 import DailyBriefingScreen from '../DailyBriefing/DailyBriefingScreen';
 import { AppHeader } from '../../components/common/AppHeader';
@@ -15,10 +15,12 @@ const Container = styled.View`
 `;
 
 export default function HomeScreen() {
+  const [headerRightComponent, setHeaderRightComponent] = useState<React.ReactNode>(null);
+
   return (
     <Container>
-      <AppHeader />
-      <DailyBriefingScreen />
+      <AppHeader rightComponent={headerRightComponent} />
+      <DailyBriefingScreen onHeaderRightChange={setHeaderRightComponent} />
     </Container>
   );
 }

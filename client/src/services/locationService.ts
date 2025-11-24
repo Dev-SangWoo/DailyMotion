@@ -103,7 +103,7 @@ export async function getCurrentLocation(): Promise<LocationCoordinates> {
     if (!hasPermission) {
       console.log('[Location Service] 위치 권한 없음 - 요청 중...');
       try {
-        hasPermission = await requestLocationPermission();
+      hasPermission = await requestLocationPermission();
         console.log('[Location Service] 권한 요청 후 상태:', hasPermission);
       } catch (permissionError: any) {
         console.error('[Location Service] 권한 요청 중 에러:', permissionError);
@@ -139,7 +139,7 @@ export async function getCurrentLocation(): Promise<LocationCoordinates> {
     let location;
     try {
       location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced, // 배터리와 정확도의 균형
+      accuracy: Location.Accuracy.Balanced, // 배터리와 정확도의 균형
       });
     } catch (locationError: any) {
       // 위치 가져오기 실패 시 명확한 에러 메시지

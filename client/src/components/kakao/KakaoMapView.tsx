@@ -144,8 +144,13 @@ const generateMapHTML = (
           function createMarkerImage(color) {
             const imageSize = new kakao.maps.Size(40, 40);
             const imageOption = { offset: new kakao.maps.Point(20, 40) };
+
+            // SVG를 Base64로 인코딩하여 안정적으로 렌더링
+            const svgString = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="15" r="12" fill="' + color + '"/><path d="M20 27 L10 40 L30 40 Z" fill="' + color + '"/></svg>';
+            const encodedSvg = btoa(unescape(encodeURIComponent(svgString)));
+
             return new kakao.maps.MarkerImage(
-              'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="15" r="12" fill="' + color + '"/><path d="M20 27 L10 40 L30 40 Z" fill="' + color + '"/></svg>',
+              'data:image/svg+xml;base64,' + encodedSvg,
               imageSize,
               imageOption
             );
@@ -246,8 +251,9 @@ export const KakaoMapView: React.FC<KakaoMapViewProps> = ({
     <Container>
       <WebView
         source={{ html: mapHTML }}
-        style={{ height }}
+        style={{ height, flex: 1 }}
         scrollEnabled={false}
+        nestedScrollEnabled={false}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         startInLoadingState
@@ -257,7 +263,10 @@ export const KakaoMapView: React.FC<KakaoMapViewProps> = ({
             <ActivityIndicator size="large" color={theme.colors.primary} />
           </LoadingContainer>
         )}
-        onError={(error) => console.log('WebView Error:', error)}
+        onError={(error) => {
+          console.log('WebView Error:', error);
+          console.log('[KakaoMapView] 지도 로드 실패:', JSON.stringify(error));
+        }}
       />
     </Container>
   );

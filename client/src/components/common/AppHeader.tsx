@@ -18,13 +18,27 @@ const HeaderContainer = styled(SafeAreaView)`
   border-bottom-width: 1px;
   border-bottom-color: ${theme.colors.border};
   padding-horizontal: ${theme.spacing.md}px;
-  padding-vertical: ${theme.spacing.sm}px;
+  padding-top: ${theme.spacing.sm}px;
+  padding-bottom: ${theme.spacing.md}px;
 `;
 
 const HeaderContent = styled.View`
   flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  width: 100%;
+`;
+
+const HeaderLeft = styled.View`
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const HeaderTopRow = styled.View`
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
 `;
 
 const LogoText = styled.Text`
@@ -33,15 +47,51 @@ const LogoText = styled.Text`
   color: ${theme.colors.text};
 `;
 
+const LogoSubText = styled.Text`
+  font-size: ${theme.fonts.sizes.xs || 10}px;
+  font-weight: ${theme.fonts.weights.medium || 500};
+  color: ${theme.colors.textSecondary || '#666'};
+`;
+
+const HeaderTitle = styled.Text`
+  font-size: ${theme.fonts.sizes.xxl}px;
+  font-weight: ${theme.fonts.weights.bold};
+  color: ${theme.colors.text};
+  margin-top: ${theme.spacing.xs}px;
+`;
+
+const HeaderDescription = styled.Text`
+  font-size: ${theme.fonts.sizes.sm}px;
+  color: ${theme.colors.textSecondary};
+  line-height: 18px;
+  margin-top: ${theme.spacing.xs}px;
+`;
+
+const HeaderRight = styled.View`
+  flex-direction: row;
+  align-items: center;
+`;
+
 interface AppHeaderProps {
-  // 추후 확장 가능 (오른쪽 버튼 등)
+  rightComponent?: React.ReactNode;
+  title?: string;
+  description?: string;
+  subtitle?: string; // 로고 옆 작은 글씨 (예: "세이프티 가드")
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = () => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ rightComponent, title, description, subtitle }) => {
   return (
     <HeaderContainer edges={['top']}>
       <HeaderContent>
+        <HeaderLeft>
+          <HeaderTopRow>
         <LogoText>DailyMotion</LogoText>
+            <LogoSubText>{subtitle || '데일리모션'}</LogoSubText>
+          </HeaderTopRow>
+          {title && <HeaderTitle>{title}</HeaderTitle>}
+          {description && <HeaderDescription>{description}</HeaderDescription>}
+        </HeaderLeft>
+        {rightComponent && <HeaderRight>{rightComponent}</HeaderRight>}
       </HeaderContent>
     </HeaderContainer>
   );

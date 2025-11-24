@@ -41,7 +41,7 @@ interface JourneySegment {
  */
 const OuterContainer = styled.SafeAreaView`
   flex: 1;
-  background-color: #F0F4FF;
+  background-color: ${onboardingTheme.colors.ambientNormal};
 `;
 
 const ScrollContainer = styled.ScrollView`
@@ -66,17 +66,20 @@ const HeadlineText = styled.Text`
  * WeekdaySection - 요일 선택 섹션
  */
 const WeekdaySection = styled.View`
-  background-color: white;
-  border-radius: 12px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
   padding: ${theme.spacing.md}px;
   margin-bottom: ${theme.spacing.lg}px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  elevation: 1;
+  shadow-color: ${onboardingTheme.shadows.minimal.shadowColor};
+  shadow-offset: ${onboardingTheme.shadows.minimal.shadowOffset.width}px ${onboardingTheme.shadows.minimal.shadowOffset.height}px;
+  shadow-opacity: ${onboardingTheme.shadows.minimal.shadowOpacity};
+  shadow-radius: ${onboardingTheme.shadows.minimal.shadowRadius}px;
+  elevation: ${onboardingTheme.shadows.minimal.elevation};
 `;
 
 const WeekdayLabel = styled.Text`
-  font-size: 14px;
-  font-weight: 600;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
+  font-weight: ${onboardingTheme.typography.labelM.fontWeight};
   color: ${theme.colors.text};
   margin-bottom: ${theme.spacing.sm}px;
 `;
@@ -97,15 +100,15 @@ const WeekdayContainer = styled.View`
 const WeekdayButton = styled.TouchableOpacity<{ isSelected: boolean; isSaved: boolean }>`
   flex: 1;
   padding: ${theme.spacing.sm}px;
-  border-radius: 8px;
+  border-radius: ${onboardingTheme.borderRadius.md}px;
   background-color: ${(props) => {
     if (props.isSaved) return '#E8F5E9'; // 저장됨 - 연한 초록색
     if (props.isSelected) return theme.colors.primary; // 선택됨 - 파란색
-    return '#F5F5F5'; // 미선택 - 회색
+    return onboardingTheme.colors.neutral50; // 미선택 - 회색
   }};
   border-width: 2px;
   border-color: ${(props) => {
-    if (props.isSaved) return '#4CAF50'; // 저장됨 - 초록색
+    if (props.isSaved) return theme.colors.success; // 저장됨 - 초록색
     if (props.isSelected) return theme.colors.primary;
     return 'transparent';
   }};
@@ -114,19 +117,19 @@ const WeekdayButton = styled.TouchableOpacity<{ isSelected: boolean; isSaved: bo
 `;
 
 const WeekdayText = styled.Text<{ isSelected: boolean; isSaved: boolean }>`
-  font-size: 12px;
-  font-weight: 600;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
+  font-weight: ${onboardingTheme.typography.labelM.fontWeight};
   color: ${(props) => {
-    if (props.isSaved) return '#2E7D32'; // 초록색
-    if (props.isSelected) return 'white';
-    return '#333333'; // 기본 텍스트 색
+    if (props.isSaved) return theme.colors.success; // 초록색
+    if (props.isSelected) return onboardingTheme.colors.neutral100;
+    return theme.colors.text; // 기본 텍스트 색
   }};
 `;
 
 const SaveCheckmark = styled.Text`
-  font-size: 16px;
-  color: #4CAF50;
-  margin-left: 4px;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
+  color: ${theme.colors.success};
+  margin-left: ${theme.spacing.xs}px;
 `;
 
 /**
@@ -134,11 +137,11 @@ const SaveCheckmark = styled.Text`
  */
 const DeleteButton = styled.TouchableOpacity`
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: ${theme.spacing.sm}px;
+  right: ${theme.spacing.sm}px;
   width: 24px;
   height: 24px;
-  border-radius: 12px;
+  border-radius: ${onboardingTheme.borderRadius.round}px;
   background-color: rgba(255, 232, 232, 0.8);
   align-items: center;
   justify-content: center;
@@ -146,9 +149,9 @@ const DeleteButton = styled.TouchableOpacity`
 `;
 
 const DeleteIcon = styled.Text`
-  font-size: 14px;
-  color: #FF6B6B;
-  font-weight: 700;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
+  color: ${theme.colors.error};
+  font-weight: ${theme.fonts.weights.bold};
 `;
 
 /**
@@ -160,36 +163,36 @@ const SaveButtonContainer = styled.View`
 `;
 
 const SaveButtonText = styled.Text`
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
+  color: ${onboardingTheme.colors.neutral100};
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
+  font-weight: ${onboardingTheme.typography.bodyM.fontWeight};
 `;
 
 /**
  * StatusText - 저장 상태 메시지
  */
 const StatusText = styled.Text`
-  font-size: 13px;
-  color: #4CAF50;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
+  color: ${theme.colors.success};
   text-align: center;
-  font-weight: 500;
+  font-weight: ${onboardingTheme.typography.labelM.fontWeight};
 `;
 
 const SavedDaysText = styled.Text`
-  font-size: 12px;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
   color: ${theme.colors.textSecondary};
   text-align: center;
 `;
 
 const JourneyCard = styled.View`
-  background-color: white;
-  border-radius: 12px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
   padding: ${theme.spacing.md}px;
-  shadow-color: #000;
-  shadow-offset: 0px 1px;
-  shadow-opacity: 0.08;
-  shadow-radius: 2px;
-  elevation: 2;
+  shadow-color: ${onboardingTheme.shadows.soft.shadowColor};
+  shadow-offset: ${onboardingTheme.shadows.soft.shadowOffset.width}px ${onboardingTheme.shadows.soft.shadowOffset.height}px;
+  shadow-opacity: ${onboardingTheme.shadows.soft.shadowOpacity};
+  shadow-radius: ${onboardingTheme.shadows.soft.shadowRadius}px;
+  elevation: ${onboardingTheme.shadows.soft.elevation};
   position: relative;
 `;
 
@@ -197,10 +200,10 @@ const JourneyGroup = styled.View`
   margin-bottom: ${theme.spacing.md}px;
   position: relative;
   border-width: 1px;
-  border-color: rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
+  border-color: ${theme.colors.border};
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
   padding: ${theme.spacing.xs}px;
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: ${onboardingTheme.colors.glassOpacity70};
 `;
 
 const JourneyGroupCards = styled.View`
@@ -217,16 +220,16 @@ const ArrowOverlay = styled.View`
 `;
 
 const ArrowIcon = styled.Text`
-  font-size: 24px;
+  font-size: ${onboardingTheme.typography.headlineM.fontSize}px;
   color: ${theme.colors.primary};
-  background-color: rgba(240, 244, 255, 0.9);
-  padding: 4px;
-  border-radius: 12px;
+  background-color: ${onboardingTheme.colors.ambientNormal};
+  padding: ${theme.spacing.xs}px;
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
 `;
 
 const Divider = styled.View`
   height: 1px;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: ${theme.colors.border};
   margin-vertical: ${theme.spacing.md}px;
   margin-horizontal: ${theme.spacing.lg}px;
 `;
@@ -254,19 +257,19 @@ const PlaceInfo = styled.View`
 `;
 
 const PlaceName = styled.Text`
-  font-size: 15px;
-  font-weight: 600;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
+  font-weight: ${onboardingTheme.typography.bodyM.fontWeight};
   color: ${theme.colors.text};
-  margin-bottom: 2px;
+  margin-bottom: ${theme.spacing.xs}px;
 `;
 
 const SegmentType = styled.Text`
-  font-size: 12px;
-  font-weight: 700;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
+  font-weight: ${theme.fonts.weights.bold};
   color: ${theme.colors.primary};
   background-color: ${theme.colors.primary}15;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: ${theme.spacing.xs}px ${theme.spacing.sm}px;
+  border-radius: ${onboardingTheme.borderRadius.sm}px;
   align-self: flex-start;
 `;
 
@@ -276,39 +279,25 @@ const TimeSection = styled.View`
 
 const TimeInputContainer = styled.TouchableOpacity`
   background-color: ${theme.colors.background};
-  border-radius: 8px;
+  border-radius: ${onboardingTheme.borderRadius.md}px;
   padding: ${theme.spacing.xs}px ${theme.spacing.sm}px;
   min-width: 70px;
   align-items: flex-end;
 `;
 
 const TimeDisplay = styled.Text`
-  font-size: 20px;
-  font-weight: 600;
+  font-size: ${onboardingTheme.typography.headlineM.fontSize}px;
+  font-weight: ${onboardingTheme.typography.headlineM.fontWeight};
   color: ${theme.colors.text};
 `;
 
 const TimeLabel = styled.Text`
-  font-size: 10px;
+  font-size: ${onboardingTheme.typography.labelM.fontSize}px;
   color: ${theme.colors.textSecondary};
-  margin-top: 2px;
+  margin-top: ${theme.spacing.xs}px;
 `;
 
-const AddButton = styled.TouchableOpacity`
-  background-color: ${theme.colors.primary};
-  border-radius: 12px;
-  padding: ${theme.spacing.md}px;
-  align-items: center;
-  justify-content: center;
-  margin-top: ${theme.spacing.md}px;
-  margin-bottom: ${theme.spacing.md}px;
-`;
-
-const AddButtonText = styled.Text`
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
-`;
+// AddButton은 OnboardingButton으로 대체
 
 const ButtonContainer = styled.View`
   gap: ${theme.spacing.md}px;
@@ -325,16 +314,16 @@ const ModalOverlay = styled.View`
 `;
 
 const ModalContent = styled.View`
-  background-color: white;
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-top-left-radius: ${onboardingTheme.borderRadius.xxl}px;
+  border-top-right-radius: ${onboardingTheme.borderRadius.xxl}px;
   padding: ${theme.spacing.xl}px;
   max-height: 70%;
 `;
 
 const ModalTitle = styled.Text`
-  font-size: 20px;
-  font-weight: 600;
+  font-size: ${onboardingTheme.typography.headlineM.fontSize}px;
+  font-weight: ${onboardingTheme.typography.headlineM.fontWeight};
   color: ${theme.colors.text};
   margin-bottom: ${theme.spacing.lg}px;
 `;
@@ -347,18 +336,18 @@ const PlaceOption = styled.TouchableOpacity`
   flex-direction: row;
   align-items: center;
   padding: ${theme.spacing.md}px;
-  border-radius: 12px;
+  border-radius: ${onboardingTheme.borderRadius.lg}px;
   margin-bottom: ${theme.spacing.sm}px;
   background-color: ${theme.colors.background};
 `;
 
 const PlaceOptionIcon = styled.Text`
-  font-size: 28px;
+  font-size: ${onboardingTheme.typography.headlineM.fontSize}px;
   margin-right: ${theme.spacing.md}px;
 `;
 
 const PlaceOptionName = styled.Text`
-  font-size: 16px;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
   color: ${theme.colors.text};
   flex: 1;
 `;
@@ -833,9 +822,12 @@ export const PathSelectionScreen: React.FC<PathSelectionScreenProps> = ({
 
           {/* 장소 추가 버튼 */}
           {availablePlaces.length > 0 && (
-            <AddButton onPress={handleAddPlace}>
-              <AddButtonText>+ 장소 추가</AddButtonText>
-            </AddButton>
+            <OnboardingButton
+              label="+ 장소 추가"
+              onPress={handleAddPlace}
+              variant="primary"
+              testID="add-place-button"
+            />
           )}
 
           {/* 안내 메시지 */}

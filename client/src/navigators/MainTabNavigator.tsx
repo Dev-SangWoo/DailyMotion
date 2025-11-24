@@ -9,8 +9,10 @@
  */
 
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import styled from 'styled-components/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
 // 스크린 & 네비게이터 import
@@ -23,16 +25,65 @@ import MyPageNavigator from '../screens/MyPage/MyPageNavigator';
 const Tab = createBottomTabNavigator();
 
 /**
- * 탭 아이콘 컴포넌트 (이모지 기반)
- * 추후 아이콘 라이브러리로 교체 가능
+ * 일반 탭 아이콘 래퍼 (활성화 시 파란색 배경)
  */
-const TabIcon: React.FC<{ emoji: string; focused: boolean }> = ({ emoji, focused }) => {
+const TabIconWrapper = styled.View<{ focused: boolean }>`
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: ${(props) => props.focused ? '#E3F2FD' : 'transparent'};
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+`;
+
+/**
+ * 탭 아이콘 컴포넌트
+ */
+const TabIcon: React.FC<{ iconName: string; focused: boolean }> = ({ iconName, focused }) => {
   return (
-    <Text style={{ 
-      fontSize: 20,
-    }}>
-      {emoji}
-    </Text>
+    <TabIconWrapper focused={focused}>
+      <MaterialIcons 
+        name={iconName as any} 
+        size={24} 
+        color={focused ? theme.colors.primary : theme.colors.textSecondary} 
+      />
+    </TabIconWrapper>
+  );
+};
+
+/**
+ * 중앙 위험제보 원형 아이콘 래퍼 (빨간색-주황색 그라데이션 효과)
+ */
+const RiskReportIconWrapper = styled.View`
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  background-color: #FF6B6B;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+  margin-top: -4px;
+  shadow-color: #FF6B6B;
+  shadow-offset: 0px 4px;
+  shadow-opacity: 0.3;
+  shadow-radius: 8px;
+  elevation: 8;
+`;
+
+/**
+ * 위험제보 원형 탭 아이콘
+ */
+const CircularTabIcon: React.FC<{ focused: boolean }> = ({ focused }) => {
+  return (
+    <RiskReportIconWrapper>
+      <MaterialIcons 
+        name="camera-alt" 
+        size={28} 
+        color="white" 
+        style={{ marginTop: -5 }}
+      />
+    </RiskReportIconWrapper>
   );
 };
 
@@ -45,15 +96,17 @@ export default function MainTabNavigator() {
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.colors.background,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
+          borderTopWidth: 0,
+          borderTopColor: 'transparent',
           paddingTop: theme.spacing.xs,
-          paddingBottom: theme.spacing.xs,
-          height: 60,
+          paddingBottom: theme.spacing.sm,
+          height: 70,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
           fontSize: theme.fonts.sizes.xs,
-          fontWeight: theme.fonts.weights.medium,
+          fontWeight: theme.fonts.weights.semibold,
         },
       }}
     >
@@ -61,40 +114,45 @@ export default function MainTabNavigator() {
         name="Home"
         component={HomeNavigator}
         options={{
-          title: '홈',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
+          title: '브리핑',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="article" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="SafetyGuard"
         component={SafetyGuardScreen}
         options={{
-          title: '세이프티가드',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🛡️" focused={focused} />,
+          title: '안전',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="security" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="RiskReport"
         component={RiskReportScreen}
         options={{
-          title: '위험신고',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚠️" focused={focused} />,
+          title: '위험제보',
+          tabBarIcon: ({ focused }) => <CircularTabIcon focused={focused} />,
+          tabBarLabelStyle: {
+            marginTop: -8, // 원형 버튼 때문에 라벨을 위로 올림
+            fontWeight: theme.fonts.weights.semibold,
+            color: '#000000', // 검정색으로 고정
+          },
         }}
       />
       <Tab.Screen
         name="NewJourney"
         component={NewJourneyScreen}
         options={{
-          title: '새로운 여정',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="➕" focused={focused} />,
+          title: '탐색',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="explore" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="MyPage"
         component={MyPageNavigator}
         options={{
-          title: '마이페이지',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+          title: '마이',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="person" focused={focused} />,
         }}
       />
     </Tab.Navigator>

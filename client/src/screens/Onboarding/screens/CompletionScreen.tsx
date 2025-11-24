@@ -29,7 +29,7 @@ interface CompletionScreenProps {
  */
 const OuterContainer = styled.SafeAreaView`
   flex: 1;
-  background-color: #F0F4FF;
+  background-color: ${onboardingTheme.colors.ambientNormal};
 `;
 
 /**

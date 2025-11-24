@@ -27,7 +27,7 @@ interface PlacesSetupScreenProps {
 
 const Container = styled(SafeAreaView)`
   flex: 1;
-  background-color: #F0F4FF;
+  background-color: ${onboardingTheme.colors.ambientNormal};
 `;
 
 const Content = styled.View`
@@ -37,8 +37,8 @@ const Content = styled.View`
 `;
 
 const HomeFocusBubble = styled(Animated.View)`
-  background-color: white;
-  border-radius: 50px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-radius: ${onboardingTheme.borderRadius.round}px;
   padding: ${theme.spacing.sm}px ${theme.spacing.lg}px;
   border-width: 2px;
   border-color: ${theme.colors.primary};
@@ -52,13 +52,13 @@ const HomeFocusBubble = styled(Animated.View)`
 `;
 
 const HomeFocusIcon = styled.Text`
-  font-size: 20px;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
 `;
 
 const HomeFocusText = styled.Text`
-  font-size: 15px;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
   color: ${theme.colors.text};
-  font-weight: 500;
+  font-weight: ${onboardingTheme.typography.bodyM.fontWeight};
 `;
 
 const Title = styled(Animated.Text)`
@@ -88,21 +88,7 @@ const InputFieldWrapper = styled.View`
   flex: 1;
 `;
 
-const AddButton = styled.TouchableOpacity<{ disabled?: boolean }>`
-  background-color: ${(props) => (props.disabled ? '#CCCCCC' : theme.colors.primary)};
-  padding: ${theme.spacing.md}px ${theme.spacing.lg}px;
-  border-radius: 8px;
-  justify-content: center;
-  align-items: center;
-  min-width: 80px;
-  height: 56px;
-`;
-
-const AddButtonText = styled.Text`
-  color: white;
-  font-size: 14px;
-  font-weight: 600;
-`;
+// AddButton은 OnboardingButton으로 대체
 
 const PlacesContainer = styled.View`
   flex-direction: row;
@@ -114,8 +100,8 @@ const PlacesContainer = styled.View`
 `;
 
 const PlaceBubble = styled(Animated.View)`
-  background-color: white;
-  border-radius: 50px;
+  background-color: ${onboardingTheme.colors.neutral100};
+  border-radius: ${onboardingTheme.borderRadius.round}px;
   padding: ${theme.spacing.sm}px ${theme.spacing.lg}px;
   border-width: 2px;
   border-color: ${theme.colors.primary};
@@ -126,22 +112,22 @@ const PlaceBubble = styled(Animated.View)`
 `;
 
 const PlaceIcon = styled.Text`
-  font-size: 18px;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
 `;
 
 const PlaceText = styled.Text`
-  font-size: 15px;
+  font-size: ${onboardingTheme.typography.bodyM.fontSize}px;
   color: ${theme.colors.text};
-  font-weight: 500;
+  font-weight: ${onboardingTheme.typography.bodyM.fontWeight};
 `;
 
 const IconSelectButton = styled.TouchableOpacity<{ disabled?: boolean }>`
   width: 56px;
   height: 56px;
-  border-radius: 8px;
-  background-color: #FFFFFF;
+  border-radius: ${onboardingTheme.borderRadius.md}px;
+  background-color: ${onboardingTheme.colors.neutral100};
   border-width: 1px;
-  border-color: #E0E0E0;
+  border-color: ${theme.colors.border};
   justify-content: center;
   align-items: center;
   margin-right: ${theme.spacing.sm}px;
@@ -394,14 +380,15 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <Container>
         <ScrollView 
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: theme.spacing.xl }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
         >
           <Content>
             {/* 집 주소와 추가된 장소 구슬들 (한 줄에 통합 표시) */}
@@ -456,7 +443,9 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
                   transform: [{ translateY: step1TranslateY }],
                 }}
               >
-                <Title>집 주소를\n입력해주세요.</Title>
+                <Title>
+                  집 주소를{'\n'}입력해주세요.
+                </Title>
                 
                 <InputWrapper>
                   <IconSelectButton disabled>
@@ -470,12 +459,13 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
                       testID="home-name-input"
                     />
                   </InputFieldWrapper>
-                  <AddButton 
-                    onPress={handleAddHome} 
+                  <OnboardingButton
+                    label="추가"
+                    onPress={handleAddHome}
                     disabled={!currentHomeName.trim()}
-                  >
-                    <AddButtonText>추가</AddButtonText>
-                  </AddButton>
+                    variant="primary"
+                    testID="add-home-button"
+                  />
                 </InputWrapper>
               </StepContainer>
             )}
@@ -488,7 +478,9 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
                   transform: [{ translateY: step2TranslateY }],
                 }}
               >
-                <Title>자주 가는 장소들을\n알려주세요.</Title>
+                <Title>
+                  자주 가는 장소들을{'\n'}알려주세요.
+                </Title>
                 
                 <InputWrapper>
                   <IconSelectButton onPress={() => setIsIconPickerVisible(true)}>
@@ -502,12 +494,13 @@ export const PlacesSetupScreen: React.FC<PlacesSetupScreenProps> = ({ navigation
                       testID="place-input"
                     />
                   </InputFieldWrapper>
-                  <AddButton 
-                    onPress={handleAddPlace} 
+                  <OnboardingButton
+                    label="추가"
+                    onPress={handleAddPlace}
                     disabled={!currentPlace.trim()}
-                  >
-                    <AddButtonText>추가</AddButtonText>
-                  </AddButton>
+                    variant="primary"
+                    testID="add-place-button"
+                  />
                 </InputWrapper>
               </StepContainer>
             )}

@@ -40,6 +40,7 @@ const ModalContent = styled.View`
   background-color: white;
   border-radius: 20px 20px 0px 0px;
   padding: ${theme.spacing.lg}px;
+  padding-bottom: ${theme.spacing.xl}px;
   max-height: 80%;
 `;
 
@@ -123,7 +124,9 @@ const MapPlaceholder = styled.Text`
 
 const ButtonContainer = styled.View`
   flex-direction: row;
+  justify-content: flex-end;
   gap: ${theme.spacing.md}px;
+  margin-top: ${theme.spacing.md}px;
 `;
 
 const CurrentLocationButtonContainer = styled.View`
@@ -382,10 +385,17 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
     <Modal visible={visible} transparent animationType="slide">
       <ModalOverlay>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-          <ModalContent>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+          >
+            <ModalContent>
             <ModalHeader>
               <ModalTitle>상세 주소 입력</ModalTitle>
               <CloseButton onPress={handleCancel}>
@@ -514,17 +524,16 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
                 label="취소"
                 onPress={handleCancel}
                 variant="secondary"
-                style={{ flex: 1 }}
               />
               <OnboardingButton
                 label="확인"
                 onPress={handleConfirm}
                 variant="primary"
                 disabled={!selectedResult}
-                style={{ flex: 1 }}
               />
             </ButtonContainer>
-          </ModalContent>
+            </ModalContent>
+          </ScrollView>
         </KeyboardAvoidingView>
       </ModalOverlay>
     </Modal>

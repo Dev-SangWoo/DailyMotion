@@ -198,8 +198,8 @@ class LocationTrackingManager {
       try {
         const bgStatus = await Location.getBackgroundPermissionsAsync();
         if (bgStatus.status !== 'granted') {
-          console.log(
-            '[Location Tracking] 백그라운드 위치 권한 없음 - 포그라운드 추적만 사용 가능'
+        console.log(
+          '[Location Tracking] 백그라운드 위치 권한 없음 - 포그라운드 추적만 사용 가능'
           );
           return;
         }

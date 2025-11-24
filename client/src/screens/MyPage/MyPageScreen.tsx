@@ -4,15 +4,16 @@
  * 사용자 정보 및 설정을 관리하는 화면입니다.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components/native';
-import { ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../../components/common/AppHeader';
 import { theme } from '../../styles/theme';
 import { useOnboardingStore } from '../Onboarding/stores/useOnboardingStore';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { MyPageStackParamList } from './MyPageNavigator';
+import { sendTestNotification, scheduleNotificationAfter, getScheduledNotifications, sendScenarioNotification } from '../../services/notificationService';
 
 const Container = styled.View`
   flex: 1;
@@ -123,6 +124,63 @@ export default function MyPageScreen() {
   const schedule = useOnboardingStore((state) => state.schedule);
   const goalTime = useOnboardingStore((state) => state.goalTime);
   const permissions = useOnboardingStore((state) => state.permissions);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+
+  // 테스트 알림 발송
+  const handleTestNotification = async () => {
+    try {
+      setIsTestingNotification(true);
+      await sendTestNotification();
+      Alert.alert('성공', '테스트 알림이 발송되었습니다!');
+    } catch (error: any) {
+      Alert.alert('실패', error.message || '알림 발송에 실패했습니다.');
+    } finally {
+      setIsTestingNotification(false);
+    }
+  };
+
+  // 5초 후 알림 테스트
+  const handleTestScheduledNotification = async () => {
+    try {
+      setIsTestingNotification(true);
+      await scheduleNotificationAfter(
+        '스케줄 알림 테스트',
+        '5초 후에 발송된 알림입니다.',
+        5
+      );
+      Alert.alert('성공', '5초 후에 알림이 발송됩니다!');
+    } catch (error: any) {
+      Alert.alert('실패', error.message || '알림 스케줄 등록에 실패했습니다.');
+    } finally {
+      setIsTestingNotification(false);
+    }
+  };
+
+  // 예약된 알림 목록 확인
+  const handleCheckScheduledNotifications = async () => {
+    try {
+      const notifications = await getScheduledNotifications();
+      Alert.alert(
+        '예약된 알림',
+        `현재 ${notifications.length}개의 알림이 예약되어 있습니다.`
+      );
+    } catch (error: any) {
+      Alert.alert('실패', error.message || '알림 목록 조회에 실패했습니다.');
+    }
+  };
+
+  // 시나리오별 알림 테스트
+  const handleScenarioNotification = async (scenario: 'departure' | 'newRoute' | 'delay' | 'lateRoute' | 'lateTaxi') => {
+    try {
+      setIsTestingNotification(true);
+      await sendScenarioNotification(scenario);
+      Alert.alert('성공', '10초 후 시나리오 알림이 발송됩니다!');
+    } catch (error: any) {
+      Alert.alert('실패', error.message || '알림 발송에 실패했습니다.');
+    } finally {
+      setIsTestingNotification(false);
+    }
+  };
 
   const homeInfo =
     typeof places.homeAddress === 'object' && places.homeAddress !== null
@@ -214,6 +272,80 @@ export default function MyPageScreen() {
             </SummaryDescription>
             <SecondaryButton onPress={() => navigation.navigate('ScheduleSettings')}>
               <SecondaryButtonText>권한 가이드 보기</SecondaryButtonText>
+            </SecondaryButton>
+          </SectionCard>
+
+          {/* 알림 테스트 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>알림 테스트</SectionTitle>
+              <SectionSubtitle>로컬 알림 기능을 테스트해보세요.</SectionSubtitle>
+            </SectionHeader>
+            <PrimaryButton 
+              onPress={handleTestNotification}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1 }}
+            >
+              <PrimaryButtonText>
+                {isTestingNotification ? '발송 중...' : '즉시 알림 테스트'}
+              </PrimaryButtonText>
+            </PrimaryButton>
+            <SecondaryButton 
+              onPress={handleTestScheduledNotification}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1 }}
+            >
+              <SecondaryButtonText>5초 후 알림 테스트</SecondaryButtonText>
+            </SecondaryButton>
+            <SecondaryButton 
+              onPress={handleCheckScheduledNotifications}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1 }}
+            >
+              <SecondaryButtonText>예약된 알림 확인</SecondaryButtonText>
+            </SecondaryButton>
+          </SectionCard>
+
+          {/* 시나리오별 알림 테스트 */}
+          <SectionCard>
+            <SectionHeader>
+              <SectionTitle>시나리오별 알림 테스트</SectionTitle>
+              <SectionSubtitle>실제 사용 시나리오에 맞는 알림을 테스트해보세요.</SectionSubtitle>
+            </SectionHeader>
+            <SecondaryButton 
+              onPress={() => handleScenarioNotification('departure')}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1, marginBottom: theme.spacing.xs }}
+            >
+              <SecondaryButtonText>🚶 지금 출발해야 됩니다!</SecondaryButtonText>
+            </SecondaryButton>
+            <SecondaryButton 
+              onPress={() => handleScenarioNotification('newRoute')}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1, marginBottom: theme.spacing.xs }}
+            >
+              <SecondaryButtonText>✨ 새로운 경로를 찾았습니다!</SecondaryButtonText>
+            </SecondaryButton>
+            <SecondaryButton 
+              onPress={() => handleScenarioNotification('delay')}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1, marginBottom: theme.spacing.xs }}
+            >
+              <SecondaryButtonText>⚠️ 지연이 감지되었습니다!</SecondaryButtonText>
+            </SecondaryButton>
+            <SecondaryButton 
+              onPress={() => handleScenarioNotification('lateRoute')}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1, marginBottom: theme.spacing.xs }}
+            >
+              <SecondaryButtonText>🚨 지각 예상 - 경로 변경</SecondaryButtonText>
+            </SecondaryButton>
+            <SecondaryButton 
+              onPress={() => handleScenarioNotification('lateTaxi')}
+              disabled={isTestingNotification}
+              style={{ opacity: isTestingNotification ? 0.6 : 1 }}
+            >
+              <SecondaryButtonText>🚕 지각 예상 - 택시 추천</SecondaryButtonText>
             </SecondaryButton>
           </SectionCard>
         </Content>

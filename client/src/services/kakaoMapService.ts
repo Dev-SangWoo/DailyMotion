@@ -119,8 +119,36 @@ interface PlaceSearchResponse {
  * 좌표 → 주소 변환 결과 타입
  */
 export interface CoordToAddressResult {
-  address: AddressSearchResult;
-  road_address?: AddressSearchResult['road_address'];
+  // 실제 카카오 API 응답 구조: address와 road_address가 직접 region_2depth_name을 포함
+  address: {
+    address_name: string;
+    region_1depth_name: string; // 시/도
+    region_2depth_name: string; // 시/군/구
+    region_3depth_name: string; // 동/읍/면
+    region_3depth_h_name?: string; // 행정동명
+    h_code?: string; // 행정 코드
+    b_code?: string; // 법정 코드
+    mountain_yn?: string; // 산 여부
+    main_address_no?: string; // 지번 주번지
+    sub_address_no?: string; // 지번 부번지
+    zip_code?: string; // 우편번호
+    x?: string; // X 좌표
+    y?: string; // Y 좌표
+  };
+  road_address?: {
+    address_name: string; // 전체 도로명 주소
+    region_1depth_name: string; // 시/도
+    region_2depth_name: string; // 시/군/구
+    region_3depth_name: string; // 읍/면/동
+    road_name?: string; // 도로명
+    underground_yn?: string; // 지하 여부
+    main_building_no?: string; // 건물 본번
+    sub_building_no?: string; // 건물 부번
+    building_name?: string; // 건물명
+    zone_no?: string; // 우편번호
+    x?: string; // X 좌표
+    y?: string; // Y 좌표
+  };
 }
 
 /**

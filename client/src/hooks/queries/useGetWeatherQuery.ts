@@ -8,6 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../services/api';
+import { getGoogleWeather } from '../../services/googleWeatherService';
 
 export interface WeatherData {
   temperature: number; // 현재 기온
@@ -53,6 +54,33 @@ export function useGetWeatherQuery(latitude?: number, longitude?: number) {
   return useQuery({
     queryKey: ['weather', latitude, longitude],
     queryFn: async (): Promise<WeatherData> => {
+      // Google Weather API 키가 있으면 직접 호출, 없으면 백엔드 API 사용
+      const googleApiKey = process.env.EXPO_PUBLIC_GOOGLE_WEATHER_API_KEY;
+      
+      if (googleApiKey && latitude && longitude) {
+        try {
+          const googleWeather = await getGoogleWeather(latitude, longitude);
+          // Google Weather 데이터를 WeatherData 형식으로 변환
+          return {
+            temperature: googleWeather.temperature,
+            feelsLike: googleWeather.feelsLike,
+            humidity: googleWeather.humidity,
+            windSpeed: googleWeather.windSpeed,
+            windDirection: googleWeather.windDirection,
+            visibility: googleWeather.visibility,
+            uvIndex: googleWeather.uvIndex,
+            precipitation: googleWeather.precipitation,
+            condition: googleWeather.condition as WeatherCondition,
+            description: googleWeather.description,
+            forecast: [], // 예보는 별도 API 호출 필요
+          };
+        } catch (error) {
+          console.warn('[useGetWeatherQuery] Google Weather API 실패, 백엔드 API 사용:', error);
+          // Google API 실패 시 백엔드 API로 폴백
+        }
+      }
+
+      // 백엔드 API 사용 (기존 로직)
       const params = new URLSearchParams();
       if (latitude && longitude) {
         params.append('latitude', latitude.toString());

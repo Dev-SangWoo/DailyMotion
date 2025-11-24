@@ -1,14 +1,13 @@
 /**
  * OnboardingScreen - 온보딩 네비게이션 컨트롤러
  *
- * 10개 스크린을 StackNavigator로 관리합니다.
+ * 9개 스크린을 StackNavigator로 관리합니다.
  * - 스크린 1-3: ValueProposalScreen
  * - 스크린 4: PlacesSetupScreen (집 주소 + 자주 가는 장소들)
  * - 스크린 5: PathSelectionScreen
  * - 스크린 7: GoalTimeScreen
- * - 스크린 8: ScheduleSetupScreen
- * - 스크린 9: PermissionsScreen
- * - 스크린 10: CompletionScreen
+ * - 스크린 8: PermissionsScreen
+ * - 스크린 9: CompletionScreen
  */
 
 import React from 'react';
@@ -17,7 +16,6 @@ import { ValueProposalScreen } from './screens/ValueProposalScreen';
 import { PlacesSetupScreen } from './screens/PlacesSetupScreen';
 import { PathSelectionScreen } from './screens/PathSelectionScreen';
 import { GoalTimeScreen } from './screens/GoalTimeScreen';
-import { ScheduleSetupScreen } from './screens/ScheduleSetupScreen';
 import { PermissionsScreen } from './screens/PermissionsScreen';
 import { CompletionScreen } from './screens/CompletionScreen';
 
@@ -78,16 +76,7 @@ export const OnboardingStack = () => {
         }}
       />
 
-      {/* 스크린 8: 스케줄 설정 */}
-      <Stack.Screen
-        name="ScheduleSetup"
-        component={ScheduleSetupScreen}
-        options={{
-          gestureEnabled: true,
-        }}
-      />
-
-      {/* 스크린 9: 권한 요청 */}
+      {/* 스크린 8: 권한 요청 */}
       <Stack.Screen
         name="Permissions"
         component={PermissionsScreen}
