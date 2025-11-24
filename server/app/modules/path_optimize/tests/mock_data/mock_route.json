@@ -1,0 +1,164 @@
+{
+  "result": {
+    "path": [
+      {
+        "pathType": 2,
+        "info": {
+          "totalTime": 28,
+          "totalDistance": 9494,
+          "totalPrice": 1450,
+          "busCount": 1,
+          "subwayCount": 1,
+          "transferCount": 1,
+          "totalWalk": 450,
+          "payment": 1450
+        },
+        "subPath": [
+          {
+            "trafficType": 3,
+            "distance": 210,
+            "sectionTime": 3
+          },
+          {
+            "trafficType": 1,
+            "subwayName": "2호선",
+            "subwayCode": 2,
+            "startName": "강남",
+            "startX": 127.0276,
+            "startY": 37.4979,
+            "endName": "을지로입구",
+            "endX": 126.9824,
+            "endY": 37.5676,
+            "stationCount": 8,
+            "distance": 8500,
+            "sectionTime": 16
+          },
+          {
+            "trafficType": 3,
+            "distance": 150,
+            "sectionTime": 2
+          },
+          {
+            "trafficType": 2,
+            "busNo": "100",
+            "startName": "을지로입구역.광교",
+            "startX": 126.9824,
+            "startY": 37.5676,
+            "endName": "을지로입구역.시청방면",
+            "endX": 126.9820,
+            "endY": 37.5680,
+            "stationCount": 1,
+            "distance": 784,
+            "sectionTime": 7
+          }
+        ]
+      },
+      {
+        "pathType": 1,
+        "info": {
+          "totalTime": 32,
+          "totalDistance": 10200,
+          "totalPrice": 1450,
+          "busCount": 0,
+          "subwayCount": 2,
+          "transferCount": 1,
+          "totalWalk": 500,
+          "payment": 1450
+        },
+        "subPath": [
+          {
+            "trafficType": 3,
+            "distance": 250,
+            "sectionTime": 4
+          },
+          {
+            "trafficType": 1,
+            "subwayName": "2호선",
+            "subwayCode": 2,
+            "startName": "강남",
+            "startX": 127.0276,
+            "startY": 37.4979,
+            "endName": "시청",
+            "endX": 126.9760,
+            "endY": 37.5640,
+            "stationCount": 10,
+            "distance": 8500,
+            "sectionTime": 18
+          },
+          {
+            "trafficType": 3,
+            "distance": 150,
+            "sectionTime": 2
+          },
+          {
+            "trafficType": 1,
+            "subwayName": "1호선",
+            "subwayCode": 1,
+            "startName": "시청",
+            "startX": 126.9760,
+            "startY": 37.5640,
+            "endName": "을지로입구",
+            "endX": 126.9824,
+            "endY": 37.5676,
+            "stationCount": 1,
+            "distance": 800,
+            "sectionTime": 2
+          }
+        ]
+      },
+      {
+        "pathType": 3,
+        "info": {
+          "totalTime": 25,
+          "totalDistance": 8900,
+          "totalPrice": 2500,
+          "busCount": 2,
+          "subwayCount": 0,
+          "transferCount": 1,
+          "totalWalk": 300,
+          "payment": 2500
+        },
+        "subPath": [
+          {
+            "trafficType": 3,
+            "distance": 150,
+            "sectionTime": 2
+          },
+          {
+            "trafficType": 2,
+            "busNo": "200",
+            "startName": "강남역.광교",
+            "startX": 127.0276,
+            "startY": 37.4979,
+            "endName": "미도파",
+            "endX": 126.9950,
+            "endY": 37.5550,
+            "stationCount": 8,
+            "distance": 4200,
+            "sectionTime": 12
+          },
+          {
+            "trafficType": 3,
+            "distance": 100,
+            "sectionTime": 2
+          },
+          {
+            "trafficType": 2,
+            "busNo": "301",
+            "startName": "미도파",
+            "startX": 126.9950,
+            "startY": 37.5550,
+            "endName": "을지로입구역.시청방면",
+            "endX": 126.9824,
+            "endY": 37.5680,
+            "stationCount": 5,
+            "distance": 3900,
+            "sectionTime": 9
+          }
+        ]
+      }
+    ],
+    "searchType": 0,
+    "totalCount": 17
+  }
+}

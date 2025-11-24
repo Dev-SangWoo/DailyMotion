@@ -1,0 +1,9 @@
+# SafetyGuard 화면
+# 
+# 안전 가드 관련 화면이 위치합니다.
+# 
+# 구조:
+# SafetyGuard/
+#   ├── index.tsx
+#   └── components/
+

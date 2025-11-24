@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "DailyMotion",
+    "slug": "dailymotion",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dailymotion.client",
+      "config": {
+        "googleMapsApiKey": "YOUR_IOS_API_KEY_HERE"
+      }
+    },
+    "android": {
+      "package": "com.dailymotion.client",
+      "versionCode": 1,
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_ANDROID_API_KEY_HERE"
+        }
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "이 앱은 위치 정보를 사용하여 최적의 경로를 제공합니다."
+        }
+      ]
+    ],
+    "scheme": "dailymotion"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "1": [
+    { "name": "Main-Incheon", "SID": "97", "EID": "161" },
+    { "name": "Sinchang-Branch", "SID": "141", "EID": "1416" },
+    { "name": "Seodongtan-Branch", "SID": "186", "EID": "1187" },
+    { "name": "Gwangmyeong-Branch", "SID": "174", "EID": "1175" }
+  ],
+  "2": [
+    { "name": "Loop-Top", "SID": "201", "EID": "216" },
+    { "name": "Loop-Bottom", "SID": "216", "EID": "201" },
+    { "name": "Seongsu-Branch", "SID": "211", "EID": "253" },
+    { "name": "Sinjeong-Branch", "SID": "234", "EID": "264" }
+  ]
+}

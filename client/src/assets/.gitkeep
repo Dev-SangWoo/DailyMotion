@@ -1,0 +1,12 @@
+# 정적 자원 (Images, Fonts)
+# 
+# 이미지, 폰트 등 정적 파일들이 여기에 위치합니다.
+# 
+# 예시 구조:
+# assets/
+#   ├── images/
+#   │   ├── logo.png
+#   │   └── icons/
+#   └── fonts/
+#       └── CustomFont.ttf
+

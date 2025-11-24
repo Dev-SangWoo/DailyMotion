@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL + PostGIS 데이터베이스
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: dailymotion_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-dailymotion}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dailymotion_network
+
+  # FastAPI 애플리케이션
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dailymotion_api
+    environment:
+      # 데이터베이스 설정
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-dailymotion}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-dailymotion}
+
+      # API 키
+      ODSAY_API_KEY: ${ODSAY_API_KEY}
+
+      # NHN Cloud (optional)
+      NHN_CLOUD_ACCESS_KEY: ${NHN_CLOUD_ACCESS_KEY:-}
+      NHN_CLOUD_SECRET_KEY: ${NHN_CLOUD_SECRET_KEY:-}
+      NHN_CLOUD_REGION: ${NHN_CLOUD_REGION:-kr1}
+
+      # 보안
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
+
+      # 환경
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # 개발 시 hot reload
+      - ./alembic:/app/alembic
+    networks:
+      - dailymotion_network
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 5 &&
+        echo 'Running database migrations...' &&
+        alembic upgrade head &&
+        echo 'Starting FastAPI server...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # (Optional) Redis - 캐싱 및 세션 관리
+  redis:
+    image: redis:7-alpine
+    container_name: dailymotion_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dailymotion_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  dailymotion_network:
+    driver: bridge
