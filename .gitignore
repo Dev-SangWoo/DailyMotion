@@ -36,6 +36,20 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
+
+# Secrets and Keys
+*.keystore
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+secrets.yaml
+secrets.yml
+*.secret
 
 # Logs
 *.log
