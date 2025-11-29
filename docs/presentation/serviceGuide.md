@@ -21,6 +21,7 @@
 8. [실시간 데이터 통합 전략](#8-실시간-데이터-통합-전략)
 9. [성능 최적화 및 Fallback 전략](#9-성능-최적화-및-fallback-전략)
 10. [테스트 및 검증 전략](#10-테스트-및-검증-전략)
+11. [근거 및 참조 링크](#11-근거-및-참조-링크)
 
 ---
 
@@ -38,8 +39,6 @@
 │              FastAPI Backend (Python)                    │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  PathOptimizeService (핵심 로직 계층)         │  │
-│  │  - 11,000+ lines                                  │  │
-│  │  - 12개 public methods                            │  │
 │  │  - Logic 1.1 ~ 4.3 구현                           │  │
 │  └──────────────────────────────────────────────────┘  │
 │                     │                                    │
@@ -60,7 +59,7 @@
 - 향후 MSA 전환 시 최소 비용으로 분리 가능
 
 **핵심 모듈**:
-1. **path_optimize**: 경로 최적화 (11,000+ 라인)
+1. **path_optimize**: 경로 최적화 (2800+ 라인)
 2. **risk_manage**: 위험 관리 및 시민 리포트
 3. **ai_pattern**: AI 패턴 학습 (Phase E 예정)
 
@@ -83,9 +82,9 @@
 - **통계 신뢰도 검증**: 샘플 개수가 부족한 데이터는 제외
 
 #### 3) Performance First
-- **적응형 폴링**: 사용자 컨텍스트에 따른 갱신 빈도 (10초/30초/5분)
-- **배치 처리**: 여러 구간의 데이터를 병렬로 조회
-- **API 타임아웃**: 3초 내 응답 실패 시 Fallback
+- **적응형 폴링**: 사용자 컨텍스트에 따른 갱신 빈도 (10초/30초/5분) — `server/app/services/context_detector.py` 및 `docs/openapi/v1.yaml` Polling 엔드포인트 참고
+- **배치 처리**: 여러 구간의 데이터를 병렬로 조회 (PathOptimizeService 내 비동기 호출)
+- **API 타임아웃**: 기본 3초 타임아웃 후 Fallback (외부 API 클라이언트 공통 설정)
 
 ### 2.2 핵심 상수 정의
 
@@ -102,9 +101,9 @@ TIME_BENEFIT_THRESHOLD_COMMUTE = 7  # Gate 1: 출근 시간 절약 최소값
 ```
 
 **Magic Number 금지 원칙**:
-- 모든 임계값을 상수화
+- 모든 임계값을 상수화 (PathOptimizeService 상수 및 `docs/openapi/v1.yaml` 기준)
 - 코드 가독성 향상
-- 알고리즘 파라미터 조정 용이성 확보
+- 운영 데이터 기반으로 임계값 조정 용이
 
 ---
 
@@ -124,16 +123,16 @@ TIME_BENEFIT_THRESHOLD_COMMUTE = 7  # Gate 1: 출근 시간 절약 최소값
 
 Step 1: 경로 검색
 ┌──────────────────────────────────────────┐
-│ ODSAY API 호출                           │
-│ - 경로 검색: searchPubTransPathT       │
-│ - 정류장 검색: searchStation → 좌표 변환 │
+│ ODSAY API 호출                            │
+│ - 경로 검색: searchPubTransPathT           │
+│ - 정류장 검색: searchStation → 좌표 변환      │
 └──────────────────────────────────────────┘
          ↓
 Step 2: Door-to-Door 시간 계산
 ┌──────────────────────────────────────────┐
 │ totalDuration =                          │
-│   firstMile (5분)                        │
-│   + transitTime (ODSAY 결과)             │
+│   firstMile (5분)                         │
+│   + transitTime (ODSAY 결과)              │
 │   + lastMile (7분)                       │
 └──────────────────────────────────────────┘
          ↓
@@ -1497,78 +1496,24 @@ def _safe_api_call(self, api_func, fallback_value, context: str):
 
 ## 10. 테스트 및 검증 전략
 
-### 10.1 TDD (Test-Driven Development)
+- **E2E/Contract**: `server/app/modules/path_optimize/tests/test_e2e_commute_flow.py` (Logic 1.1~3.2 응답 스키마, 대안 경로, 지연 감지, 택시 제안)
+- **단위/통합**: `server/app/modules/path_optimize/tests/` 내 auto mode switch, route suggestion, seating, delay detector 등 서비스 레벨 테스트
+- **스키마 SSOT**: `docs/openapi/v1.yaml`를 기준으로 계약 유지, 테스트가 응답 필드를 단언
+- **잔여 리스크**: 시간/거리 경계값, 혼잡도 임계, 요금/ETA 계산 등 로직 단언 추가 필요 (테스트 TODO로 관리)
 
-**개발 프로세스**:
-```
-1. 실패하는 테스트 작성
-2. 최소한의 코드로 테스트 통과
-3. 리팩토링
-4. 반복
-```
+## 11. 근거 및 참조 링크
 
-### 10.2 테스트 커버리지
-
-```
-총 테스트: 229개
-통과율: 100% (229/229 PASSED)
-
-분류별:
-- Logic 1.1 (출발 알림): 45개
-- Logic 1.2 (막차 알림): 38개
-- Logic 2.1 (Context): 32개
-- Logic 2.2 (Gate): 51개
-- Logic 2.3 (착석): 28개
-- Logic 3.1 (지연): 19개
-- Logic 3.2 (택시): 16개
-```
-
-### 10.3 핵심 테스트 시나리오
-
-```python
-def test_gate_1_pass_commute_mode():
-    """
-    Gate 1 통과 테스트 (출근 모드)
-    - 시간 단축: 10분 (>= 7분 기준)
-    """
-    result = service.get_alternative_route_suggestion(
-        current_route_time=35,
-        alternative_route_time=25,
-        mode=SystemMode.COMMUTE,
-        current_bus_arrival_minutes=3,
-        alternative_bus_arrival_minutes=8,
-        alternative_congestion_rate=60
-    )
-
-    assert result["shouldSuggest"] == True
-    assert result["gateResults"]["gate1"] == "PASS"
-    assert result["timeSaved"] == 10
-
-def test_gate_1_fail_insufficient_time_benefit():
-    """
-    Gate 1 실패 테스트 (시간 이득 부족)
-    - 시간 단축: 3분 (< 7분 기준)
-    """
-    result = service.get_alternative_route_suggestion(
-        current_route_time=30,
-        alternative_route_time=27,
-        mode=SystemMode.COMMUTE,
-        ...
-    )
-
-    assert result["shouldSuggest"] == False
-    assert result["gateResults"]["gate1"] == "FAIL"
-    assert "Gate 1 failed" in result["reason"]
-```
+- OpenAPI 스펙: `docs/openapi/v1.yaml`
+- 로직 구현: `server/app/modules/path_optimize/service.py`
+- 상태 감지/폴링: `server/app/services/context_detector.py`
+- 계약 테스트: `server/app/modules/path_optimize/tests/test_e2e_commute_flow.py`
+- 임계값·Gate 문서: `server/docs/path_optimize/LOGIC_GUIDE.md`
 
 ---
 
-## 주요 시스템 성능 지표
+## 주요 시스템 성능 지표 (준비 중)
 
-### 응답 시간
-- **평균 응답 시간**: 200ms
-- **P95 응답 시간**: 500ms
-- **P99 응답 시간**: 1,000ms
+- 실측/벤치마크 수치는 추후 최신 데이터로 갱신 예정
 
 ### API 가용성
 - **ODSAY API**: 99.5%

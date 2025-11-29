@@ -694,7 +694,7 @@ def get_smart_polling_frequency(
     try:
         result = service.get_smart_polling_frequency(
             user_latitude=user_latitude,
-            user_longitude=user_longitude,
+            user_l  ongitude=user_longitude,
             user_speed=user_speed,
             transit_mode=transit_mode,
             distance_to_transfer=distance_to_transfer,

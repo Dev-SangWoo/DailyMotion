@@ -19,6 +19,7 @@
 8. [개발 워크플로우](#8-개발-워크플로우)
 9. [핵심 비즈니스 로직 요약](#9-핵심-비즈니스-로직-요약)
 10. [FAQ](#10-faq)
+11. [테스트·품질 근거](#11-테스트품질-근거)
 
 ---
 
@@ -66,17 +67,14 @@
 | **claude.md** | 프로젝트 헌법 (개발 규칙, 아키텍처 원칙) | 모든 개발자 + AI |
 | **AGENTS.md** | 상세 개발 규약 (프론트/백엔드 계약) | 모든 개발자 + AI |
 | **README.md** | 프로젝트 소개 및 설치 가이드 | 신규 개발자 |
-| **docs/dailymotion.md** | 🎯 이 문서 (프로젝트 구조 가이드) | 모든 개발자 |
+| **docs/presentation/dailymotion.md** | 🎯 이 문서 (프로젝트 구조 가이드) | 모든 개발자 |
 
 ### 2.2 API 문서
 
 | 문서 | 위치 | 설명 |
 |------|------|------|
 | **OpenAPI 스펙** | `docs/openapi/v1.yaml` | API 설계도 (SSOT) |
-| **API 계약서** | `docs/api-contracts.md` | 프론트엔드 연동 가이드 |
-| **프론트엔드 통합 가이드** | `docs/frontend_integration.md` | 화면별 API 호출 방법 |
-| **서비스 가이드** | `docs/serviceGuide.md` | 심사위원용 기술 프레젠테이션 (1,600+ 라인) |
-| **API 변경 이력** | `docs/api-changelog.md` | API 버전 관리 |
+| **서비스 가이드** | `docs/presentation/serviceGuide.md` | 심사위원용 기술 프레젠테이션 |
 
 ### 2.3 백엔드 모듈 문서
 
@@ -195,7 +193,7 @@ api/
     └── health_router.py          # 헬스체크 API
 ```
 
-**중요**: 라우터는 HTTP 요청/응답만 처리하고, 비즈니스 로직은 `modules/` 의 service 레이어에 위임합니다.
+**중요**: 라우터는 HTTP 요청/응답만 처리하고, 비즈니스 로직은 `modules/` 의 service 레이어에 위임합니다. (경로 최적화 로직: `server/app/modules/path_optimize/service.py`)
 
 #### 4.2.3 core/ - 설정 및 인증
 
@@ -821,7 +819,16 @@ const { data, isLoading } = useNewFeatureQuery(params);
        api.get('/api/v1/new-api', { params })
      );
    };
-   ```
+  ```
+
+---
+
+## 11. 테스트·품질 근거
+
+- OpenAPI SSOT: `docs/openapi/v1.yaml`
+- 경로 최적화 로직: `server/app/modules/path_optimize/service.py`
+- 계약/E2E 테스트: `server/app/modules/path_optimize/tests/test_e2e_commute_flow.py`
+- 임계값·Gate 설명: `server/docs/path_optimize/LOGIC_GUIDE.md`
 2. 화면에서 훅 사용
    ```typescript
    const { data, isLoading } = useNewApiQuery(params);

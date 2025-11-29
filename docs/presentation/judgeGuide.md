@@ -79,8 +79,6 @@
 │              FastAPI Backend (Python)                    │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  PathOptimizeService (핵심 로직 계층)           │  │
-│  │  - 2,800+ lines (실제 2,851 lines)            │  │
-│  │  - 20개 이상 public methods                     │  │
 │  │  - Logic 1.1 ~ 4.3 전체 구현                    │  │
 │  └──────────────────────────────────────────────────┘  │
 │                     │                                    │
@@ -180,6 +178,8 @@ expected_arrival = current_time + timedelta(
     + effective_transit_time
     + last_mile_duration
 )
+
+
 
 # 슬랙(여유 시간) 분 단위 계산
 slack_minutes = int((target_arrival - expected_arrival).total_seconds() / 60)
@@ -531,43 +531,39 @@ def _safe_api_call(self, api_func, fallback_value, context: str):
 
 ## 10. 테스트 및 검증 전략
 
-### 10.1 TDD 기반 개발 프로세스
+### 10.1 현재 실행 중인 핵심 테스트
 
-1. **실패하는 테스트**부터 작성  
-2. **최소 구현**으로 테스트 통과  
-3. **리팩토링**  
-4. 새로운 케이스 추가 → 반복  
+- **E2E/Contract**: `server/app/modules/path_optimize/tests/test_e2e_commute_flow.py` (Logic 1.1~3.2 응답 스키마, 대안 경로, 지연 감지, 택시 제안)
+- **단위/통합**: `server/app/modules/path_optimize/tests/` 내 auto mode switch, route suggestion, seating, delay detector 등 서비스 레벨 테스트
+- **SSOT**: `docs/openapi/v1.yaml` 기반 응답 필드 단언, `server/docs/path_optimize/LOGIC_GUIDE.md`로 임계값 정의
 
-### 10.2 테스트 커버리지 개요
+### 10.2 남은 리스크/보강 예정
 
-> 아래 수치는 현재 개발/시뮬레이션 환경 기준으로 산출한 예시입니다.  
-> 실제 운영 환경에서는 추가적인 통합 테스트가 포함됩니다.
+- 시간/거리 경계값(T-15/T-0), Gate 임계(7/10/3분, 혼잡<80%), 지연 5분 임계, 요금/ETA 계산 등 로직 단언 추가 필요
+- 실시간 부재 시 Fallback 흐름(4단계)과 폴링/환승 반경(10/30/300초, 500m) 테스트 강화 예정
 
-- Logic 1.1 (출발 알림)  
-- Logic 1.2 (막차/마지노선 경고)  
-- Logic 2.1 (Context Awareness)  
-- Logic 2.2 (3중 Gate)  
-- Logic 3.1 (지연 감지)  
-- Logic 3.2 (택시 제안) 등  
-→ 각 Logic에 대해 **정상/경계/에러 케이스**를 포함한 단위 테스트/통합 테스트 구성
-
-### 10.3 대표 테스트 예시
+### 10.3 대표 테스트 예시 (E2E 스니펫)
 
 ```python
-def test_gate_1_pass_commute_mode():
-    result = service.get_alternative_route_suggestion(
-        current_route_time=35,
-        alternative_route_time=25,
-        mode=SystemMode.COMMUTE,
-        current_bus_arrival_minutes=3,
-        alternative_bus_arrival_minutes=8,
-        alternative_congestion_rate=60,
-    )
-
-    assert result["shouldSuggest"] is True
-    assert result["gateResults"]["gate1"] == "PASS"
-    assert result["gateResults"]["gate2"] == "PASS"
-    assert result["gateResults"]["gate3"] == "PASS"
+resp = client.post(
+    "/api/v1/context/routes/alternative",
+    json={
+        "currentRouteTime": 40,
+        "alternativeRouteTime": 30,
+        "mode": "COMMUTE",
+        "currentBusArrivalMinutes": 2,
+        "currentBusDurationMinutes": 2,
+        "transferBusArrivalMinutes": 5,
+        "transferBusCongestion": 40,
+        "transferLocation": "온수",
+        "transferLine": "1호선 급행",
+    },
+)
+assert resp.status_code == 200
+data = resp.json()["data"]
+assert data["suggestAlternativeRoute"] is True
+assert data["timeBenefit"] == 10
+assert data["transferTime"] == 3
 ```
 
 ---
@@ -584,3 +580,13 @@ def test_gate_1_pass_commute_mode():
 이 버전은 심사위원용으로 **코드 블록은 대표 부분만 남기고**,  
 나머지 구현 세부사항은 `service.py` 및 관련 모듈(appendix 역할)로 위임하는 형태라서,  
 발표용/제출용으로 그대로 사용해도 자연스러운 구조입니다.
+
+---
+
+## 근거 및 참조 링크
+
+- OpenAPI 스펙: `docs/openapi/v1.yaml`
+- 경로 최적화 로직: `server/app/modules/path_optimize/service.py`
+- 상태 감지/폴링: `server/app/services/context_detector.py`
+- 계약/E2E 테스트: `server/app/modules/path_optimize/tests/test_e2e_commute_flow.py`
+- 임계값·Gate 설명: `server/docs/path_optimize/LOGIC_GUIDE.md`
